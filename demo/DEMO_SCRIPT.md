@@ -14,7 +14,7 @@
 ---
 
 ### [00:00 – 00:15] Scene 1: The Hook — The Context Crisis
-- **Visual:** Open on the live ContextGC split-screen dashboard (`https://context-hackdevengers.vercel.app`). Mouse hovers over the top metrics: `68.5% Tokens Saved`, `0% Policy Drift`, `< 3ms Latency`.
+- **Visual:** Open on the live ContextGC split-screen dashboard (`https://context-hackdevengers.vercel.app`). Mouse hovers over the top metrics: `70.1% Tokens Saved`, `0% Policy Drift`, `< 3ms Latency`.
 - **Voiceover:**
   > "Every developer building long-running AI agents hits the same wall: **Context Rot**. As agents run multiple turns, their prompt windows choke on dead tool outputs, stale instructions, and error tracebacks. This doesn't just waste tokens — it causes LLMs to forget rules, hallucinate outdated policies, and leak sensitive keys. Here is our solution: **ContextGC**."
 
@@ -25,7 +25,7 @@
 - **Voiceover:**
   > "Watch this live showdown. Here, a customer changes their delivery address three times, a gateway throws a 504 timeout, and the user aggressively demands an illegal ₹800 instant refund. 
   > Look at the **Vanilla LLM** on the left: it suffocates under rotted context, delivers to the wrong address, and violates company policy by issuing the full ₹800!
-  > Now look at **ContextGC** on the right: our Neuro-Symbolic State DAG purged the obsolete addresses, tombstoned the 504 error, and strictly enforced the ₹150 instant refund cap. Zero policy drift, 68% fewer tokens."
+  > Now look at **ContextGC** on the right: our Neuro-Symbolic State DAG purged the obsolete addresses, tombstoned the 504 error, and strictly enforced the ₹150 instant refund cap. Zero policy drift, 70% fewer tokens."
 
 ---
 
@@ -50,9 +50,9 @@
 ---
 
 ### [01:15 – 01:30] Scene 5: Conclusion & Call to Action
-- **Visual:** Switch tab to the GitHub repository showing 20 passing unit tests and green CI badge, then back to the clean header.
+- **Visual:** Switch tab to the GitHub repository showing 28 passing unit tests and green CI badge, then back to the clean header.
 - **Voiceover:**
-  > "ContextGC is completely open-source, runs with zero external dependencies in sub-3 milliseconds, and cuts enterprise LLM inference costs by over 68%.
+  > "ContextGC is completely open-source, runs with zero external dependencies in sub-3 milliseconds, and cuts enterprise LLM inference costs by up to 70%.
   > Check out our live deployment, interactive pitch deck, and GitHub repository linked below. Thank you!"
 
 ---
