@@ -98,8 +98,40 @@ def get_session(scenario: str = "operations"):
             "criteria": get_expected_eval_criteria()
         }
 
+@app.post("/api/simulate")
+def simulate(req: SimulationStepRequest):
+    """Simulates ContextGC execution on a selected scenario with optional turn limits and JIT recall."""
+    scenario = req.scenario or "operations"
+    engine = engine_code if scenario == "coding" else engine_ops
+    session = get_coding_agent_session() if scenario == "coding" else get_operations_crisis_session()
+    
+    if req.turn_limit is not None and req.turn_limit > 0:
+        session = session[:req.turn_limit]
+        
+    result = engine.process_session(session, query_for_jit=req.jit_query)
+    
+    return {
+        "scenario": scenario,
+        "turns_processed": len(session),
+        "telemetry": result["telemetry"],
+        "comparison": {
+            "vanilla_llm": {
+                "token_count": result["telemetry"]["raw_token_count"],
+                "latency_ms": result["telemetry"]["estimated_vanilla_latency_ms"],
+                "hallucination_risk": result["telemetry"]["vanilla_hallucination_risk_score"]
+            },
+            "context_gc": {
+                "token_count": result["telemetry"]["cleaned_token_count"],
+                "latency_ms": result["telemetry"]["estimated_gc_latency_ms"],
+                "hallucination_risk": result["telemetry"]["context_gc_hallucination_risk_score"]
+            }
+        },
+        "cleaned_messages": result["cleaned_messages"]
+    }
+
 @app.post("/api/benchmark-showdown")
 def benchmark_showdown(scenario: str = "operations"):
+
     """
     Executes a side-by-side showdown between Vanilla LLM Agent and ContextGC Agent
     evaluating Context Rot, token bloat, latency, and policy violation risks.
@@ -246,6 +278,16 @@ def get_dashboard():
             return HTMLResponse(content=f.read())
     return HTMLResponse("<h1>ContextGC Dashboard Loading...</h1>")
 
+@app.get("/presentation", response_class=HTMLResponse)
+def get_presentation():
+    """Returns the interactive pitch deck presentation slides."""
+    deck_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "presentation", "index.html"))
+    if os.path.exists(deck_path):
+        with open(deck_path, "r", encoding="utf-8") as f:
+            return HTMLResponse(content=f.read())
+    return HTMLResponse("<h1>ContextGC Presentation Deck Loading...</h1>")
+
 if __name__ == "__main__":
+
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)

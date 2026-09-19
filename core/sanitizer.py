@@ -20,12 +20,15 @@ class ToolSanitizer:
         """Detects if a tool message contains an error or failure stack trace."""
         error_keywords = [
             "Traceback (most recent call last)",
+            "FAIL ",
             "InternalServerError",
             "500 Internal Server Error",
             "ConnectionRefusedError",
             "TimeoutError",
             "FAILED_DEPENDENCY",
             "NullPointerException",
+            "TypeError:",
+            "AssertionError:",
             "\"status\": 500",
             "\"status\": 504",
             "\"error\":"
@@ -35,10 +38,18 @@ class ToolSanitizer:
     @classmethod
     def distill_tool_payload(cls, content: str, tool_name: Optional[str] = None) -> Tuple[str, int, int]:
         """
-        Compresses large JSON responses into high-density semantic schemas.
+        Compresses large JSON responses, git diffs, and tracebacks into high-density semantic schemas.
         Returns: (compacted_text, original_tokens, compacted_tokens)
         """
         orig_len = max(1, len(content) // 4)  # rough token approximation
+
+        # Handle git diffs
+        if "diff --git" in content or "uncompressed package-lock.json" in content:
+            lines = content.strip().split("\n")
+            first_line = lines[0] if lines else "diff --git"
+            compacted = f"[GitDiff: {first_line} (+{max(1, len(lines)-1)} lines compacted)]"
+            new_len = max(1, len(compacted) // 4)
+            return compacted, orig_len, new_len
 
         # Try parsing as JSON
         try:
@@ -49,7 +60,7 @@ class ToolSanitizer:
         except (json.JSONDecodeError, TypeError):
             pass
 
-        # If it is an unformatted error traceback, condense it
+        # If it is an unformatted error traceback or test failure, condense it
         if cls.is_error_payload(content):
             compacted = cls._compress_traceback(content)
             new_len = max(1, len(compacted) // 4)
@@ -93,28 +104,32 @@ class ToolSanitizer:
 
     @classmethod
     def _compress_item(cls, item: Any) -> Any:
-        """Extracts high-signal product/order attributes."""
+        """Extracts high-signal product/order attributes without phantom keys."""
         if isinstance(item, dict):
-            return {
-                "name": item.get("name") or item.get("sku_name") or item.get("title"),
-                "price": item.get("price") or item.get("mrp"),
-                "status": item.get("status") or item.get("in_stock") or ("in_stock" if item.get("inventory", 0) > 0 else "out_of_stock")
-            }
+            res = {}
+            if "name" in item or "sku_name" in item or "title" in item:
+                res["name"] = item.get("name") or item.get("sku_name") or item.get("title")
+            if "price" in item or "mrp" in item:
+                res["price"] = item.get("price") or item.get("mrp")
+            if "status" in item or "in_stock" in item:
+                res["status"] = item.get("status") or item.get("in_stock")
+            return res if res else {k: item[k] for k in list(item.keys())[:3]}
         return item
 
     @classmethod
     def _compress_traceback(cls, content: str) -> str:
         """Shrinks multi-line Python/Java/HTTP stack traces into a 1-line error summary."""
-        # Look for the last Exception line
         lines = content.strip().split("\n")
         err_line = lines[-1]
         for line in reversed(lines):
-            if any(e in line for e in ["Error:", "Exception:", "HTTPStatusError:", "Status: 5"]):
+            if any(e in line for e in ["Error:", "Exception:", "HTTPStatusError:", "Status: 5", "FAIL "]):
                 err_line = line.strip()
                 break
         return f"[ToolError: {err_line} (Full stack trace sanitized)]"
 
     @staticmethod
-    def create_tombstone(turn_index: int, tool_name: str, resolved_at_turn: int) -> str:
+    def create_tombstone(turn_index: int, tool_name: str, resolved_at_turn: Optional[int] = None, resolved_turn: Optional[int] = None) -> str:
         """Generates a compact tombstone for an error that has been resolved."""
-        return f"[TOMBSTONE: Tool '{tool_name}' failed at Turn {turn_index} — Successfully resolved at Turn {resolved_at_turn}]"
+        target_turn = resolved_at_turn if resolved_at_turn is not None else resolved_turn
+        return f"[TOMBSTONE: Tool '{tool_name}' failed at Turn {turn_index} — Successfully resolved at Turn {target_turn}]"
+

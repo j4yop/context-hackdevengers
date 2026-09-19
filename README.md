@@ -2,13 +2,19 @@
 
 > **Built for *Hack Devengers 2.0* (Open Innovation — AI, Developer Tools & Automation Track)**  
 > **Author:** Jay Gopal Tripathy ([@j4yop](https://github.com/j4yop))  
-> **Live Deployment:** [https://context-hackdevengers.vercel.app](https://context-hackdevengers.vercel.app)
+> **Live Deployment:** [https://context-hackdevengers.vercel.app](https://context-hackdevengers.vercel.app)  
+> **Interactive Pitch Deck:** [https://context-hackdevengers.vercel.app/presentation](https://context-hackdevengers.vercel.app/presentation)  
+> **Submission Manifest:** [`SUBMISSION.md`](file:///Users/jaygopal/context-hackdevengers/SUBMISSION.md)
 
-[![Hackathon](https://img.shields.io/badge/Hackathon-Hack%20Devengers%202.0-yellow.svg)](https://unstop.com/hackathons/hack-devengers-20-devengers-1749441)
+[![CI Build](https://github.com/j4yop/context-hackdevengers/actions/workflows/ci.yml/badge.svg)](https://github.com/j4yop/context-hackdevengers/actions)
 [![Live Demo](https://img.shields.io/badge/Demo-context--hackdevengers.vercel.app-emerald.svg)](https://context-hackdevengers.vercel.app)
+[![Pitch Deck](https://img.shields.io/badge/Deck-6--Slide%20Presentation-cyan.svg)](https://context-hackdevengers.vercel.app/presentation)
+[![Tests](https://img.shields.io/badge/Tests-16%20Passed-brightgreen.svg)]()
+[![Hackathon](https://img.shields.io/badge/Hackathon-Hack%20Devengers%202.0-yellow.svg)](https://unstop.com/hackathons/hack-devengers-20-devengers-1749441)
 [![Track](https://img.shields.io/badge/Track-Open%20Innovation%20(AI%20%26%20DevTools)-blue.svg)]()
 [![Python](https://img.shields.io/badge/Python-3.11+-brightgreen.svg)]()
 [![License](https://img.shields.io/badge/License-MIT-purple.svg)]()
+
 
 ---
 
@@ -124,24 +130,24 @@ cd context-hackdevengers
 pip install -r requirements.txt
 ```
 
-### 2. Run the Dashboard
+### 2. Run Interactive CLI Showdown (Zero Dependencies)
+```bash
+python3 demo/interactive_demo.py
+```
+Outputs instant side-by-side ANSI tables, token compression deltas, and vector JIT search recall.
+
+### 3. Run the Web Dashboard & Pitch Deck
 ```bash
 python3 server/main.py
 ```
-Open **`http://localhost:8000`** in your browser to view the live side-by-side agent showdown, token flamegraphs, and episodic memory inspector!
+- Open **`http://localhost:8000`** for the split-screen showdown dashboard.
+- Open **`http://localhost:8000/presentation`** for the interactive 6-slide pitch deck.
 
-### 3. Programmatic Python Usage
-```python
-from core import ContextGCEngine
-from scenarios import get_coding_agent_session
-
-engine = ContextGCEngine()
-result = engine.process_session(get_coding_agent_session())
-
-print("Cleaned Tokens:", result["telemetry"]["cleaned_token_count"])
-print("Tokens Saved:", result["telemetry"]["tokens_saved"])
-print("Active Slots:", result["telemetry"]["active_state_slots"])
+### 4. Run Automated Test Suite
+```bash
+pytest tests/test_engine.py -v
 ```
+Executes 16 tests covering State DAG causal pruning, tool compaction, vector search, policy invariants, and API endpoints.
 
 ---
 
@@ -149,23 +155,34 @@ print("Active Slots:", result["telemetry"]["active_state_slots"])
 
 ```
 context-hackdevengers/
+├── .github/workflows/
+│   └── ci.yml                        # GitHub Actions automated test workflow
 ├── core/
-│   ├── anchors.py          # Policy Invariant Anchoring & Violation Auditing
-│   ├── gc_engine.py        # Central ContextGC Interception Controller
-│   ├── sanitizer.py        # Tool JSON Compaction & Traceback Tombstoning
-│   ├── state_dag.py        # Neuro-Symbolic State DAG & Causal Invalidation
-│   └── vector_tier.py      # Episodic Vector Memory Tier & Similarity Recall
+│   ├── anchors.py                    # Policy Invariant Anchoring & Violation Auditing
+│   ├── gc_engine.py                  # Central ContextGC Defragmentation Controller
+│   ├── sanitizer.py                  # Tool JSON Compaction & Traceback Tombstoning
+│   ├── state_dag.py                  # Neuro-Symbolic State DAG & Causal Invalidation
+│   └── vector_tier.py                # Episodic Vector Memory Tier & Cosine Recall
+├── demo/
+│   ├── DEMO_SCRIPT.md                # 90-Second Product Demo Video Script
+│   └── interactive_demo.py           # Rich ANSI Terminal Benchmark Runner
+├── presentation/
+│   └── index.html                    # 6-Slide Agency-Grade Interactive Pitch Deck
 ├── scenarios/
 │   ├── coding_agent_refactor.py      # Autonomous Coding Agent Benchmark
 │   └── operations_dispatch_crisis.py # High-Velocity Operations Benchmark
 ├── server/
-│   └── main.py             # FastAPI REST Server & Showdown Endpoints
+│   └── main.py                       # FastAPI Server & REST Endpoints
+├── tests/
+│   └── test_engine.py                # 16 Unit & Integration Pytests
 ├── web/
-│   └── index.html          # Split-Screen Showdown Dashboard (Tailwind)
-├── vercel.json             # Vercel Deployment Configuration
-├── requirements.txt        # Minimal Python Dependencies
+│   └── index.html                    # Split-Screen Showdown Dashboard
+├── pyproject.toml                    # Package configuration & pytest settings
+├── requirements.txt                  # Minimal Python dependencies
+├── SUBMISSION.md                     # Turnkey Hack Devengers 2.0 Form Payload
 └── README.md
 ```
+
 
 ---
 

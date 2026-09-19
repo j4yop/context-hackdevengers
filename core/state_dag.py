@@ -46,18 +46,20 @@ class StateDAG:
         ],
         # Autonomous Software Engineering & DevTools
         "signature_algorithm": [
-            r"(?:use|switch to|mandated)\s+(RSA-256|Ed25519|HMAC-SHA256|ECDSA)\s+(?:signatures|keys|tokens)?",
+            r"\b(RSA-256|Ed25519|HMAC-SHA256|ECDSA)\b",
         ],
         "target_port": [
-            r"(?:port from [0-9]+ to|target (?:microservice )?port (?:to|is)|listening on port)\s*([0-9]{2,5})",
+            r"(?:(?:switch|change)?\s*(?:target\s*)?port\s*(?:from\s*[0-9]+\s*)?to|target (?:microservice )?port (?:to|is)?|listening on port|port\s*:?)\s*([0-9]{2,5})",
         ],
         "security_invariant": [
             r"(NEVER log (?:the )?[A-Za-z0-9_\s]+in plaintext)",
         ]
+
     }
 
     # Attributes that are strictly monotonic / immutable once asserted (cannot be silently overwritten)
     IMMUTABLE_ENTITIES = {"dietary_allergy", "security_invariant"}
+
 
     def __init__(self):
         self.nodes: Dict[str, List[FactNode]] = {}
@@ -113,10 +115,22 @@ class StateDAG:
                         "new_turn": turn_index,
                         "reason": f"Active state mutation: {prev_node.value} -> {node.value}"
                     })
+                    self.nodes[node.entity].append(node)
+                    self.active_state[node.entity] = node
+                    new_assertions.append({"entity": node.entity, "value": node.value})
+                else:
+                    # Previous node is an immutable guardrail! Reject override!
+                    self.invalidation_log.append({
+                        "entity": node.entity,
+                        "attempted_value": node.value,
+                        "turn": turn_index,
+                        "reason": f"Rejected mutation: {node.entity} is an IMMUTABLE guardrail."
+                    })
+            else:
+                self.nodes[node.entity].append(node)
+                self.active_state[node.entity] = node
+                new_assertions.append({"entity": node.entity, "value": node.value})
 
-            self.nodes[node.entity].append(node)
-            self.active_state[node.entity] = node
-            new_assertions.append({"entity": node.entity, "value": node.value})
 
         return {
             "turn_index": turn_index,
