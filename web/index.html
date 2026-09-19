@@ -203,18 +203,27 @@
           <p class="text-xs text-slate-500 mt-1">Side-by-side comparison: Vanilla Unmanaged Context vs ContextGC Defragmentation</p>
         </div>
 
-        <!-- Segmented Scenario Toggle -->
-        <div class="inline-flex p-1 rounded-xl bg-slate-100 border border-slate-200/80 text-xs font-bold">
-          <button id="btn-scen-ops" onclick="switchScenario('operations')" class="btn-tactile px-3.5 py-1.5 rounded-lg transition flex items-center gap-2 bg-white text-slate-950 shadow-sm">
-            <i class="fa-solid fa-truck-fast text-blue-600"></i>
-            <span>Logistics Incident</span>
-          </button>
-          <button id="btn-scen-code" onclick="switchScenario('coding')" class="btn-tactile px-3.5 py-1.5 rounded-lg transition flex items-center gap-2 text-slate-600 hover:text-slate-950">
-            <i class="fa-solid fa-code text-slate-500"></i>
-            <span>Coding Agent</span>
+        <div class="flex flex-wrap items-center gap-2">
+          <!-- Segmented Scenario Toggle -->
+          <div class="inline-flex p-1 rounded-xl bg-slate-100 border border-slate-200/80 text-xs font-bold">
+            <button id="btn-scen-ops" onclick="switchScenario('operations')" class="btn-tactile px-3.5 py-1.5 rounded-lg transition flex items-center gap-2 bg-white text-slate-950 shadow-sm">
+              <i class="fa-solid fa-truck-fast text-blue-600"></i>
+              <span>Logistics Incident</span>
+            </button>
+            <button id="btn-scen-code" onclick="switchScenario('coding')" class="btn-tactile px-3.5 py-1.5 rounded-lg transition flex items-center gap-2 text-slate-600 hover:text-slate-950">
+              <i class="fa-solid fa-code text-slate-500"></i>
+              <span>Coding Agent</span>
+            </button>
+          </div>
+
+          <!-- Copy Telemetry Button -->
+          <button onclick="copyTelemetry()" class="btn-tactile px-3 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold flex items-center gap-1.5 shadow-2xs transition" title="Copy Telemetry to Clipboard">
+            <i class="fa-regular fa-copy text-slate-500" id="btn-copy-icon"></i>
+            <span id="btn-copy-text">Copy Telemetry</span>
           </button>
         </div>
       </div>
+
 
       <!-- KPI Metrics Grid -->
       <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 my-6">
@@ -418,17 +427,27 @@
             Evicted context is asynchronously offloaded into vector storage. Query historical turns just-in-time via cosine similarity:
           </p>
           
-          <div class="flex gap-2 mb-4">
+          <div class="flex gap-2 mb-2">
             <input id="search-input" type="text" placeholder="e.g. 'what was the old address' or 'terminal error'" class="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-600 focus:bg-white font-mono transition" />
             <button onclick="searchArchive()" class="btn-tactile px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-xs shadow-sm transition">
               Search
             </button>
           </div>
 
+          <!-- Quick Try Badges -->
+          <div class="flex flex-wrap items-center gap-1.5 mb-4 text-[11px] font-mono">
+            <span class="text-slate-400">Try:</span>
+            <button type="button" onclick="applySearch('Tower B address')" class="btn-tactile px-2 py-0.5 rounded-md bg-slate-100 hover:bg-blue-50 text-slate-600 hover:text-blue-700 border border-slate-200 transition">"Tower B address"</button>
+            <button type="button" onclick="applySearch('rain delay')" class="btn-tactile px-2 py-0.5 rounded-md bg-slate-100 hover:bg-blue-50 text-slate-600 hover:text-blue-700 border border-slate-200 transition">"rain delay"</button>
+            <button type="button" onclick="applySearch('package diff')" class="btn-tactile px-2 py-0.5 rounded-md bg-slate-100 hover:bg-blue-50 text-slate-600 hover:text-blue-700 border border-slate-200 transition">"package diff"</button>
+            <button type="button" onclick="applySearch('RSA spec')" class="btn-tactile px-2 py-0.5 rounded-md bg-slate-100 hover:bg-blue-50 text-slate-600 hover:text-blue-700 border border-slate-200 transition">"RSA spec"</button>
+          </div>
+
           <div id="search-results-box" class="p-3.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-mono text-slate-600 min-h-[85px] flex items-center justify-center text-center">
-            Enter a search query above to inspect JIT semantic recall.
+            Enter a search query above or click a quick query to test JIT vector recall.
           </div>
         </div>
+
 
         <div class="mt-6 pt-3 border-t border-slate-100 text-[11px] text-slate-500 flex items-center justify-between font-mono">
           <span>Table: <strong class="text-slate-800">AGENT_EPISODIC_ARCHIVE</strong></span>
@@ -652,8 +671,43 @@
       }, 300);
     }
 
+    function applySearch(query) {
+      document.getElementById('search-input').value = query;
+      searchArchive();
+    }
+
+
+    async function copyTelemetry() {
+      const data = SCENARIOS[activeScenario];
+      const payload = {
+        product: "ContextGC",
+        scenario: activeScenario,
+        tokens_reduction: data.tokens_pct,
+        tokens_saved: data.tokens_label,
+        latency_improvement: data.latency_pct,
+        vector_archive_count: data.vector_count,
+        vanilla_tokens: data.vanilla_tokens,
+        context_gc_tokens: data.gc_tokens,
+        timestamp: new Date().toISOString()
+      };
+      try {
+        await navigator.clipboard.writeText(JSON.stringify(payload, null, 2));
+        const btnText = document.getElementById('btn-copy-text');
+        const btnIcon = document.getElementById('btn-copy-icon');
+        btnText.textContent = 'Copied!';
+        btnIcon.className = 'fa-solid fa-check text-emerald-600';
+        setTimeout(() => {
+          btnText.textContent = 'Copy Telemetry';
+          btnIcon.className = 'fa-regular fa-copy text-slate-500';
+        }, 1800);
+      } catch (e) {
+        console.error('Clipboard copy error', e);
+      }
+    }
+
     // Initialize default view
     renderScenario('operations');
   </script>
+
 </body>
 </html>
