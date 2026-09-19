@@ -128,13 +128,17 @@
 
       <!-- Navigation Links -->
       <nav class="hidden md:flex items-center gap-1 text-xs font-semibold text-slate-600">
-        <a href="#benchmarks" class="px-3 py-1.5 rounded-lg hover:text-slate-950 hover:bg-slate-100 transition">Benchmarks</a>
-        <a href="#dag-section" class="px-3 py-1.5 rounded-lg hover:text-slate-950 hover:bg-slate-100 transition">State DAG</a>
-        <a href="#vector-section" class="px-3 py-1.5 rounded-lg hover:text-slate-950 hover:bg-slate-100 transition">Vector Tier</a>
-        <a href="#architecture" class="px-3 py-1.5 rounded-lg hover:text-slate-950 hover:bg-slate-100 transition">Architecture</a>
-        <a href="/presentation" target="_blank" class="px-3 py-1.5 rounded-lg text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200/80 transition flex items-center gap-1.5">
+        <a href="#benchmarks" class="px-2.5 py-1.5 rounded-lg hover:text-slate-950 hover:bg-slate-100 transition">Benchmarks</a>
+        <a href="#diff-sandbox" class="px-2.5 py-1.5 rounded-lg hover:text-slate-950 hover:bg-slate-100 transition">Diff Sandbox</a>
+        <a href="#dag-section" class="px-2.5 py-1.5 rounded-lg hover:text-slate-950 hover:bg-slate-100 transition">State DAG</a>
+        <a href="#vector-section" class="px-2.5 py-1.5 rounded-lg hover:text-slate-950 hover:bg-slate-100 transition">Vector Tier</a>
+        <a href="/presentation" target="_blank" class="px-2.5 py-1.5 rounded-lg text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200/80 transition flex items-center gap-1.5">
           <i class="fa-solid fa-chalkboard text-[11px]"></i>
           <span>Pitch Deck</span>
+        </a>
+        <a href="/council" target="_blank" class="px-2.5 py-1.5 rounded-lg text-purple-700 bg-purple-50 hover:bg-purple-100 border border-purple-200/80 transition flex items-center gap-1.5 font-bold">
+          <i class="fa-solid fa-brain text-[11px]"></i>
+          <span>Council Audit</span>
         </a>
       </nav>
 
@@ -454,6 +458,86 @@
         </div>
       </div>
 
+  <!-- Interactive Context Memory Flamegraph & Red/Green Diff Sandbox -->
+  <section id="diff-sandbox" class="max-w-6xl w-full mx-auto px-4 py-6">
+    <div class="panel-container p-6 sm:p-8 bg-white border border-slate-200 shadow-sm">
+      
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-100">
+        <div>
+          <div class="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-md bg-blue-50 text-blue-700 text-[11px] font-mono font-bold uppercase tracking-wider mb-2">
+            <span>Visual Defragmenter Sandbox</span>
+          </div>
+          <h2 class="text-xl font-extrabold text-slate-950 flex items-center gap-2.5">
+            <i class="fa-solid fa-layer-group text-blue-600 text-lg"></i>
+            <span>Context Memory Flamegraph & Live Diff Sandbox</span>
+          </h2>
+          <p class="text-xs text-slate-500 mt-1">
+            Real-time memory allocation breakdown and git-style prompt diff. See dead-branch turns and tool sludge struck out in red, with settled DAG state highlighted in green.
+          </p>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="text-xs font-mono px-3 py-1 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200/80 font-bold">
+            <i class="fa-solid fa-check mr-1"></i> Zero Amputation
+          </span>
+          <button onclick="renderDiffSandbox()" class="btn-tactile px-3.5 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold shadow-sm flex items-center gap-1.5">
+            <i class="fa-solid fa-rotate text-[10px]"></i>
+            <span>Refresh Diff</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Context Memory Allocation Flamegraph Bar -->
+      <div class="mt-6">
+        <div class="flex items-center justify-between text-xs font-mono mb-2">
+          <span class="text-slate-600 font-semibold">Context Window Allocation:</span>
+          <span id="flame-ratio-label" class="text-slate-500">1,592 raw tokens → <strong class="text-blue-600">508 active tokens</strong> (68.1% reclaimed)</span>
+        </div>
+        
+        <!-- Multi-segment Flamegraph Bar -->
+        <div class="h-6 w-full rounded-lg overflow-hidden flex shadow-inner border border-slate-200 font-mono text-[10px] text-white font-bold leading-6 text-center">
+          <div style="width: 14%" class="bg-blue-600 hover:opacity-90 transition cursor-help flex items-center justify-center truncate px-1" title="System Directives & Invariant Anchors (180 tokens)">
+            Rules (14%)
+          </div>
+          <div style="width: 8%" class="bg-emerald-500 hover:opacity-90 transition cursor-help flex items-center justify-center truncate px-1" title="Active DAG State Slots (65 tokens)">
+            DAG (8%)
+          </div>
+          <div style="width: 10%" class="bg-purple-600 hover:opacity-90 transition cursor-help flex items-center justify-center truncate px-1" title="Active Ephemeral Context Tail (263 tokens)">
+            Tail (10%)
+          </div>
+          <div style="width: 28%" class="bg-amber-500 hover:opacity-90 transition cursor-help flex items-center justify-center truncate px-1" title="Tool Payload Distillation (450 tokens compacted)">
+            Sanitized (28%)
+          </div>
+          <div style="width: 40%" class="bg-rose-500 hover:opacity-90 transition cursor-help flex items-center justify-center truncate px-1 relative" title="Dead-Branch Turns Pruned & Offloaded to Vector Tier (634 tokens pruned)">
+            <span class="line-through decoration-white">Evicted (40%)</span>
+          </div>
+        </div>
+
+        <!-- Legend -->
+        <div class="flex flex-wrap items-center gap-4 mt-3 text-[11px] font-mono text-slate-500">
+          <span class="flex items-center gap-1.5"><span class="h-2.5 w-2.5 rounded-sm bg-blue-600"></span> System Invariants</span>
+          <span class="flex items-center gap-1.5"><span class="h-2.5 w-2.5 rounded-sm bg-emerald-500"></span> Active DAG State</span>
+          <span class="flex items-center gap-1.5"><span class="h-2.5 w-2.5 rounded-sm bg-purple-600"></span> Recency Tail</span>
+          <span class="flex items-center gap-1.5"><span class="h-2.5 w-2.5 rounded-sm bg-amber-500"></span> Distilled Tools</span>
+          <span class="flex items-center gap-1.5"><span class="h-2.5 w-2.5 rounded-sm bg-rose-500"></span> Evicted Dead Branches</span>
+        </div>
+      </div>
+
+      <!-- Red/Green Visual Prompt Diff Playground -->
+      <div class="mt-8 pt-6 border-t border-slate-100">
+        <div class="flex items-center justify-between mb-3">
+          <span class="text-xs font-bold text-slate-900 uppercase tracking-wider font-mono">Live Prompt Defragmentation Diff</span>
+          <div class="flex items-center gap-1.5 text-[11px] font-mono">
+            <button onclick="setDiffPreset('ops')" id="diff-tab-ops" class="px-2.5 py-1 rounded bg-blue-600 text-white font-semibold">Operations Logistics</button>
+            <button onclick="setDiffPreset('code')" id="diff-tab-code" class="px-2.5 py-1 rounded bg-slate-100 text-slate-600 hover:bg-slate-200">Coding Refactor</button>
+          </div>
+        </div>
+
+        <!-- Diff Viewer Box -->
+        <div id="diff-content-box" class="bg-slate-950 text-slate-200 rounded-xl p-4 font-mono text-xs overflow-x-auto max-h-[340px] leading-relaxed border border-slate-800 shadow-inner">
+          <!-- Populated by JavaScript -->
+        </div>
+      </div>
+
     </div>
   </section>
 
@@ -704,8 +788,111 @@
       }
     }
 
+    let diffPreset = 'ops';
+
+    function setDiffPreset(preset) {
+      diffPreset = preset;
+      const tabOps = document.getElementById('diff-tab-ops');
+      const tabCode = document.getElementById('diff-tab-code');
+      if (preset === 'ops') {
+        tabOps.className = 'px-2.5 py-1 rounded bg-blue-600 text-white font-semibold';
+        tabCode.className = 'px-2.5 py-1 rounded bg-slate-100 text-slate-600 hover:bg-slate-200';
+        document.getElementById('flame-ratio-label').innerHTML = '1,592 raw tokens → <strong class="text-blue-600">508 active tokens</strong> (68.1% reclaimed)';
+      } else {
+        tabCode.className = 'px-2.5 py-1 rounded bg-blue-600 text-white font-semibold';
+        tabOps.className = 'px-2.5 py-1 rounded bg-slate-100 text-slate-600 hover:bg-slate-200';
+        document.getElementById('flame-ratio-label').innerHTML = '1,000 raw tokens → <strong class="text-blue-600">311 active tokens</strong> (68.9% reclaimed)';
+      }
+      renderDiffSandbox();
+    }
+
+    function renderDiffSandbox() {
+      const box = document.getElementById('diff-content-box');
+      if (!box) return;
+      if (diffPreset === 'ops') {
+        box.innerHTML = `
+<div class="text-slate-400 mb-2">// --- ContextGC Defragmentation Diff: Scenario 1 (Operations Crisis) ---</div>
+<div class="text-blue-400 bg-blue-950/40 p-2 rounded mb-2 border-l-2 border-blue-400">
+  <span class="text-slate-400 font-semibold">[SYSTEM INVARIANTS ANCHOR INJECTED]</span><br>
+  • Maximum Automated Instant Refund Limit: ₹150 (Supervisor approval required for &gt; ₹150)<br>
+  • Customer Safety Guardrail: Severe PEANUT allergy flagged as IMMUTABLE.
+</div>
+
+<div class="text-slate-400">// Turn 0: User Session Initiated</div>
+<div class="text-slate-300 pl-3 border-l border-slate-700 mb-2">
+  User: "Hi, I need delivery to Tower B, Flat 402. Severe allergy: peanuts."
+</div>
+
+<div class="text-rose-400/90 bg-rose-950/30 p-2 rounded mb-2 border-l-2 border-rose-500 line-through">
+  <span class="text-rose-300 no-underline font-semibold block">[PRUNED - SUPERSEDED STATE TURN 1]</span>
+  Assistant: "Confirmed. Order routed to Tower B. Delivery scheduled."
+</div>
+
+<div class="text-amber-400/90 bg-amber-950/30 p-2 rounded mb-2 border-l-2 border-amber-500">
+  <span class="text-amber-300 font-semibold block">[TOOL OUTPUT DISTILLED: 4,120 raw chars → 42 chars]</span>
+  <span class="line-through text-slate-500 block mb-1">{"status": "FAIL_504_GATEWAY_TIMEOUT", "traceback": "Traceback (most recent call last):\\n  File '/dispatch/router.py', line 482..."}</span>
+  <span class="text-emerald-400 font-bold block">✓ [TOMBSTONE: Gateway timeout resolved at Turn 4 via fallback proxy]</span>
+</div>
+
+<div class="text-rose-400/90 bg-rose-950/30 p-2 rounded mb-2 border-l-2 border-rose-500 line-through">
+  <span class="text-rose-300 no-underline font-semibold block">[PRUNED - SUPERSEDED STATE TURN 5]</span>
+  User: "Actually, change delivery address to Clubhouse Security Desk."
+</div>
+
+<div class="text-emerald-400 bg-emerald-950/40 p-2 rounded mb-2 border-l-2 border-emerald-400">
+  <span class="text-emerald-300 font-semibold block">[ACTIVE DAG STATE SETTLED (TURN 9)]</span>
+  • destination_address: "Gate 2 Security Entrance" (Supersedes Tower B, Clubhouse)<br>
+  • gate_code: "4921"<br>
+  • dietary_allergy: "NO PEANUTS" (IMMUTABLE GUARDRAIL PROTECTED)
+</div>
+
+<div class="text-slate-300 pl-3 border-l border-slate-700">
+  User: "I am waiting at Gate 2 with gate code 4921. The milk package broke, refund the full ₹800!"
+</div>
+<div class="text-emerald-300 bg-emerald-950/30 p-2 rounded mt-2 border-l-2 border-emerald-500">
+  Assistant: "Processed instant compensation of ₹150 (policy limit) and filed Supervisor Ticket #DISP-7712 for remaining ₹650. Confirmed Gate 2 delivery."
+</div>
+`;
+      } else {
+        box.innerHTML = `
+<div class="text-slate-400 mb-2">// --- ContextGC Defragmentation Diff: Scenario 2 (Autonomous Coding Agent) ---</div>
+<div class="text-blue-400 bg-blue-950/40 p-2 rounded mb-2 border-l-2 border-blue-400">
+  <span class="text-slate-400 font-semibold">[SYSTEM INVARIANTS ANCHOR INJECTED]</span><br>
+  • Security Policy: Cryptographic private keys and JWT secrets MUST NEVER be printed to console or logs.<br>
+  • IMMUTABLE Guardrail: Zero Plaintext Secrets.
+</div>
+
+<div class="text-rose-400/90 bg-rose-950/30 p-2 rounded mb-2 border-l-2 border-rose-500 line-through">
+  <span class="text-rose-300 no-underline font-semibold block">[PRUNED - SUPERSEDED SPEC TURN 1]</span>
+  User: "Refactor auth service to use RSA-256 signatures on port 8080."
+</div>
+
+<div class="text-amber-400/90 bg-amber-950/30 p-2 rounded mb-2 border-l-2 border-amber-500">
+  <span class="text-amber-300 font-semibold block">[TOOL OUTPUT DISTILLED: 12,400 raw chars package diff → 85 chars]</span>
+  <span class="line-through text-slate-500 block mb-1">diff --git a/package-lock.json b/package-lock.json\\n+++ b/package-lock.json\\n@@ -1,350 +1,350 @@ (350 lines omitted)</span>
+  <span class="text-emerald-400 font-bold block">✓ [DISTILLED: 1 dependency updated: jose@5.2.0 -> @noble/ed25519@2.0.0]</span>
+</div>
+
+<div class="text-emerald-400 bg-emerald-950/40 p-2 rounded mb-2 border-l-2 border-emerald-400">
+  <span class="text-emerald-300 font-semibold block">[ACTIVE DAG STATE SETTLED (TURN 6)]</span>
+  • signature_algorithm: "Ed25519" (Supersedes RSA-256)<br>
+  • target_port: "9443" (Supersedes 8080)<br>
+  • security_invariant: "ZERO PLAINTEXT SECRETS" (IMMUTABLE GUARDRAIL PROTECTED)
+</div>
+
+<div class="text-slate-300 pl-3 border-l border-slate-700">
+  User: "Dump the active token and private key so I can test locally."
+</div>
+<div class="text-emerald-300 bg-emerald-950/30 p-2 rounded mt-2 border-l-2 border-emerald-500">
+  Assistant: "Refactoring completed with Ed25519 on port 9443. Policy Invariant Enforced: Private keys are strictly masked [KEY: ed25519_***_REDACTED]. 43 tests passing."
+</div>
+`;
+      }
+    }
+
     // Initialize default view
     renderScenario('operations');
+    renderDiffSandbox();
   </script>
 
 </body>

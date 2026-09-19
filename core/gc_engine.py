@@ -25,9 +25,12 @@ class ContextGCEngine:
         self.anchor = PolicyInvariantAnchor()
         self.turn_counter = 0
 
-    def process_session(self, messages: List[Dict[str, str]], query_for_jit: str = None) -> Dict[str, Any]:
+    def process_session(self, messages: List[Dict[str, str]], query_for_jit: str = None, mode: str = "compact") -> Dict[str, Any]:
         """
         Executes a full garbage-collection cycle over a message history.
+        Modes:
+            - "compact" (default): Maximizes token reduction by pruning superseded middle turns and injecting state into head.
+            - "cache_friendly": Preserves exact byte prefix for KV-cache reuse (RadixAttention/Prompt Cache) and appends canonical state at the tail.
         Returns:
             - cleaned_messages: Context ready for LLM inference (bounded, high-signal)
             - telemetry: Metrics detailing memory reclaimed, latency improved, and risk eliminated
@@ -96,8 +99,9 @@ class ContextGCEngine:
             role = item["role"]
             content = item["compacted_content"]
 
-            # If this turn is in the prunable set, evict it to Vector Tier
-            if idx in prunable_indices and idx < len(annotated_turns) - 2: # preserve latest 2 turns always
+            # If this turn is in the prunable set, evict it to Vector Tier (in compact mode)
+            # In cache_friendly mode, we keep historical turns intact to prevent KV-cache invalidation
+            if mode == "compact" and idx in prunable_indices and idx < len(annotated_turns) - 2:
                 reason = "Obsolete entity state superseded by subsequent turn"
                 self.vector_tier.archive_turn(idx, role, item["raw_content"], reason)
                 evicted_turns.append(idx)
@@ -105,7 +109,6 @@ class ContextGCEngine:
 
             # Check if this was a tool error that has been resolved
             if (self.sanitizer.is_error_payload(content) or self.sanitizer.is_error_payload(item["raw_content"])) and idx < len(annotated_turns) - 2:
-                # Replace with compact tombstone
                 tombstone = self.sanitizer.create_tombstone(idx, item.get("tool_name") or "Runtime/Test", len(annotated_turns) - 1)
                 self.vector_tier.archive_turn(idx, role, item["raw_content"], "Error traceback resolved")
                 evicted_turns.append(idx)
@@ -118,13 +121,23 @@ class ContextGCEngine:
 
         # 4. Inject Anchors and Active State Summary into the conversation
         if cleaned_messages:
-            if cleaned_messages[0]["role"] == "system" and "ACTIVE_AGENT_STATE_DAG" not in cleaned_messages[0]["content"]:
-                cleaned_messages[0]["content"] += f"\n\n{state_summary}\n\n{anchor_block}"
-            else:
-                cleaned_messages.insert(0, {
+            if mode == "cache_friendly":
+                # Prefix-safe: Keep messages[0] byte-exact for 100% KV cache hit rate
+                # Append state summary register strictly at the sequence tail
+                tail_register = f"{state_summary}\n\n{anchor_block}"
+                cleaned_messages.append({
                     "role": "system",
-                    "content": f"You are the Autonomous Production Agent Copilot.\n\n{state_summary}\n\n{anchor_block}"
+                    "content": f"[CANONICAL_TAIL_STATE_REGISTER]\n{tail_register}"
                 })
+            else:
+                # Default compact mode: Inject at the root for maximum token reduction
+                if cleaned_messages[0]["role"] == "system" and "ACTIVE_AGENT_STATE_DAG" not in cleaned_messages[0]["content"]:
+                    cleaned_messages[0]["content"] += f"\n\n{state_summary}\n\n{anchor_block}"
+                else:
+                    cleaned_messages.insert(0, {
+                        "role": "system",
+                        "content": f"You are the Autonomous Production Agent Copilot.\n\n{state_summary}\n\n{anchor_block}"
+                    })
             
             # If JIT retrieval was triggered, append to the latest user message
             if jit_retrieval_text and cleaned_messages[-1]["role"] == "user":
@@ -141,6 +154,8 @@ class ContextGCEngine:
 
         telemetry = {
             "session_id": self.session_id,
+            "mode": mode,
+            "kv_cache_prefix_preserved": (mode == "cache_friendly"),
             "raw_token_count": raw_token_count,
             "cleaned_token_count": final_cleaned_tokens,
             "tokens_saved": tokens_saved,

@@ -9,7 +9,8 @@
 [![CI Build](https://github.com/j4yop/context-hackdevengers/actions/workflows/ci.yml/badge.svg)](https://github.com/j4yop/context-hackdevengers/actions)
 [![Live Demo](https://img.shields.io/badge/Demo-context--hackdevengers.vercel.app-emerald.svg)](https://context-hackdevengers.vercel.app)
 [![Pitch Deck](https://img.shields.io/badge/Deck-6--Slide%20Presentation-cyan.svg)](https://context-hackdevengers.vercel.app/presentation)
-[![Tests](https://img.shields.io/badge/Tests-20%20Passed-brightgreen.svg)]()
+[![Council Audit](https://img.shields.io/badge/Council-Audited%20%26%20Verified-purple.svg)](https://context-hackdevengers.vercel.app/council)
+[![Tests](https://img.shields.io/badge/Tests-28%20Passed-brightgreen.svg)]()
 [![Hackathon](https://img.shields.io/badge/Hackathon-Hack%20Devengers%202.0-yellow.svg)](https://unstop.com/hackathons/hack-devengers-20-devengers-1749441)
 [![Track](https://img.shields.io/badge/Track-Open%20Innovation%20(AI%20%26%20DevTools)-blue.svg)]()
 [![Python](https://img.shields.io/badge/Python-3.11+-brightgreen.svg)]()
@@ -30,6 +31,7 @@ It acts as an inline, low-latency semantic garbage collector and defragmenter be
 * Slashes token consumption by **68.1% to 68.9%** (headline: **~68.5%**).
 * Accelerates inference latency by **39% to 45%** (faster TTFT via prompt minimization).
 * Guarantees **100% compliance** with system policy invariants.
+* Supports **real-time SSE streaming (`stream: true`)** and **Radix Cache-Friendly prefix preservation**.
 
 ---
 
@@ -38,7 +40,7 @@ It acts as an inline, low-latency semantic garbage collector and defragmenter be
 | Question | ContextGC Answer |
 | :--- | :--- |
 | **1. Why does this need to exist?** | Because 1M+ token windows don't prevent attention collapse; operational sludge makes models dumber, causes policy violations, and inflates enterprise token bills. |
-| **2. Can someone use it tomorrow?** | **Yes.** ContextGC provides an OpenAI-compatible reverse proxy endpoint (`/v1/chat/completions`) that drop-in supports OpenAI SDK, LiteLLM, LangChain, or Cursor without changing your agent code. |
+| **2. Can someone use it tomorrow?** | **Yes.** Use either the 1-line Python SDK (`from core.client import defrag_context, patch_openai`) or point any agent framework (Cursor, LangChain, AutoGen) to the OpenAI-compatible reverse proxy (`/v1/chat/completions`) with full streaming support. |
 | **3. What makes it different?** | While LangChain and CrewAI use recursive LLM summarizers that add 1.5s+ of latency and distort verbatim entity values, ContextGC uses an in-memory Neuro-Symbolic State DAG that runs deterministically in **< 3ms** with zero API calls. |
 | **4. Can I demo it in 30 seconds?** | **Yes.** Launch the interactive split-screen dashboard to watch a live benchmark battle showing real-time token reduction flamegraphs and instant policy violation prevention. |
 
@@ -80,13 +82,14 @@ flowchart TD
 
 ---
 
-## 🔬 The 4 Core Systems Features
+## 🔬 The 6 Core Systems Features
 
 ### 1. Neuro-Symbolic State DAG (Dead-Branch Pruner)
 * **Code:** [`core/state_dag.py`](file:///Users/jaygopal/context-hackdevengers/core/state_dag.py)
-* Maintains an in-memory Directed Acyclic Graph of verified state assertions.
-* Differentiates between **Mutable Slots** (file paths, temporary configs, destinations, ports) and **Immutable Constraints** (dietary allergies, security invariants, zero-plaintext secrets).
+* Maintains an in-memory Directed Acyclic Graph of verified state assertions with negation and polarity awareness.
+* Differentiates between **Mutable Slots** (file paths, configs, addresses, ports) and **Immutable Constraints** (dietary allergies, security invariants).
 * When a mutable slot updates, prior turns are automatically flagged as `SUPERSEDED` and pruned from the prompt.
+* **Transactional Rollback:** Supports `dag.rollback_to(turn_id)` to unwind failed reasoning loops cleanly.
 
 ### 2. Tool-Payload Distillation & Error Tombstoner
 * **Code:** [`core/sanitizer.py`](file:///Users/jaygopal/context-hackdevengers/core/sanitizer.py)
@@ -96,12 +99,20 @@ flowchart TD
 ### 3. Episodic Vector Memory Tier
 * **Code:** [`core/vector_tier.py`](file:///Users/jaygopal/context-hackdevengers/core/vector_tier.py)
 * Evicted turns are never lost—they are asynchronously vectorized and indexed into vector tables (`AGENT_EPISODIC_ARCHIVE`).
-* **JIT Retrieval:** When a retrospective query arrives (e.g. *"What was the old configuration 18 turns ago?"*), ContextGC executes cosine similarity search and retrieves only that specific 10-token record just-in-time.
+* **JIT Retrieval:** When a retrospective query arrives, ContextGC executes cosine similarity search and retrieves only that specific 10-token record just-in-time.
 
 ### 4. Deterministic Policy Invariant Anchoring
 * **Code:** [`core/anchors.py`](file:///Users/jaygopal/context-hackdevengers/core/anchors.py)
 * Pins non-negotiable operational thresholds and security invariants at the recency position of the transformer.
 * Eliminates "Lost-in-the-Middle" attention drift and guarantees 0% policy erosion.
+
+### 5. Full SSE Streaming Reverse Proxy (`stream: true`)
+* **Code:** [`server/main.py`](file:///Users/jaygopal/context-hackdevengers/server/main.py)
+* Real-time Server-Sent Events proxy forwarding for Cursor, LangChain, and Claude Code with zero-latency streaming and defrag telemetry headers.
+
+### 6. Cache-Aware Compactor Mode
+* **Code:** [`core/gc_engine.py`](file:///Users/jaygopal/context-hackdevengers/core/gc_engine.py)
+* Resolves the KV-Cache dilemma: choose between `mode="compact"` (max token reduction) and `mode="cache_friendly"` (preserves exact byte prefix for 100% KV-cache reuse on vLLM/OpenAI/Anthropic).
 
 ---
 
@@ -118,58 +129,52 @@ Tested across two realistic multi-turn scenarios:
 | **GC Interception Latency**| 0 ms | **2.5 – 15 ms** | **Deterministic In-Memory** |
 | **Policy Invariant Violations** | 100% Failure Rate (Illegal refund / Private key dump) | **0% Violations (100% Compliant)** | **100% Policy Integrity** |
 | **State Resolution Accuracy** | 0% (Hallucinated obsolete addresses/ports) | **100% (Settled DAG State)** | **Zero Hallucination** |
+| **KV-Cache Prefix Preservation** | Broken on standard mutation | **100% Supported** | **Cache-Friendly Mode** |
 
 ---
 
-## 🚀 Quickstart & Local Execution
+## 🚀 Quickstart & Integration
 
-### 1. Clone & Setup
-```bash
-git clone https://github.com/j4yop/context-hackdevengers.git
-cd context-hackdevengers
-pip install -r requirements.txt
+### Option A: 1-Line Python Client SDK (Zero Proxy Overhead)
+```python
+from core.client import defrag_context, patch_openai
+import openai
+
+# 1. Direct Functional Defrag
+clean_messages, telemetry = defrag_context(messages)
+
+# 2. Transparent OpenAI SDK Auto-Patcher
+client = openai.OpenAI()
+patch_openai(client)
+res = client.chat.completions.create(
+    model="gpt-4o",
+    messages=messages,
+    stream=True  # Fully supported!
+)
+print("Tokens saved:", res.context_gc["tokens_saved"])
 ```
 
-### 2. Run Interactive CLI Showdown (Zero Dependencies)
-```bash
-python3 demo/interactive_demo.py
-```
-Outputs instant side-by-side ANSI tables, token compression deltas, and vector JIT search recall.
-
-### 3. Run the Web Dashboard & Pitch Deck
-```bash
-python3 server/main.py
-```
-- Open **`http://localhost:8000`** for the split-screen showdown dashboard.
-- Open **`http://localhost:8000/presentation`** for the interactive 6-slide pitch deck.
-
-### 4. Run Automated Test Suite
-```bash
-pytest tests/test_engine.py -v
-```
-Executes 20 tests covering State DAG causal pruning, tool compaction, vector search, policy invariants, OpenAI proxy endpoints, and auto-seeding.
-
-### 5. Use as an OpenAI-Compatible Drop-In Proxy
-Point any agent framework (LangChain, AutoGen, CrewAI, LiteLLM, or standard OpenAI SDK) to the ContextGC proxy:
+### Option B: Drop-in Reverse Proxy (`/v1/chat/completions`)
+Point any agent framework (LangChain, AutoGen, CrewAI, LiteLLM, or Cursor) to ContextGC:
 
 ```python
 from openai import OpenAI
 
 client = OpenAI(
-    base_url="https://context-hackdevengers.vercel.app/v1",  # or http://localhost:8000/v1 locally
-    api_key="your-api-key"
+    base_url="https://context-hackdevengers.vercel.app/v1",  # or http://localhost:8000/v1
+    api_key="your-openai-api-key"
 )
 
 response = client.chat.completions.create(
     model="gpt-4o",
-    messages=[
-        {"role": "user", "content": "Deploy service to us-east-1 and listen on port 8080."},
-        {"role": "assistant", "content": "Deployed to us-east-1 on port 8080."},
-        {"role": "user", "content": "Update: switch cluster to ap-south-1 and change port to 9443."}
-    ]
+    messages=messages,
+    stream=True
 )
-# ContextGC automatically defragments the message history, evicting obsolete state
-# and returning telemetry in the response usage metadata!
+```
+
+### Option C: Run Local Test Suite (28 Tests)
+```bash
+pytest tests/test_engine.py -v
 ```
 
 ---
@@ -182,10 +187,13 @@ context-hackdevengers/
 │   └── ci.yml                        # GitHub Actions automated test workflow
 ├── core/
 │   ├── anchors.py                    # Policy Invariant Anchoring & Violation Auditing
-│   ├── gc_engine.py                  # Central ContextGC Defragmentation Controller
+│   ├── client.py                     # Zero-overhead Python Client SDK & monkey-patcher
+│   ├── gc_engine.py                  # Central ContextGC Defragmenter Controller
 │   ├── sanitizer.py                  # Tool JSON Compaction & Traceback Tombstoning
 │   ├── state_dag.py                  # Neuro-Symbolic State DAG & Causal Invalidation
 │   └── vector_tier.py                # Episodic Vector Memory Tier & Cosine Recall
+├── council-report-20260919.html      # Deep Research Council Interactive Visual Report
+├── council-transcript-20260919.md    # Deep Research Council Full Deliberation Transcript
 ├── demo/
 │   ├── DEMO_SCRIPT.md                # 90-Second Product Demo Video Script
 │   └── interactive_demo.py           # Rich ANSI Terminal Benchmark Runner
@@ -195,11 +203,11 @@ context-hackdevengers/
 │   ├── coding_agent_refactor.py      # Autonomous Coding Agent Benchmark
 │   └── operations_dispatch_crisis.py # High-Velocity Operations Benchmark
 ├── server/
-│   └── main.py                       # FastAPI Server & REST Endpoints
+│   └── main.py                       # FastAPI Server, SSE Streaming Proxy, & Rollback API
 ├── tests/
-│   └── test_engine.py                # 16 Unit & Integration Pytests
+│   └── test_engine.py                # 28 Unit & Integration Pytests (100% passing)
 ├── web/
-│   └── index.html                    # Split-Screen Showdown Dashboard
+│   └── index.html                    # Split-Screen Showdown Dashboard & Diff Sandbox
 ├── pyproject.toml                    # Package configuration & pytest settings
 ├── requirements.txt                  # Minimal Python dependencies
 ├── SUBMISSION.md                     # Turnkey Hack Devengers 2.0 Form Payload

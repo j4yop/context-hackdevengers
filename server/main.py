@@ -7,7 +7,7 @@ Built for Hack Devengers 2.0 (Open Innovation — AI & Developer Tools Track).
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 from pydantic import BaseModel
 from typing import List, Dict, Any, Optional
 import time
@@ -15,6 +15,8 @@ import os
 import sys
 import uuid
 import httpx
+import asyncio
+import json
 
 # Ensure context-hackdevengers core is importable
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
@@ -58,6 +60,11 @@ class SimulationStepRequest(BaseModel):
     turn_limit: Optional[int] = None
     jit_query: Optional[str] = None
     scenario: Optional[str] = "operations"
+    mode: Optional[str] = "compact"
+
+class RollbackRequest(BaseModel):
+    scenario: Optional[str] = "operations"
+    target_turn: int
 
 class OpenAIChatCompletionRequest(BaseModel):
     model: Optional[str] = "gpt-4o"
@@ -65,6 +72,7 @@ class OpenAIChatCompletionRequest(BaseModel):
     temperature: Optional[float] = 0.7
     max_tokens: Optional[int] = None
     stream: Optional[bool] = False
+    mode: Optional[str] = "compact"
 
 @app.get("/api/health")
 def health_check():
@@ -297,18 +305,30 @@ def search_vector_archive(req: QueryRequest):
         "matches": results
     }
 
+@app.post("/api/dag/rollback")
+def rollback_dag(req: RollbackRequest):
+    """Rolls back state mutations in the active State DAG to a designated prior turn."""
+    engine = _ensure_engine_seeded(req.scenario or "operations")
+    rollback_info = engine.dag.rollback_to(req.target_turn)
+    return {
+        "status": "success",
+        "scenario": req.scenario,
+        "target_turn": req.target_turn,
+        "rollback": rollback_info
+    }
+
 @app.post("/v1/chat/completions")
 async def chat_completions(req: OpenAIChatCompletionRequest, request: Request):
     """
-    OpenAI-compatible drop-in reverse proxy endpoint.
+    OpenAI-compatible drop-in reverse proxy endpoint with SSE Streaming support.
     Intercepts LLM requests, executes ContextGC defragmentation cycle,
     evicts superseded entities, compresses tool bloat, and injects state anchors.
-    If an OPENAI_API_KEY is provided, forwards the defragged context to OpenAI;
-    otherwise returns a compliant chat.completion payload with ContextGC telemetry.
+    Supports both unary JSON and real-time SSE streaming (stream: true).
     """
-    session_id = f"PROXY-{uuid.uuid4().hex[:8]}"
+    session_id = request.headers.get("x-session-id") or f"PROXY-{uuid.uuid4().hex[:8]}"
+    mode = req.mode or "compact"
     engine = ContextGCEngine(session_id=session_id)
-    gc_result = engine.process_session(req.messages)
+    gc_result = engine.process_session(req.messages, mode=mode)
     cleaned_messages = gc_result["cleaned_messages"]
     telemetry = gc_result["telemetry"]
 
@@ -316,6 +336,82 @@ async def chat_completions(req: OpenAIChatCompletionRequest, request: Request):
     auth_header = request.headers.get("Authorization", "")
     api_key = auth_header.replace("Bearer ", "").strip() if "Bearer " in auth_header else os.environ.get("OPENAI_API_KEY", "")
 
+    # 1. Handle Streaming Requests (stream: true)
+    if req.stream:
+        if api_key and not api_key.startswith("dummy") and not api_key.startswith("test") and len(api_key) > 20:
+            async def upstream_sse_generator():
+                try:
+                    async with httpx.AsyncClient(timeout=60.0) as client_http:
+                        async with client_http.stream(
+                            "POST",
+                            "https://api.openai.com/v1/chat/completions",
+                            headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+                            json={
+                                "model": req.model,
+                                "messages": cleaned_messages,
+                                "temperature": req.temperature,
+                                "stream": True,
+                                **({"max_tokens": req.max_tokens} if req.max_tokens else {})
+                            }
+                        ) as upstream_stream:
+                            async for chunk in upstream_stream.aiter_bytes():
+                                yield chunk
+                except Exception as e:
+                    err_chunk = {"error": {"message": str(e), "type": "context_gc_proxy_error"}}
+                    yield f"data: {json.dumps(err_chunk)}\n\n".encode("utf-8")
+
+            return StreamingResponse(
+                upstream_sse_generator(),
+                media_type="text/event-stream",
+                headers={
+                    "x-context-gc-tokens-saved": str(telemetry["tokens_saved"]),
+                    "x-context-gc-reduction-pct": str(telemetry["compression_ratio_pct"]),
+                    "x-context-gc-mode": mode
+                }
+            )
+
+        # Standalone / Simulation SSE Generator
+        completion_id = f"chatcmpl-cgc-{uuid.uuid4().hex[:12]}"
+        active_slots_str = ", ".join(f"{k}='{v}'" for k, v in telemetry["active_state_slots"].items()) if telemetry["active_state_slots"] else "None"
+        content_reply = (
+            f"[ContextGC Drop-in Proxy Stream Activated] Context defrag cycle complete. "
+            f"Evicted {telemetry['evicted_turns_count']} dead-branch turns, sanitized {telemetry['sanitized_tools_count']} tool payloads. "
+            f"Reclaimed {telemetry['tokens_saved']} tokens ({telemetry['compression_ratio_pct']}% reduction). "
+            f"Active DAG State: [{active_slots_str}]."
+        )
+
+        async def synthetic_sse_generator():
+            words = content_reply.split(" ")
+            for i, word in enumerate(words):
+                chunk_data = {
+                    "id": completion_id,
+                    "object": "chat.completion.chunk",
+                    "created": int(time.time()),
+                    "model": req.model,
+                    "system_fingerprint": "fp_context_gc_v2",
+                    "choices": [
+                        {
+                            "index": 0,
+                            "delta": {"content": word + (" " if i < len(words) - 1 else "")},
+                            "finish_reason": None if i < len(words) - 1 else "stop"
+                        }
+                    ]
+                }
+                yield f"data: {json.dumps(chunk_data)}\n\n".encode("utf-8")
+                await asyncio.sleep(0.01)
+            yield b"data: [DONE]\n\n"
+
+        return StreamingResponse(
+            synthetic_sse_generator(),
+            media_type="text/event-stream",
+            headers={
+                "x-context-gc-tokens-saved": str(telemetry["tokens_saved"]),
+                "x-context-gc-reduction-pct": str(telemetry["compression_ratio_pct"]),
+                "x-context-gc-mode": mode
+            }
+        )
+
+    # 2. Handle Unary Requests (stream: false)
     if api_key and not api_key.startswith("dummy") and not api_key.startswith("test") and len(api_key) > 20:
         try:
             async with httpx.AsyncClient(timeout=30.0) as client_http:
@@ -337,7 +433,8 @@ async def chat_completions(req: OpenAIChatCompletionRequest, request: Request):
                     data["context_gc"] = telemetry
                     return JSONResponse(content=data, headers={
                         "x-context-gc-tokens-saved": str(telemetry["tokens_saved"]),
-                        "x-context-gc-reduction-pct": str(telemetry["compression_ratio_pct"])
+                        "x-context-gc-reduction-pct": str(telemetry["compression_ratio_pct"]),
+                        "x-context-gc-mode": mode
                     })
         except Exception:
             pass  # Fall back to compliant local synthetic completion
@@ -378,7 +475,9 @@ async def chat_completions(req: OpenAIChatCompletionRequest, request: Request):
                 "compression_ratio_pct": telemetry["compression_ratio_pct"],
                 "gc_execution_time_ms": telemetry["gc_execution_time_ms"],
                 "evicted_turns_count": telemetry["evicted_turns_count"],
-                "sanitized_tools_count": telemetry["sanitized_tools_count"]
+                "sanitized_tools_count": telemetry["sanitized_tools_count"],
+                "mode": mode,
+                "kv_cache_prefix_preserved": telemetry.get("kv_cache_prefix_preserved", False)
             }
         },
         "context_gc": telemetry
@@ -415,7 +514,15 @@ def get_presentation():
             return HTMLResponse(content=f.read())
     return HTMLResponse("<h1>ContextGC Presentation Deck Loading...</h1>")
 
-if __name__ == "__main__":
+@app.get("/council", response_class=HTMLResponse)
+def get_council_report():
+    """Returns the visual deep research council report."""
+    report_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "council-report-20260919.html"))
+    if os.path.exists(report_path):
+        with open(report_path, "r", encoding="utf-8") as f:
+            return HTMLResponse(content=f.read())
+    return HTMLResponse("<h1>Council Report Loading...</h1>", status_code=404)
 
+if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
