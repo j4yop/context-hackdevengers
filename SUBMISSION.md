@@ -20,7 +20,7 @@ ContextGC: Autonomous Semantic Context Defragmenter for AI Agents
 
 ### 2. Short Project Description / Elevator Pitch (1–2 Sentences)
 ```text
-ContextGC is an autonomous context defragmenter and memory garbage collector for long-running AI agents. It eliminates "context rot" by pruning dead conversational branches via a Neuro-Symbolic State DAG, tombstoning resolved error traces, anchoring non-negotiable policy invariants, and offloading history to an Episodic Vector Memory Tier—cutting prompt tokens by 68.5% (up to 68.9%) and reducing policy hallucinations to 0%.
+ContextGC is an autonomous context defragmenter and memory garbage collector for long-running AI agents. It eliminates "context rot" by pruning dead conversational branches via a Neuro-Symbolic State DAG, tombstoning resolved error traces, anchoring non-negotiable policy invariants, and offloading history to an Episodic Vector Memory Tier—cutting prompt tokens by 68.9% to 70.1% (headline: ~70%) and reducing policy hallucinations to 0%.
 ```
 
 ### 3. Problem Statement & Domain
@@ -60,7 +60,7 @@ ContextGC operates as a high-performance, deterministic middleware layer between
 ```text
 Unlike existing approaches that rely on brute-force context window expansion or naive vector chunking (which shreds causal conversational continuity), ContextGC is the first to implement true Causal Dead-Branch Invalidation:
 
-• vs Naive Context Expansion: Cuts token consumption by 68.1%–68.9% and latency by ~42% while guaranteeing 0% policy drift.
+• vs Naive Context Expansion: Cuts token consumption by 68.9%–70.1% and latency by ~40%–47% while guaranteeing 0% policy drift.
 • vs Vector-Only RAG: Preserves active conversational causal state through the State DAG, avoiding false-positive retrieval of superseded facts.
 • vs MemGPT / LangMem: Uses deterministic semantic tombstones and attention-anchored invariants rather than relying on an LLM to remember to summarize its own memory.
 • KV-Cache Friendly: Solves the prompt-caching invalidation dilemma via dual-mode prefix preservation.

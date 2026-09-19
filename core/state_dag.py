@@ -29,14 +29,15 @@ class StateDAG:
     ENTITY_PATTERNS = {
         # Operations & Logistics
         "destination_address": [
-            r"(?:deliver to|bring it to|change address to|my address is|come to|new address:?|confirmed as|destination is)\s+([A-Za-z0-9\s,–#-]{4,40})",
-            r"(?:at|in)\s+(Tower\s+[A-Za-z0-9]+|Clubhouse|Gate\s+[0-9]+|Flat\s+[0-9]+|Apartment\s+[0-9]+|Security\s+Desk)",
+            r"(?:deliver to|bring it to|change address to|my address is|come to|new address:?|confirmed as|destination is)\s+([A-Za-z0-9\s,–#-]{4,40}?)(?:\.|\,|$|\bwith\b|\band\b|\bplease\b|\bfor\b)",
+            r"(?:at|in|to)\s+(Tower\s+[A-Za-z0-9]+(?:\s*,\s*Flat\s+[0-9]+)?|Clubhouse(?:\s+[A-Za-z0-9\s]+)?|Gate\s+[0-9]+(?:\s+Security\s+Entrance)?|Flat\s+[0-9]+|Apartment\s+[0-9]+|Security\s+Desk)",
         ],
         "gate_code": [
             r"(?:gate code|passcode|entry code|security pin|security code|otp is)\s*(?:is|:)?\s*([0-9]{4,6})",
         ],
         "dietary_allergy": [
-            r"(?:allergic to|allergy:?|no peanuts|severe allergy|dietary restriction:?)\s*([A-Za-z\s]+)",
+            r"\b(?:no\s+(?:peanuts?|dairy|gluten|soy|eggs?|nuts?|shellfish))\b",
+            r"(?:allergic to|allergy(?:\s*is|:)?|severe allergy(?:\s*to|:)?|dietary restriction:?)\s*([A-Za-z\s]{3,20}?)(?:\.|\,|$|\band\b|\bdue\b)",
         ],
         "substitute_choice": [
             r"(?:substitute with|replace (?:it|that) with|give me|swap for)\s+([A-Za-z0-9\s]+?(?:milk|butter|bread|paneer|curd|egg|chips|oil|rice|coke))",
@@ -81,7 +82,7 @@ class StateDAG:
         if is_immutable:
             self.immutable_entities.add(entity_name)
 
-    def extract_entities(self, text: str, turn_index: int) -> List[FactNode]:
+    def extract_entities(self, text: str, turn_index: int, role: str = "user") -> List[FactNode]:
         """Scans message content for entity slot mutations, polarity/negations, and generic JSON structures."""
         detected = []
         seen_entities = set()
@@ -135,31 +136,32 @@ class StateDAG:
                 ))
                 seen_entities.add(key)
 
-        # 3. Schema-free JSON and structured payload detection
-        try:
-            import json
-            for jc in re.findall(r"\{[^{}\n\r]{4,200}\}", text):
-                try:
-                    parsed = json.loads(jc)
-                    if isinstance(parsed, dict):
-                        for k, v in parsed.items():
-                            key_str = str(k).strip()
-                            val_str = str(v).strip()
-                            if 2 <= len(key_str) <= 30 and 1 <= len(val_str) <= 60 and not key_str.startswith("_"):
-                                slot_name = f"slot_{re.sub(r'[^a-zA-Z0-9_]', '_', key_str.lower())}"
-                                if slot_name not in seen_entities:
-                                    detected.append(FactNode(
-                                        entity=slot_name,
-                                        value=val_str,
-                                        turn_index=turn_index,
-                                        raw_snippet=jc,
-                                        is_immutable=False
-                                    ))
-                                    seen_entities.add(slot_name)
-                except Exception:
-                    pass
-        except Exception:
-            pass
+        # 3. Schema-free JSON detection: only for user instructions or assistant commitments, NOT raw tool catalog dumps
+        if role not in ("tool", "system") and "TOOL_OUTPUT" not in text:
+            try:
+                import json
+                for jc in re.findall(r"\{[^{}\n\r]{4,200}\}", text):
+                    try:
+                        parsed = json.loads(jc)
+                        if isinstance(parsed, dict):
+                            for k, v in parsed.items():
+                                key_str = str(k).strip()
+                                val_str = str(v).strip()
+                                if 2 <= len(key_str) <= 30 and 1 <= len(val_str) <= 60 and not key_str.startswith("_"):
+                                    slot_name = f"slot_{re.sub(r'[^a-zA-Z0-9_]', '_', key_str.lower())}"
+                                    if slot_name not in seen_entities:
+                                        detected.append(FactNode(
+                                            entity=slot_name,
+                                            value=val_str,
+                                            turn_index=turn_index,
+                                            raw_snippet=jc,
+                                            is_immutable=False
+                                        ))
+                                        seen_entities.add(slot_name)
+                    except Exception:
+                        pass
+            except Exception:
+                pass
 
         return detected
 
@@ -168,7 +170,7 @@ class StateDAG:
         Processes a turn, extracts fact mutations, and performs graph-level dead-branch invalidation.
         Returns a summary of active assertions and invalidated turns.
         """
-        extracted = self.extract_entities(content, turn_index)
+        extracted = self.extract_entities(content, turn_index, role=role)
         superseded_turns = set()
         new_assertions = []
 

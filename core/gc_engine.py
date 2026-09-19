@@ -75,6 +75,9 @@ class ContextGCEngine:
                 "raw_content": content,
                 "compacted_content": compacted_content,
                 "tool_name": tool_name,
+                "name": msg.get("name"),
+                "tool_call_id": msg.get("tool_call_id"),
+                "tool_calls": msg.get("tool_calls"),
                 "superseded_turns": reg_info.get("superseded_turns", [])
             })
 
@@ -98,6 +101,9 @@ class ContextGCEngine:
             idx = item["index"]
             role = item["role"]
             content = item["compacted_content"]
+            tool_call_id = item.get("tool_call_id")
+            name = item.get("name")
+            tool_calls = item.get("tool_calls")
 
             # If this turn is in the prunable set, evict it to Vector Tier (in compact mode)
             # In cache_friendly mode, we keep historical turns intact to prevent KV-cache invalidation
@@ -105,6 +111,17 @@ class ContextGCEngine:
                 reason = "Obsolete entity state superseded by subsequent turn"
                 self.vector_tier.archive_turn(idx, role, item["raw_content"], reason)
                 evicted_turns.append(idx)
+                
+                # PROTOCOL SAFETY: If this is a tool execution response with a tool_call_id,
+                # dropping it completely would cause OpenAI HTTP 400 (unmatched tool_call_id).
+                # Instead, replace with a tiny tombstone while preserving tool_call_id.
+                if role == "tool" and tool_call_id:
+                    tombstone = f"[TOMBSTONE: Superseded tool call {tool_call_id} output evicted]"
+                    cleaned_msg = {"role": role, "content": tombstone, "tool_call_id": tool_call_id}
+                    if name:
+                        cleaned_msg["name"] = name
+                    cleaned_messages.append(cleaned_msg)
+                    cleaned_token_count += max(1, len(tombstone) // 4)
                 continue
 
             # Check if this was a tool error that has been resolved
@@ -112,11 +129,24 @@ class ContextGCEngine:
                 tombstone = self.sanitizer.create_tombstone(idx, item.get("tool_name") or "Runtime/Test", len(annotated_turns) - 1)
                 self.vector_tier.archive_turn(idx, role, item["raw_content"], "Error traceback resolved")
                 evicted_turns.append(idx)
-                cleaned_messages.append({"role": role, "content": tombstone})
+                cleaned_msg = {"role": role, "content": tombstone}
+                if tool_call_id:
+                    cleaned_msg["tool_call_id"] = tool_call_id
+                if name:
+                    cleaned_msg["name"] = name
+                cleaned_messages.append(cleaned_msg)
                 cleaned_token_count += max(1, len(tombstone) // 4)
                 continue
 
-            cleaned_messages.append({"role": role, "content": content})
+            cleaned_msg = {"role": role, "content": content}
+            if tool_call_id:
+                cleaned_msg["tool_call_id"] = tool_call_id
+            if name:
+                cleaned_msg["name"] = name
+            if tool_calls:
+                cleaned_msg["tool_calls"] = tool_calls
+
+            cleaned_messages.append(cleaned_msg)
             cleaned_token_count += max(1, len(content) // 4)
 
         # 4. Inject Anchors and Active State Summary into the conversation
