@@ -5,7 +5,7 @@ telemetry benchmarks, and Episodic Vector Memory inspection.
 Built for Hack Devengers 2.0 (Open Innovation — AI & Developer Tools Track).
 """
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse
 from pydantic import BaseModel
@@ -13,6 +13,8 @@ from typing import List, Dict, Any, Optional
 import time
 import os
 import sys
+import uuid
+import httpx
 
 # Ensure context-hackdevengers core is importable
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
@@ -39,6 +41,14 @@ app.add_middleware(
 engine_ops = ContextGCEngine(session_id="SESSION-OPS-01")
 engine_code = ContextGCEngine(session_id="SESSION-CODING-01")
 
+def _ensure_engine_seeded(scenario: str = "operations") -> ContextGCEngine:
+    """Guarantees the in-memory engine and episodic vector tier are seeded, preventing cold-start 0-row states on Vercel."""
+    engine = engine_code if scenario == "coding" else engine_ops
+    if len(engine.vector_tier.archive_table) == 0:
+        session = get_coding_agent_session() if scenario == "coding" else get_operations_crisis_session()
+        engine.process_session(session)
+    return engine
+
 class QueryRequest(BaseModel):
     query: str
     top_k: Optional[int] = 2
@@ -48,6 +58,13 @@ class SimulationStepRequest(BaseModel):
     turn_limit: Optional[int] = None
     jit_query: Optional[str] = None
     scenario: Optional[str] = "operations"
+
+class OpenAIChatCompletionRequest(BaseModel):
+    model: Optional[str] = "gpt-4o"
+    messages: List[Dict[str, Any]]
+    temperature: Optional[float] = 0.7
+    max_tokens: Optional[int] = None
+    stream: Optional[bool] = False
 
 @app.get("/api/health")
 def health_check():
@@ -187,7 +204,12 @@ def benchmark_showdown(scenario: str = "operations"):
                 "latency_reduction_pct": telemetry["latency_reduction_pct"]
             },
             "state_dag": telemetry["active_state_slots"],
-            "vector_archive_count": telemetry["vector_rows_archived"]
+            "vector_archive_count": telemetry["vector_rows_archived"],
+            "metadata": {
+                "inference_mode": "deterministic_ground_truth_baseline",
+                "measured_gc_overhead_ms": telemetry["gc_execution_time_ms"],
+                "ttft_model": "TTFT estimated via standard linear token projection (500ms base + 0.25ms/tok for vanilla; 400ms base + 0.15ms/tok + gc_overhead for ContextGC)"
+            }
         }
     else:
         session_history = get_operations_crisis_session()
@@ -242,13 +264,18 @@ def benchmark_showdown(scenario: str = "operations"):
                 "latency_reduction_pct": telemetry["latency_reduction_pct"]
             },
             "state_dag": telemetry["active_state_slots"],
-            "vector_archive_count": telemetry["vector_rows_archived"]
+            "vector_archive_count": telemetry["vector_rows_archived"],
+            "metadata": {
+                "inference_mode": "deterministic_ground_truth_baseline",
+                "measured_gc_overhead_ms": telemetry["gc_execution_time_ms"],
+                "ttft_model": "TTFT estimated via standard linear token projection (500ms base + 0.25ms/tok for vanilla; 400ms base + 0.15ms/tok + gc_overhead for ContextGC)"
+            }
         }
 
 @app.get("/api/vector-archive")
 def get_vector_archive(scenario: str = "operations"):
-    """Inspects the live rows archived in the Episodic Vector Memory."""
-    engine = engine_code if scenario == "coding" else engine_ops
+    """Inspects the live rows archived in the Episodic Vector Memory, auto-seeding on cold instances."""
+    engine = _ensure_engine_seeded(scenario)
     return {
         "table": "AGENT_EPISODIC_ARCHIVE",
         "session_id": engine.session_id,
@@ -259,14 +286,115 @@ def get_vector_archive(scenario: str = "operations"):
 
 @app.post("/api/vector-archive/search")
 def search_vector_archive(req: QueryRequest):
-    """Executes a JIT semantic similarity search against the episodic vector archive."""
-    engine = engine_code if req.scenario == "coding" else engine_ops
+    """Executes a JIT semantic similarity search against the episodic vector archive, auto-seeding on cold instances."""
+    scenario = req.scenario or "operations"
+    engine = _ensure_engine_seeded(scenario)
     results = engine.vector_tier.search_archive(req.query, top_k=req.top_k or 2)
     return {
         "query": req.query,
         "scenario": req.scenario,
         "results_found": len(results),
         "matches": results
+    }
+
+@app.post("/v1/chat/completions")
+async def chat_completions(req: OpenAIChatCompletionRequest, request: Request):
+    """
+    OpenAI-compatible drop-in reverse proxy endpoint.
+    Intercepts LLM requests, executes ContextGC defragmentation cycle,
+    evicts superseded entities, compresses tool bloat, and injects state anchors.
+    If an OPENAI_API_KEY is provided, forwards the defragged context to OpenAI;
+    otherwise returns a compliant chat.completion payload with ContextGC telemetry.
+    """
+    session_id = f"PROXY-{uuid.uuid4().hex[:8]}"
+    engine = ContextGCEngine(session_id=session_id)
+    gc_result = engine.process_session(req.messages)
+    cleaned_messages = gc_result["cleaned_messages"]
+    telemetry = gc_result["telemetry"]
+
+    # Check for live API key forwarding
+    auth_header = request.headers.get("Authorization", "")
+    api_key = auth_header.replace("Bearer ", "").strip() if "Bearer " in auth_header else os.environ.get("OPENAI_API_KEY", "")
+
+    if api_key and not api_key.startswith("dummy") and not api_key.startswith("test") and len(api_key) > 20:
+        try:
+            async with httpx.AsyncClient(timeout=30.0) as client_http:
+                upstream_res = await client_http.post(
+                    "https://api.openai.com/v1/chat/completions",
+                    headers={
+                        "Authorization": f"Bearer {api_key}",
+                        "Content-Type": "application/json"
+                    },
+                    json={
+                        "model": req.model,
+                        "messages": cleaned_messages,
+                        "temperature": req.temperature,
+                        **({"max_tokens": req.max_tokens} if req.max_tokens else {})
+                    }
+                )
+                if upstream_res.status_code == 200:
+                    data = upstream_res.json()
+                    data["context_gc"] = telemetry
+                    return JSONResponse(content=data, headers={
+                        "x-context-gc-tokens-saved": str(telemetry["tokens_saved"]),
+                        "x-context-gc-reduction-pct": str(telemetry["compression_ratio_pct"])
+                    })
+        except Exception:
+            pass  # Fall back to compliant local synthetic completion
+
+    completion_id = f"chatcmpl-cgc-{uuid.uuid4().hex[:12]}"
+    active_slots_str = ", ".join(f"{k}='{v}'" for k, v in telemetry["active_state_slots"].items()) if telemetry["active_state_slots"] else "None"
+    content_reply = (
+        f"[ContextGC Drop-in Proxy Activated] Context defrag cycle complete. "
+        f"Evicted {telemetry['evicted_turns_count']} dead-branch turns, sanitized {telemetry['sanitized_tools_count']} tool payloads. "
+        f"Reclaimed {telemetry['tokens_saved']} tokens ({telemetry['compression_ratio_pct']}% reduction). "
+        f"Active DAG State: [{active_slots_str}]."
+    )
+
+    return {
+        "id": completion_id,
+        "object": "chat.completion",
+        "created": int(time.time()),
+        "model": req.model,
+        "system_fingerprint": "fp_context_gc_v2",
+        "choices": [
+            {
+                "index": 0,
+                "message": {
+                    "role": "assistant",
+                    "content": content_reply
+                },
+                "logprobs": None,
+                "finish_reason": "stop"
+            }
+        ],
+        "usage": {
+            "prompt_tokens": telemetry["cleaned_token_count"],
+            "completion_tokens": max(1, len(content_reply) // 4),
+            "total_tokens": telemetry["cleaned_token_count"] + max(1, len(content_reply) // 4),
+            "context_gc": {
+                "raw_prompt_tokens": telemetry["raw_token_count"],
+                "tokens_saved": telemetry["tokens_saved"],
+                "compression_ratio_pct": telemetry["compression_ratio_pct"],
+                "gc_execution_time_ms": telemetry["gc_execution_time_ms"],
+                "evicted_turns_count": telemetry["evicted_turns_count"],
+                "sanitized_tools_count": telemetry["sanitized_tools_count"]
+            }
+        },
+        "context_gc": telemetry
+    }
+
+@app.get("/v1/models")
+def list_models():
+    """Returns OpenAI-compatible model registry."""
+    return {
+        "object": "list",
+        "data": [
+            {"id": "gpt-4o", "object": "model", "owned_by": "context-gc-proxy"},
+            {"id": "claude-3-5-sonnet", "object": "model", "owned_by": "context-gc-proxy"},
+            {"id": "gemini-2.5-flash", "object": "model", "owned_by": "context-gc-proxy"},
+            {"id": "context-gc-v2", "object": "model", "owned_by": "context-gc"}
+        ]
     }
 
 @app.get("/", response_class=HTMLResponse)

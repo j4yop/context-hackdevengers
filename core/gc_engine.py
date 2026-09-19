@@ -54,6 +54,12 @@ class ContextGCEngine:
 
             # Check for tool payload distillation
             tool_name = msg.get("name")
+            if not tool_name:
+                import re
+                t_match = re.search(r"TOOL_OUTPUT\s*\[([a-zA-Z0-9_\-]+)\]", content)
+                if t_match:
+                    tool_name = t_match.group(1)
+
             compacted_content = content
             if role in ["function", "tool", "system"] or "TOOL_OUTPUT" in content or "{" in content or "FAIL" in content or "diff --git" in content:
                 compacted_content, orig_toks, new_toks = self.sanitizer.distill_tool_payload(content, tool_name)
@@ -98,7 +104,7 @@ class ContextGCEngine:
                 continue
 
             # Check if this was a tool error that has been resolved
-            if self.sanitizer.is_error_payload(content) and idx < len(annotated_turns) - 2:
+            if (self.sanitizer.is_error_payload(content) or self.sanitizer.is_error_payload(item["raw_content"])) and idx < len(annotated_turns) - 2:
                 # Replace with compact tombstone
                 tombstone = self.sanitizer.create_tombstone(idx, item.get("tool_name") or "Runtime/Test", len(annotated_turns) - 1)
                 self.vector_tier.archive_turn(idx, role, item["raw_content"], "Error traceback resolved")

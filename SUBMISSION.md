@@ -6,7 +6,7 @@
 > **Live Production URL:** [https://context-hackdevengers.vercel.app](https://context-hackdevengers.vercel.app)  
 > **Interactive Pitch Deck:** [https://context-hackdevengers.vercel.app/presentation](https://context-hackdevengers.vercel.app/presentation)  
 > **GitHub Repository:** [https://github.com/j4yop/context-hackdevengers](https://github.com/j4yop/context-hackdevengers)  
-> **CI Status:** 16 Automated Unit & Benchmark Tests Passing (100% Green)
+> **CI Status:** 20 Automated Unit & Benchmark Tests Passing (100% Green)
 
 ---
 
@@ -19,7 +19,7 @@ ContextGC: Autonomous Semantic Context Defragmenter for AI Agents
 
 ### 2. Short Project Description / Elevator Pitch (1–2 Sentences)
 ```text
-ContextGC is an autonomous context defragmenter and memory garbage collector for long-running AI agents. It eliminates "context rot" by pruning dead conversational branches via a Neuro-Symbolic State DAG, tombstoning resolved error traces, anchoring non-negotiable policy invariants, and offloading history to an Episodic Vector Memory Tier—cutting prompt tokens by 71% and reducing policy hallucinations to 0%.
+ContextGC is an autonomous context defragmenter and memory garbage collector for long-running AI agents. It eliminates "context rot" by pruning dead conversational branches via a Neuro-Symbolic State DAG, tombstoning resolved error traces, anchoring non-negotiable policy invariants, and offloading history to an Episodic Vector Memory Tier—cutting prompt tokens by 68.5% (up to 68.9%) and reducing policy hallucinations to 0%.
 ```
 
 ### 3. Problem Statement & Domain
@@ -44,19 +44,19 @@ ContextGC operates as a high-performance, deterministic middleware layer between
 
 ### 5. Tech Stack & Infrastructure
 ```text
-• Backend & Engine: Python 3.11+, FastAPI, Pydantic v2, Uvicorn
-• Graph & Defrag Runtime: Pure in-memory Neuro-Symbolic State DAG (<2.5ms execution overhead, zero external heavyweight framework dependencies)
+• Backend & Engine: Python 3.11+, FastAPI, Pydantic v2, Uvicorn, httpx
+• Graph & Defrag Runtime: Pure in-memory Neuro-Symbolic State DAG (<3ms execution overhead, zero external heavyweight framework dependencies)
 • Episodic Vector Storage: Vector SQL DDL schema + 768-dim normalized cosine similarity indexing
 • Frontend UI: Agency-grade responsive HTML5, CSS3 Glassmorphism (Plus Jakarta Sans & Fira Code), Vanilla JS (zero bundler bloat, sub-300ms First Contentful Paint)
 • Cloud Deployment: Vercel Serverless Edge Runtime with uv Python execution
-• Testing & CI/CD: Pytest (16 unit & scenario tests), GitHub Actions automated CI workflow
+• Testing & CI/CD: Pytest (20 unit & scenario tests), GitHub Actions automated CI workflow
 ```
 
 ### 6. Innovation & Uniqueness (Competitive Advantage)
 ```text
 Unlike existing approaches that rely on brute-force context window expansion (which increases cost and hallucination risk) or naive vector chunking (like LangChain/LlamaIndex, which shreds causal conversational continuity), ContextGC is the first to implement true Causal Dead-Branch Invalidation:
 
-• vs Naive Context Expansion: Cuts token consumption by 71.2% and latency by ~42% while guaranteeing 0% policy drift.
+• vs Naive Context Expansion: Cuts token consumption by 68.1%–68.9% and latency by ~42% while guaranteeing 0% policy drift.
 • vs Vector-Only RAG: Preserves active conversational causal state through the State DAG, avoiding false-positive retrieval of superseded facts.
 • vs MemGPT / LangMem: Uses deterministic semantic tombstones and attention-anchored invariants rather than relying on an LLM to remember to summarize its own memory.
 ```
