@@ -1112,6 +1112,8 @@ def create_presentation():
 
 if __name__ == "__main__":
     prs = create_presentation()
-    out_path = "/Users/jaygopal/Desktop/ContextGC_Presentation.pptx"
+    out_path = "/Users/jaygopal/Desktop/contextGCC.pptx"
     prs.save(out_path)
+    # Also save backup with ContextGC_Presentation.pptx
+    prs.save("/Users/jaygopal/Desktop/ContextGC_Presentation.pptx")
     print(f"Successfully generated native editable presentation at: {out_path}")
