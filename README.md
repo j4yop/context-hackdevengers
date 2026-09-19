@@ -2,9 +2,10 @@
 
 > **Built for *Hack Devengers 2.0* (Open Innovation — AI, Developer Tools & Automation Track)**  
 > **Author:** Jay Gopal Tripathy ([@j4yop](https://github.com/j4yop))  
-> **Live Demo:** Deployable to Vercel / Render with zero-dependency standalone client fallback.
+> **Live Deployment:** [https://context-hackdevengers.vercel.app](https://context-hackdevengers.vercel.app)
 
 [![Hackathon](https://img.shields.io/badge/Hackathon-Hack%20Devengers%202.0-yellow.svg)](https://unstop.com/hackathons/hack-devengers-20-devengers-1749441)
+[![Live Demo](https://img.shields.io/badge/Demo-context--hackdevengers.vercel.app-emerald.svg)](https://context-hackdevengers.vercel.app)
 [![Track](https://img.shields.io/badge/Track-Open%20Innovation%20(AI%20%26%20DevTools)-blue.svg)]()
 [![Python](https://img.shields.io/badge/Python-3.11+-brightgreen.svg)]()
 [![License](https://img.shields.io/badge/License-MIT-purple.svg)]()
