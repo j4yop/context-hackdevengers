@@ -5,9 +5,8 @@
 > **Team Lead:** Jay Gopal ([GitHub: @j4yop](https://github.com/j4yop))  
 > **Live Production URL:** [https://context-hackdevengers.vercel.app](https://context-hackdevengers.vercel.app)  
 > **Interactive Pitch Deck:** [https://context-hackdevengers.vercel.app/presentation](https://context-hackdevengers.vercel.app/presentation)  
-> **Deep Research Council Audit:** [https://context-hackdevengers.vercel.app/council](https://context-hackdevengers.vercel.app/council)  
 > **GitHub Repository:** [https://github.com/j4yop/context-hackdevengers](https://github.com/j4yop/context-hackdevengers)  
-> **CI Status:** 28 Automated Unit & Benchmark Tests Passing (100% Green)
+> **CI Status:** 27 Automated Unit & Benchmark Tests Passing (100% Green)
 
 ---
 
@@ -53,7 +52,7 @@ ContextGC operates as a high-performance, deterministic middleware layer between
 • Episodic Vector Storage: Vector SQL DDL schema + 768-dim normalized cosine similarity indexing
 • Frontend UI: Agency-grade responsive HTML5, CSS3 Glassmorphism (Plus Jakarta Sans & Fira Code), Vanilla JS, Context Memory Flamegraph & Red/Green Diff Sandbox
 • Cloud Deployment: Vercel Serverless Edge Runtime with uv Python execution
-• Testing & CI/CD: Pytest (28 unit & scenario tests), GitHub Actions automated CI workflow
+• Testing & CI/CD: Pytest (27 unit & scenario tests), GitHub Actions automated CI workflow
 ```
 
 ### 6. Innovation & Uniqueness (Competitive Advantage)
@@ -72,7 +71,6 @@ Unlike existing approaches that rely on brute-force context window expansion or 
 • Real-Time Split-Screen Showdown Dashboard: Direct side-by-side comparison of Vanilla LLM Agent vs ContextGC Agent.
 • Context Memory Flamegraph & Live Diff Sandbox: Interactive memory allocation bar and git-style red-strikethrough prompt diff.
 • OpenAI-Compatible Streaming Reverse Proxy: Drop-in /v1/chat/completions with real-time SSE streaming (stream: true).
-• Deep Research Council Audit: Andrej Karpathy LLM Council audit report served live at /council with full transcript.
 • Interactive Episodic Vector Inspector: Live JIT semantic search across evicted conversation turns.
 • Standalone Interactive CLI Runner: Zero-browser terminal benchmark runner (`python3 demo/interactive_demo.py`) with rich ANSI formatting.
 • High-Impact Presentation Deck: 6-slide interactive deck built directly into the web application at `/presentation`.

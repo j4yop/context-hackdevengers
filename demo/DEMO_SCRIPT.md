@@ -50,7 +50,7 @@
 ---
 
 ### [01:15 – 01:30] Scene 5: Conclusion & Call to Action
-- **Visual:** Switch tab to the GitHub repository showing 28 passing unit tests and green CI badge, then back to the clean header.
+- **Visual:** Switch tab to the GitHub repository showing 27 passing unit tests and green CI badge, then back to the clean header.
 - **Voiceover:**
   > "ContextGC is completely open-source, runs with zero external dependencies in sub-3 milliseconds, and cuts enterprise LLM inference costs by up to 70%.
   > Check out our live deployment, interactive pitch deck, and GitHub repository linked below. Thank you!"
