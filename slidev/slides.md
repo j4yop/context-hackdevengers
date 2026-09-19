@@ -92,46 +92,101 @@ layout: default
 
 ContextGC acts as an inline, deterministic semantic garbage collector between agent interfaces and LLMs.
 
-```mermaid
-flowchart LR
-    subgraph Input [Agent Event Ingestion]
-        U[User Prompts]
-        T[Tool Logs & Error Traces]
-        P[System Policies]
-    end
+<div class="mt-4 flex items-center justify-between gap-3 text-left">
+  <!-- Ingestion Column -->
+  <div class="flex-1 p-3 rounded-xl bg-slate-900/80 border border-blue-500/40 shadow-lg">
+    <div class="text-[11px] font-bold text-blue-400 font-mono uppercase tracking-wider mb-2 flex items-center gap-1.5">
+      <span>📥 1. Ingestion Tier</span>
+    </div>
+    <div class="space-y-1.5 text-[11px] font-mono text-slate-300">
+      <div class="p-1.5 rounded bg-slate-800/80 border border-slate-700/60">
+        <strong class="text-white block text-xs">User Prompts</strong>
+        <span class="text-[10px] text-slate-400">Multi-turn goals & updates</span>
+      </div>
+      <div class="p-1.5 rounded bg-slate-800/80 border border-slate-700/60">
+        <strong class="text-white block text-xs">Tool Logs & Dumps</strong>
+        <span class="text-[10px] text-slate-400">JSON payloads & error traces</span>
+      </div>
+      <div class="p-1.5 rounded bg-slate-800/80 border border-slate-700/60">
+        <strong class="text-white block text-xs">System Invariants</strong>
+        <span class="text-[10px] text-slate-400">Financial & security policies</span>
+      </div>
+    </div>
+  </div>
 
-    subgraph Core [ContextGC Neuro-Symbolic Engine &lt;15ms]
-        DAG["1. State DAG\n(Causal Invalidation)"]
-        SAN["2. Tool Sanitizer\n(Semantic Tombstones)"]
-        ANCH["3. Policy Anchors\n(Invariant Injection)"]
-        VEC["4. Episodic Vector Tier\n(BM25 + Cosine Recall)"]
-        DUAL["5. Dual-Mode Compactor\n(Compact vs Cache-Friendly)"]
-    end
+  <!-- Arrow -->
+  <div class="text-blue-400 text-xl font-bold">→</div>
 
-    subgraph Output [Delivery & LLM Runtime]
-        PROX["Drop-in SSE Streaming Reverse Proxy\n(/v1/chat/completions)"]
-        SDK["1-Line Python Client SDK\n(core.client.patch_openai)"]
-    end
+  <!-- Engine Column -->
+  <div class="flex-[1.3] p-3 rounded-xl bg-slate-900/90 border border-indigo-500/50 shadow-xl shadow-indigo-950/20">
+    <div class="text-[11px] font-bold text-indigo-400 font-mono uppercase tracking-wider mb-2 flex items-center justify-between">
+      <span>⚡ 2. ContextGC Engine</span>
+      <span class="text-[9px] px-1.5 py-0.5 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">&lt; 15ms In-Memory</span>
+    </div>
+    <div class="space-y-1 text-[10.5px] font-mono text-slate-200">
+      <div class="p-1.5 rounded bg-slate-800/90 border border-indigo-500/30 flex items-center justify-between">
+        <span><strong>State DAG:</strong> Causal Invalidation</span>
+        <span class="text-[9.5px] text-blue-400 font-bold">Prune Dead</span>
+      </div>
+      <div class="p-1.5 rounded bg-slate-800/90 border border-emerald-500/30 flex items-center justify-between">
+        <span><strong>Tool Sanitizer:</strong> Schema Tombstones</span>
+        <span class="text-[9.5px] text-emerald-400 font-bold">-95% Tokens</span>
+      </div>
+      <div class="p-1.5 rounded bg-slate-800/90 border border-amber-500/30 flex items-center justify-between">
+        <span><strong>Policy Anchors:</strong> Recency Pinning</span>
+        <span class="text-[9.5px] text-amber-400 font-bold">0% Drift</span>
+      </div>
+      <div class="p-1.5 rounded bg-slate-800/90 border border-purple-500/30 flex items-center justify-between">
+        <span><strong>Vector Tier:</strong> Episodic Memory</span>
+        <span class="text-[9.5px] text-purple-400 font-bold">BM25 Recall</span>
+      </div>
+      <div class="p-1.5 rounded bg-slate-800/90 border border-cyan-500/30 flex items-center justify-between">
+        <span><strong>Dual Compactor:</strong> Token vs Prefix</span>
+        <span class="text-[9.5px] text-cyan-400 font-bold">KV-Cache</span>
+      </div>
+    </div>
+  </div>
 
-    Input --> Core
-    Core --> Output
-```
+  <!-- Arrow -->
+  <div class="text-indigo-400 text-xl font-bold">→</div>
 
-<div class="grid grid-cols-4 gap-3 mt-4 text-[11px] text-left font-mono">
-  <div class="p-2.5 rounded bg-slate-800/60 border border-blue-500/30">
-    <strong class="text-blue-400 block mb-1">State DAG</strong>
+  <!-- Runtime Column -->
+  <div class="flex-1 p-3 rounded-xl bg-slate-900/80 border border-emerald-500/40 shadow-lg">
+    <div class="text-[11px] font-bold text-emerald-400 font-mono uppercase tracking-wider mb-2 flex items-center gap-1.5">
+      <span>🚀 3. Delivery & LLM</span>
+    </div>
+    <div class="space-y-1.5 text-[11px] font-mono text-slate-300">
+      <div class="p-1.5 rounded bg-slate-800/80 border border-slate-700/60">
+        <strong class="text-white block text-xs">SSE Streaming Proxy</strong>
+        <span class="text-[10px] text-emerald-400">/v1/chat/completions</span>
+      </div>
+      <div class="p-1.5 rounded bg-slate-800/80 border border-slate-700/60">
+        <strong class="text-white block text-xs">1-Line Python SDK</strong>
+        <span class="text-[10px] text-cyan-400">patch_openai()</span>
+      </div>
+      <div class="p-1.5 rounded bg-slate-800/80 border border-slate-700/60">
+        <strong class="text-white block text-xs">Downstream LLMs</strong>
+        <span class="text-[10px] text-slate-400">GPT-4o, Claude 3.7, DeepSeek</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="grid grid-cols-4 gap-2.5 mt-3.5 text-[10px] text-left font-mono">
+  <div class="p-2 rounded-lg bg-slate-900/70 border border-blue-500/30">
+    <strong class="text-blue-400 block mb-0.5">1. State DAG</strong>
     Prunes superseded branches in causal order (Tower B → Clubhouse → Gate 2).
   </div>
-  <div class="p-2.5 rounded bg-slate-800/60 border border-emerald-500/30">
-    <strong class="text-emerald-400 block mb-1">Tool Sanitizer</strong>
+  <div class="p-2 rounded-lg bg-slate-900/70 border border-emerald-500/30">
+    <strong class="text-emerald-400 block mb-0.5">2. Tool Sanitizer</strong>
     Replaces resolved errors with tombstones while preserving <code class="text-emerald-300">tool_call_id</code>.
   </div>
-  <div class="p-2.5 rounded bg-slate-800/60 border border-amber-500/30">
-    <strong class="text-amber-400 block mb-1">Policy Anchors</strong>
+  <div class="p-2 rounded-lg bg-slate-900/70 border border-amber-500/30">
+    <strong class="text-amber-400 block mb-0.5">3. Policy Anchors</strong>
     Pins non-negotiable financial & security rules at recency attention boundary.
   </div>
-  <div class="p-2.5 rounded bg-slate-800/60 border border-purple-500/30">
-    <strong class="text-purple-400 block mb-1">Episodic Vector</strong>
+  <div class="p-2 rounded-lg bg-slate-900/70 border border-purple-500/30">
+    <strong class="text-purple-400 block mb-0.5">4. Episodic Vector</strong>
     Archives cold history into 768-dim table for sub-ms JIT semantic recall.
   </div>
 </div>
