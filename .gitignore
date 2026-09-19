@@ -9,3 +9,6 @@ venv/
 dist/
 build/
 .vercel
+node_modules/
+slidev/dist/
+slidev/node_modules/
