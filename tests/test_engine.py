@@ -291,7 +291,7 @@ def test_vector_archive_auto_seeding():
     assert search_data["results_found"] > 0
 
 # ---------------------------------------------------------------------------
-# 6. Advanced Council Enhancements & Protocol Tests
+# 6. Advanced Engine Enhancements & Protocol Tests
 # ---------------------------------------------------------------------------
 
 def test_state_dag_negation_awareness():
@@ -375,11 +375,5 @@ def test_api_dag_rollback_endpoint():
     assert data["status"] == "success"
     assert data["target_turn"] == 0
     assert "rollback" in data
-
-def test_council_report_endpoint():
-    res = client.get("/council")
-    assert res.status_code == 200
-    assert "Council Report" in res.text
-    assert "Chairman" in res.text
 
 

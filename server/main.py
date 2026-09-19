@@ -514,15 +514,6 @@ def get_presentation():
             return HTMLResponse(content=f.read())
     return HTMLResponse("<h1>ContextGC Presentation Deck Loading...</h1>")
 
-@app.get("/council", response_class=HTMLResponse)
-def get_council_report():
-    """Returns the visual deep research council report."""
-    report_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "council-report-20260919.html"))
-    if os.path.exists(report_path):
-        with open(report_path, "r", encoding="utf-8") as f:
-            return HTMLResponse(content=f.read())
-    return HTMLResponse("<h1>Council Report Loading...</h1>", status_code=404)
-
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)

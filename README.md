@@ -9,8 +9,7 @@
 [![CI Build](https://github.com/j4yop/context-hackdevengers/actions/workflows/ci.yml/badge.svg)](https://github.com/j4yop/context-hackdevengers/actions)
 [![Live Demo](https://img.shields.io/badge/Demo-context--hackdevengers.vercel.app-emerald.svg)](https://context-hackdevengers.vercel.app)
 [![Pitch Deck](https://img.shields.io/badge/Deck-6--Slide%20Presentation-cyan.svg)](https://context-hackdevengers.vercel.app/presentation)
-[![Council Audit](https://img.shields.io/badge/Council-Audited%20%26%20Verified-purple.svg)](https://context-hackdevengers.vercel.app/council)
-[![Tests](https://img.shields.io/badge/Tests-28%20Passed-brightgreen.svg)]()
+[![Tests](https://img.shields.io/badge/Tests-27%20Passed-brightgreen.svg)]()
 [![Hackathon](https://img.shields.io/badge/Hackathon-Hack%20Devengers%202.0-yellow.svg)](https://unstop.com/hackathons/hack-devengers-20-devengers-1749441)
 [![Track](https://img.shields.io/badge/Track-Open%20Innovation%20(AI%20%26%20DevTools)-blue.svg)]()
 [![Python](https://img.shields.io/badge/Python-3.11+-brightgreen.svg)]()
@@ -192,8 +191,6 @@ context-hackdevengers/
 │   ├── sanitizer.py                  # Tool JSON Compaction & Traceback Tombstoning
 │   ├── state_dag.py                  # Neuro-Symbolic State DAG & Causal Invalidation
 │   └── vector_tier.py                # Episodic Vector Memory Tier & Cosine Recall
-├── council-report-20260919.html      # Deep Research Council Interactive Visual Report
-├── council-transcript-20260919.md    # Deep Research Council Full Deliberation Transcript
 ├── demo/
 │   ├── DEMO_SCRIPT.md                # 90-Second Product Demo Video Script
 │   └── interactive_demo.py           # Rich ANSI Terminal Benchmark Runner
@@ -205,7 +202,7 @@ context-hackdevengers/
 ├── server/
 │   └── main.py                       # FastAPI Server, SSE Streaming Proxy, & Rollback API
 ├── tests/
-│   └── test_engine.py                # 28 Unit & Integration Pytests (100% passing)
+│   └── test_engine.py                # 27 Unit & Integration Pytests (100% passing)
 ├── web/
 │   └── index.html                    # Split-Screen Showdown Dashboard & Diff Sandbox
 ├── pyproject.toml                    # Package configuration & pytest settings
