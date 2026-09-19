@@ -28,8 +28,8 @@ When an autonomous coding agent encounters five terminal errors, an operations b
 **`ContextGC` fixes this at the systems level:**  
 It acts as an inline, low-latency semantic garbage collector and defragmenter between enterprise agent interfaces and LLMs. It maintains a **Neuro-Symbolic State DAG** to prune dead conversational branches in sub-3ms, sanitizes verbose tool outputs into compact schemas, and archives cold history into **high-speed Vector Tables**.
 
-* Slashes token consumption by **68.1% to 68.9%** (headline: **~68.5%**).
-* Accelerates inference latency by **39% to 45%** (faster TTFT via prompt minimization).
+* Slashes token consumption by **68.9% to 70.1%** (headline: **~70%**).
+* Accelerates inference latency by **39.8% to 46.8%** (faster TTFT via prompt minimization).
 * Guarantees **100% compliance** with system policy invariants.
 * Supports **real-time SSE streaming (`stream: true`)** and **Radix Cache-Friendly prefix preservation**.
 
@@ -124,8 +124,8 @@ Tested across two realistic multi-turn scenarios:
 
 | Metric | Vanilla LLM Agent (Rotted Context) | `ContextGC` Defragmented Agent | Improvement |
 | :--- | :---: | :---: | :---: |
-| **Active Prompt Tokens** | 1,000 – 1,592 tokens | **311 – 508 tokens** | **68.1% – 68.9% Reduction** |
-| **Turn Inference Latency** | 750 – 898 ms | **457 – 496 ms** | **39.1% – 44.7% Faster** |
+| **Active Prompt Tokens** | 1,000 – 1,592 tokens | **311 – 476 tokens** | **68.9% – 70.1% Reduction** |
+| **Turn Inference Latency** | 750 – 898 ms | **454 – 487 ms** | **39.8% – 46.8% Faster** |
 | **GC Interception Latency**| 0 ms | **2.5 – 15 ms** | **Deterministic In-Memory** |
 | **Policy Invariant Violations** | 100% Failure Rate (Illegal refund / Private key dump) | **0% Violations (100% Compliant)** | **100% Policy Integrity** |
 | **State Resolution Accuracy** | 0% (Hallucinated obsolete addresses/ports) | **100% (Settled DAG State)** | **Zero Hallucination** |

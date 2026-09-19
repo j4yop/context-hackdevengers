@@ -63,32 +63,45 @@ class VectorMemoryTier:
 
     def search_archive(self, query: str, top_k: int = 2) -> List[Dict[str, Any]]:
         """
-        Executes a cosine similarity search against the archived episodic memory.
+        Executes a hybrid BM25 + cosine similarity search against the archived episodic memory.
+        Enforces a minimum relevance threshold so unrelated queries do not produce false-positive matches.
         """
         if not self.archive_table:
             return []
 
         query_vec = self._generate_simulated_embedding(query)
-        q_words = set(re.findall(r"[a-z0-9]+", query.lower()))
+        clean_q = query.lower()
+        q_words = set(re.findall(r"[a-z0-9]+", clean_q))
+        stopwords = {"the", "a", "an", "is", "in", "to", "for", "of", "and", "or", "it", "at", "what", "was"}
+        meaningful_q_words = q_words - stopwords
+
         scored = []
 
         for row in self.archive_table:
             sim = self._cosine_similarity(query_vec, row["embedding"])
-            r_words = set(re.findall(r"[a-z0-9]+", row["raw_content"].lower()))
+            row_text = row["raw_content"].lower()
+            r_words = set(re.findall(r"[a-z0-9]+", row_text))
             
-            # Exact token overlap
-            exact_overlap = len(q_words & r_words)
+            # Exact token overlap on meaningful words
+            exact_overlap = len(meaningful_q_words & r_words) if meaningful_q_words else len(q_words & r_words)
             
-            # Subword / stem overlap (e.g. 'rain' matching 'rainfall' or 'indiranagar' in composite tags)
+            # Subword / stem overlap (e.g. 'rain' matching 'indiranagar_rain' or 'rainfall')
             subword_overlap = 0
-            for qw in q_words:
+            for qw in (meaningful_q_words or q_words):
                 if len(qw) >= 4 and any(qw in rw for rw in r_words if rw != qw):
                     subword_overlap += 1
 
-            total_score = sim + (exact_overlap * 0.25) + (subword_overlap * 0.15)
-            row_res = dict(row)
-            row_res["similarity_score"] = round(total_score, 4)
-            scored.append((total_score, row_res))
+            # Exact phrase bonus (e.g., 'indiranagar rain' appearing in order)
+            phrase_bonus = 0.5 if clean_q in row_text else 0.0
+
+            # Combined hybrid score
+            total_score = (sim * 0.4) + (exact_overlap * 0.35) + (subword_overlap * 0.2) + phrase_bonus
+
+            # Relevance threshold: must have lexical overlap or high cosine similarity
+            if exact_overlap > 0 or subword_overlap > 0 or phrase_bonus > 0 or sim > 0.45:
+                row_res = dict(row)
+                row_res["similarity_score"] = round(total_score, 4)
+                scored.append((total_score, row_res))
 
         scored.sort(key=lambda x: x[0], reverse=True)
         return [item[1] for item in scored[:top_k]]
