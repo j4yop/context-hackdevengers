@@ -1,1 +1,9 @@
-{}
+{
+  "framework": "fastapi",
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "server/main.py"
+    }
+  ]
+}

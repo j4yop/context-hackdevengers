@@ -9,11 +9,11 @@
 [![CI Build](https://github.com/j4yop/context-hackdevengers/actions/workflows/ci.yml/badge.svg)](https://github.com/j4yop/context-hackdevengers/actions)
 [![Live Demo](https://img.shields.io/badge/Demo-context--hackdevengers.vercel.app-emerald.svg)](https://context-hackdevengers.vercel.app)
 [![Pitch Deck](https://img.shields.io/badge/Deck-6--Slide%20Presentation-cyan.svg)](https://context-hackdevengers.vercel.app/presentation)
-[![Tests](https://img.shields.io/badge/Tests-16%20Passed-brightgreen.svg)]()
+[![Tests](https://img.shields.io/badge/Tests-20%20Passed-brightgreen.svg)]()
 [![Hackathon](https://img.shields.io/badge/Hackathon-Hack%20Devengers%202.0-yellow.svg)](https://unstop.com/hackathons/hack-devengers-20-devengers-1749441)
 [![Track](https://img.shields.io/badge/Track-Open%20Innovation%20(AI%20%26%20DevTools)-blue.svg)]()
 [![Python](https://img.shields.io/badge/Python-3.11+-brightgreen.svg)]()
-[![License](https://img.shields.io/badge/License-MIT-purple.svg)]()
+[![License](https://img.shields.io/badge/License-MIT-purple.svg)](LICENSE)
 
 
 ---
@@ -27,8 +27,8 @@ When an autonomous coding agent encounters five terminal errors, an operations b
 **`ContextGC` fixes this at the systems level:**  
 It acts as an inline, low-latency semantic garbage collector and defragmenter between enterprise agent interfaces and LLMs. It maintains a **Neuro-Symbolic State DAG** to prune dead conversational branches in sub-3ms, sanitizes verbose tool outputs into compact schemas, and archives cold history into **high-speed Vector Tables**.
 
-* Slashes token consumption by **43% to 52%**.
-* Accelerates inference latency by **39% to 45%**.
+* Slashes token consumption by **68.1% to 68.9%** (headline: **~68.5%**).
+* Accelerates inference latency by **39% to 45%** (faster TTFT via prompt minimization).
 * Guarantees **100% compliance** with system policy invariants.
 
 ---
@@ -38,7 +38,7 @@ It acts as an inline, low-latency semantic garbage collector and defragmenter be
 | Question | ContextGC Answer |
 | :--- | :--- |
 | **1. Why does this need to exist?** | Because 1M+ token windows don't prevent attention collapse; operational sludge makes models dumber, causes policy violations, and inflates enterprise token bills. |
-| **2. Can someone use it tomorrow?** | **Yes.** ContextGC operates as a drop-in reverse proxy (`http://localhost:8000/v1`) for OpenAI, Anthropic, or Gemini APIs without code refactoring. |
+| **2. Can someone use it tomorrow?** | **Yes.** ContextGC provides an OpenAI-compatible reverse proxy endpoint (`/v1/chat/completions`) that drop-in supports OpenAI SDK, LiteLLM, LangChain, or Cursor without changing your agent code. |
 | **3. What makes it different?** | While LangChain and CrewAI use recursive LLM summarizers that add 1.5s+ of latency and distort verbatim entity values, ContextGC uses an in-memory Neuro-Symbolic State DAG that runs deterministically in **< 3ms** with zero API calls. |
 | **4. Can I demo it in 30 seconds?** | **Yes.** Launch the interactive split-screen dashboard to watch a live benchmark battle showing real-time token reduction flamegraphs and instant policy violation prevention. |
 
@@ -113,9 +113,9 @@ Tested across two realistic multi-turn scenarios:
 
 | Metric | Vanilla LLM Agent (Rotted Context) | `ContextGC` Defragmented Agent | Improvement |
 | :--- | :---: | :---: | :---: |
-| **Active Prompt Tokens** | 1,456 – 1,680 tokens | **805 – 822 tokens** | **43.5% – 52.1% Reduction** |
-| **Turn Inference Latency** | 864 – 940 ms | **518 – 525 ms** | **39.2% – 44.8% Faster** |
-| **GC Interception Latency**| 0 ms | **1.82 ms** | **Deterministic (<3ms)** |
+| **Active Prompt Tokens** | 1,000 – 1,592 tokens | **311 – 508 tokens** | **68.1% – 68.9% Reduction** |
+| **Turn Inference Latency** | 750 – 898 ms | **457 – 496 ms** | **39.1% – 44.7% Faster** |
+| **GC Interception Latency**| 0 ms | **2.5 – 15 ms** | **Deterministic In-Memory** |
 | **Policy Invariant Violations** | 100% Failure Rate (Illegal refund / Private key dump) | **0% Violations (100% Compliant)** | **100% Policy Integrity** |
 | **State Resolution Accuracy** | 0% (Hallucinated obsolete addresses/ports) | **100% (Settled DAG State)** | **Zero Hallucination** |
 
@@ -147,7 +147,30 @@ python3 server/main.py
 ```bash
 pytest tests/test_engine.py -v
 ```
-Executes 16 tests covering State DAG causal pruning, tool compaction, vector search, policy invariants, and API endpoints.
+Executes 20 tests covering State DAG causal pruning, tool compaction, vector search, policy invariants, OpenAI proxy endpoints, and auto-seeding.
+
+### 5. Use as an OpenAI-Compatible Drop-In Proxy
+Point any agent framework (LangChain, AutoGen, CrewAI, LiteLLM, or standard OpenAI SDK) to the ContextGC proxy:
+
+```python
+from openai import OpenAI
+
+client = OpenAI(
+    base_url="https://context-hackdevengers.vercel.app/v1",  # or http://localhost:8000/v1 locally
+    api_key="your-api-key"
+)
+
+response = client.chat.completions.create(
+    model="gpt-4o",
+    messages=[
+        {"role": "user", "content": "Deploy service to us-east-1 and listen on port 8080."},
+        {"role": "assistant", "content": "Deployed to us-east-1 on port 8080."},
+        {"role": "user", "content": "Update: switch cluster to ap-south-1 and change port to 9443."}
+    ]
+)
+# ContextGC automatically defragments the message history, evicting obsolete state
+# and returning telemetry in the response usage metadata!
+```
 
 ---
 

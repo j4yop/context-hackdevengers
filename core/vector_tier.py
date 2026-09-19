@@ -69,15 +69,26 @@ class VectorMemoryTier:
             return []
 
         query_vec = self._generate_simulated_embedding(query)
+        q_words = set(re.findall(r"[a-z0-9]+", query.lower()))
         scored = []
+
         for row in self.archive_table:
             sim = self._cosine_similarity(query_vec, row["embedding"])
-            # Semantic keyword overlap boost
-            words = set(re.findall(r"\w+", query.lower()))
-            row_words = set(re.findall(r"\w+", row["raw_content"].lower()))
-            overlap = len(words & row_words)
-            final_score = sim + (overlap * 0.15)
-            scored.append((final_score, row))
+            r_words = set(re.findall(r"[a-z0-9]+", row["raw_content"].lower()))
+            
+            # Exact token overlap
+            exact_overlap = len(q_words & r_words)
+            
+            # Subword / stem overlap (e.g. 'rain' matching 'rainfall' or 'indiranagar' in composite tags)
+            subword_overlap = 0
+            for qw in q_words:
+                if len(qw) >= 4 and any(qw in rw for rw in r_words if rw != qw):
+                    subword_overlap += 1
+
+            total_score = sim + (exact_overlap * 0.25) + (subword_overlap * 0.15)
+            row_res = dict(row)
+            row_res["similarity_score"] = round(total_score, 4)
+            scored.append((total_score, row_res))
 
         scored.sort(key=lambda x: x[0], reverse=True)
         return [item[1] for item in scored[:top_k]]
@@ -93,19 +104,32 @@ class VectorMemoryTier:
 
     @staticmethod
     def _generate_simulated_embedding(text: str) -> List[float]:
-        """Generates a stable 768-dim normalized embedding vector."""
+        """Generates a stable, deterministic 768-dim normalized embedding vector using SHA-256 feature hashing and subword trigrams."""
+        import hashlib
         dim = 768
         vec = [0.0] * dim
-        words = re.findall(r"\w+", text.lower())
+        clean_text = text.lower()
+        words = re.findall(r"[a-z0-9]+", clean_text)
         if not words:
             return vec
+
         for i, word in enumerate(words):
-            h = hash(word) % dim
-            vec[h] += 1.0 / (i + 1.0)
-        norm = math.sqrt(sum(x*x for x in vec)) or 1.0
-        return [x / norm for x in vec]
+            # Deterministic word-level hash
+            h_int = int(hashlib.sha256(word.encode('utf-8')).hexdigest()[:8], 16) % dim
+            vec[h_int] += 1.0 / math.sqrt(i + 1.0)
+
+            # Character trigram hashing for fuzzy/subword semantic matching
+            if len(word) >= 3:
+                for j in range(len(word) - 2):
+                    trigram = word[j:j+3]
+                    h_tri = int(hashlib.sha256(trigram.encode('utf-8')).hexdigest()[:8], 16) % dim
+                    vec[h_tri] += 0.35
+
+        norm = math.sqrt(sum(x * x for x in vec)) or 1.0
+        return [round(x / norm, 6) for x in vec]
 
     @staticmethod
     def _cosine_similarity(v1: List[float], v2: List[float]) -> float:
         """Dot product of two L2-normalized vectors."""
         return sum(a * b for a, b in zip(v1, v2))
+

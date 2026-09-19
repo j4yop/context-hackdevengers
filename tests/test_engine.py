@@ -62,6 +62,29 @@ def test_state_dag_coding_agent_superseding():
     assert dag.active_state["target_port"].value == "9443"
     assert 0 in dag.get_prunable_turns()
 
+def test_state_dag_dynamic_schema_and_generic_kv():
+    dag = StateDAG()
+    # Test dynamic registration
+    dag.register_entity_schema("payment_rail", [r"(?:pay with|rail:?)\s+(UPI|Stripe|Crypto)"])
+    dag.register_turn(0, "user", "Please pay with UPI.")
+    assert "payment_rail" in dag.active_state
+    assert dag.active_state["payment_rail"].value == "UPI"
+
+    # Override dynamic entity
+    dag.register_turn(1, "user", "Actually pay with Stripe.")
+    assert dag.active_state["payment_rail"].value == "Stripe"
+    assert 0 in dag.get_prunable_turns()
+
+    # Test generic KV extraction
+    dag.register_turn(2, "user", "Please set timeout to 45s.")
+    assert "config_timeout" in dag.active_state
+    assert dag.active_state["config_timeout"].value == "45s"
+
+    # Override generic KV
+    dag.register_turn(3, "user", "Update timeout to 120s.")
+    assert dag.active_state["config_timeout"].value == "120s"
+    assert 2 in dag.get_prunable_turns()
+
 # ---------------------------------------------------------------------------
 # 2. Tool Sanitizer Unit Tests
 # ---------------------------------------------------------------------------
@@ -222,5 +245,49 @@ def test_api_presentation():
     assert res.status_code == 200
     assert "ContextGC" in res.text
     assert "Pitch" in res.text
+
+def test_v1_models_endpoint():
+    res = client.get("/v1/models")
+    assert res.status_code == 200
+    data = res.json()
+    assert data["object"] == "list"
+    ids = [m["id"] for m in data["data"]]
+    assert "gpt-4o" in ids
+    assert "context-gc-v2" in ids
+
+def test_v1_chat_completions_endpoint():
+    payload = {
+        "model": "gpt-4o",
+        "messages": [
+            {"role": "user", "content": "Set cluster to us-east-1 and delivery to Gate 2."},
+            {"role": "assistant", "content": "Understood."},
+            {"role": "user", "content": "Wait, change cluster to ap-south-1."}
+        ]
+    }
+    res = client.post("/v1/chat/completions", json=payload)
+    assert res.status_code == 200
+    data = res.json()
+    assert data["object"] == "chat.completion"
+    assert "choices" in data
+    assert len(data["choices"]) > 0
+    assert "usage" in data
+    assert "context_gc" in data["usage"]
+    assert "context_gc" in data
+    assert data["usage"]["context_gc"]["raw_prompt_tokens"] > 0
+
+def test_vector_archive_auto_seeding():
+    # Directly verify vector archive endpoint returns seeded table even on fresh calls
+    res = client.get("/api/vector-archive?scenario=operations")
+    assert res.status_code == 200
+    data = res.json()
+    assert data["table"] == "AGENT_EPISODIC_ARCHIVE"
+    assert data["total_archived_turns"] > 0
+    assert len(data["rows"]) > 0
+
+    # Test search with auto-seeding
+    search_res = client.post("/api/vector-archive/search", json={"query": "rain Indiranagar", "scenario": "operations"})
+    assert search_res.status_code == 200
+    search_data = search_res.json()
+    assert search_data["results_found"] > 0
 
 

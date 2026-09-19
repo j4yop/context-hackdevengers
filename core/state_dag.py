@@ -29,11 +29,11 @@ class StateDAG:
     ENTITY_PATTERNS = {
         # Operations & Logistics
         "destination_address": [
-            r"(?:deliver to|bring it to|change address to|my address is|come to|new address:?)\s+([A-Za-z0-9\s,–#-]{4,40})",
+            r"(?:deliver to|bring it to|change address to|my address is|come to|new address:?|confirmed as|destination is)\s+([A-Za-z0-9\s,–#-]{4,40})",
             r"(?:at|in)\s+(Tower\s+[A-Za-z0-9]+|Clubhouse|Gate\s+[0-9]+|Flat\s+[0-9]+|Apartment\s+[0-9]+|Security\s+Desk)",
         ],
         "gate_code": [
-            r"(?:gate code|passcode|entry code|security pin|otp is)\s*(?:is|:)?\s*([0-9]{4,6})",
+            r"(?:gate code|passcode|entry code|security pin|security code|otp is)\s*(?:is|:)?\s*([0-9]{4,6})",
         ],
         "dietary_allergy": [
             r"(?:allergic to|allergy:?|no peanuts|severe allergy|dietary restriction:?)\s*([A-Za-z\s]+)",
@@ -53,29 +53,47 @@ class StateDAG:
         ],
         "security_invariant": [
             r"(NEVER log (?:the )?[A-Za-z0-9_\s]+in plaintext)",
+        ],
+        # Cloud & Infrastructure DevOps
+        "cloud_environment": [
+            r"(?:deploy to|environment:?|env:?|target env is)\s+(production|prod|staging|preview|development|dev)\b",
+        ],
+        "cloud_region": [
+            r"(?:region:?|cluster in|hosted in)\s+([a-z]{2}-[a-z]+-[0-9]{1,2})\b",
         ]
-
     }
 
     # Attributes that are strictly monotonic / immutable once asserted (cannot be silently overwritten)
     IMMUTABLE_ENTITIES = {"dietary_allergy", "security_invariant"}
 
-
     def __init__(self):
+        self.entity_patterns = {k: list(v) for k, v in self.ENTITY_PATTERNS.items()}
+        self.immutable_entities = set(self.IMMUTABLE_ENTITIES)
         self.nodes: Dict[str, List[FactNode]] = {}
         self.active_state: Dict[str, FactNode] = {}
         self.invalidation_log: List[Dict[str, Any]] = []
 
+    def register_entity_schema(self, entity_name: str, patterns: List[str], is_immutable: bool = False) -> None:
+        """Dynamically registers a new domain entity schema with regex extraction patterns."""
+        if entity_name not in self.entity_patterns:
+            self.entity_patterns[entity_name] = []
+        self.entity_patterns[entity_name].extend(patterns)
+        if is_immutable:
+            self.immutable_entities.add(entity_name)
+
     def extract_entities(self, text: str, turn_index: int) -> List[FactNode]:
-        """Scans message content for entity slot mutations."""
+        """Scans message content for entity slot mutations, both defined schemas and generic assignments."""
         detected = []
-        for entity_type, patterns in self.ENTITY_PATTERNS.items():
+        seen_entities = set()
+
+        # 1. Check registered schema patterns
+        for entity_type, patterns in self.entity_patterns.items():
             for pat in patterns:
                 matches = re.finditer(pat, text, re.IGNORECASE)
                 for match in matches:
                     val = match.group(1) if match.groups() else match.group(0)
                     val = val.strip().strip(".,;")
-                    is_imm = entity_type in self.IMMUTABLE_ENTITIES
+                    is_imm = entity_type in self.immutable_entities
                     node = FactNode(
                         entity=entity_type,
                         value=val,
@@ -84,7 +102,24 @@ class StateDAG:
                         is_immutable=is_imm
                     )
                     detected.append(node)
+                    seen_entities.add(entity_type)
                     break
+
+        # 2. Generic key-value assignment detection (e.g., 'set timeout to 30s', 'retry_count = 5')
+        generic_kv_pat = r"\b(?:set|switch|update)\s+([a-z_][a-z0-9_]{2,20})\s+(?:to|=)\s+([a-zA-Z0-9_\-\.\/]{1,40})\b"
+        for match in re.finditer(generic_kv_pat, text, re.IGNORECASE):
+            key = match.group(1).lower()
+            val = match.group(2).strip()
+            if key not in seen_entities and key not in {"the", "this", "that", "it"}:
+                detected.append(FactNode(
+                    entity=f"config_{key}",
+                    value=val,
+                    turn_index=turn_index,
+                    raw_snippet=match.group(0),
+                    is_immutable=False
+                ))
+                seen_entities.add(key)
+
         return detected
 
     def register_turn(self, turn_index: int, role: str, content: str) -> Dict[str, Any]:
