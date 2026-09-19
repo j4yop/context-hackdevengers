@@ -1,347 +1,499 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="scroll-smooth">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>ContextGC: Autonomous Semantic Context Defragmenter | Hack Devengers 2.0</title>
-  <!-- Tailwind CSS CDN -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  <!-- FontAwesome CDN -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
-  <!-- Google Fonts -->
+  <title>ContextGC — Autonomous Semantic Context Defragmenter for AI Agents</title>
+  
+  <!-- Premium Fonts: Plus Jakarta Sans & Fira Code -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;700&family=Inter:wght@300;400;600;800;900&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Phosphor / Remix Style Icons via FontAwesome 6 Pro-style glyphs -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
+            mono: ['"Fira Code"', 'monospace'],
+          },
+          colors: {
+            void: '#04070d',
+            carbon: '#0a0f1d',
+            surface: '#111827',
+            card: '#131b2e',
+            border: 'rgba(255, 255, 255, 0.08)',
+            accent: '#38bdf8',
+            amberGlow: '#f59e0b',
+            emeraldGlow: '#10b981',
+            roseGlow: '#f43f5e',
+          }
+        }
+      }
+    }
+  </script>
+
   <style>
-    body { font-family: 'Inter', sans-serif; background-color: #080c14; color: #f1f5f9; }
-    code, pre, .font-mono { font-family: 'Fira Code', monospace; }
-    .glassmorphism { background: rgba(15, 23, 42, 0.75); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.08); }
-    .neon-border-green { border-color: #10b981; box-shadow: 0 0 15px rgba(16, 185, 129, 0.2); }
-    .neon-border-red { border-color: #ef4444; box-shadow: 0 0 15px rgba(239, 68, 68, 0.2); }
-    .neon-border-yellow { border-color: #fbbf24; box-shadow: 0 0 15px rgba(251, 191, 36, 0.2); }
+    body {
+      background-color: #04070d;
+      color: #f1f5f9;
+      background-image: 
+        radial-gradient(circle at 15% 15%, rgba(56, 189, 248, 0.04) 0%, transparent 45%),
+        radial-gradient(circle at 85% 25%, rgba(245, 158, 11, 0.03) 0%, transparent 40%),
+        radial-gradient(circle at 50% 80%, rgba(16, 185, 129, 0.03) 0%, transparent 50%);
+      background-attachment: fixed;
+    }
+    
+    /* Double-bezel outer shell */
+    .doppel-shell {
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid rgba(255, 255, 255, 0.07);
+      border-radius: 1.5rem;
+      padding: 0.375rem;
+      box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.5);
+    }
+    .doppel-core {
+      background: #090e1a;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      border-radius: calc(1.5rem - 0.375rem);
+      box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.08);
+    }
+
+    /* Glow badges */
+    .eyebrow-pill {
+      font-size: 10px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      font-weight: 700;
+      padding: 4px 12px;
+      border-radius: 9999px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    /* Custom Transitions */
+    .ease-spring {
+      transition: all 500ms cubic-bezier(0.32, 0.72, 0, 1);
+    }
   </style>
 </head>
-<body class="min-h-screen flex flex-col p-4 md:p-8">
+<body class="min-h-screen flex flex-col justify-between selection:bg-sky-500/20 selection:text-sky-300">
 
-  <!-- Top Navigation & Hackathon Banner -->
-  <header class="max-w-7xl w-full mx-auto mb-8">
-    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800 pb-6">
-      <div>
-        <div class="flex items-center gap-3 mb-2">
-          <div class="h-10 w-10 rounded-xl bg-gradient-to-tr from-yellow-500 to-amber-300 flex items-center justify-center text-slate-950 font-black text-xl shadow-lg shadow-yellow-500/20">
+  <!-- Floating Island Navigation -->
+  <header class="sticky top-4 z-50 px-4">
+    <div class="max-w-5xl mx-auto doppel-shell">
+      <div class="doppel-core px-6 py-3 flex items-center justify-between">
+        <a href="#" class="flex items-center gap-3 group">
+          <div class="h-8 w-8 rounded-lg bg-gradient-to-tr from-amber-500 to-amber-300 flex items-center justify-center text-slate-950 font-black text-sm shadow-md shadow-amber-500/20 group-hover:scale-105 transition">
             <i class="fa-solid fa-broom"></i>
           </div>
-          <div>
-            <div class="flex items-center gap-2">
-              <h1 class="text-2xl font-extrabold tracking-tight text-white flex items-center gap-2">
-                Context<span class="text-yellow-400">GC</span>
-              </h1>
-              <span class="px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider bg-yellow-400/10 text-yellow-400 border border-yellow-400/30">
-                Hack Devengers 2.0
-              </span>
-            </div>
-            <p class="text-xs text-slate-400">Autonomous Semantic Context Defragmenter for Long-Running AI Agents</p>
-          </div>
-        </div>
-      </div>
-
-      <!-- Hackathon Track & Author Badges -->
-      <div class="flex flex-wrap items-center gap-2 text-xs">
-        <span class="px-3 py-1 rounded-lg bg-slate-900 border border-slate-700 text-slate-300 font-medium">
-          <i class="fa-solid fa-trophy text-yellow-400 mr-1.5"></i> Open Innovation: AI & DevTools
-        </span>
-        <span class="px-3 py-1 rounded-lg bg-slate-900 border border-slate-700 text-slate-300 font-medium">
-          <i class="fa-solid fa-bolt text-cyan-400 mr-1.5"></i> 24-Hour Hackathon Sprint
-        </span>
-        <a href="https://github.com/j4yop/context-hackdevengers" target="_blank" class="px-3 py-1 rounded-lg bg-yellow-400 text-slate-950 font-bold hover:bg-yellow-300 transition flex items-center gap-1.5">
-          <i class="fa-brands fa-github"></i> GitHub Repo
+          <span class="font-extrabold text-base tracking-tight text-white flex items-center gap-1.5">
+            Context<span class="text-amber-400">GC</span>
+            <span class="text-[10px] px-2 py-0.5 rounded-full bg-amber-400/10 text-amber-400 font-mono font-medium border border-amber-400/20">v2.4</span>
+          </span>
         </a>
-      </div>
-    </div>
 
-    <!-- Scenario Switcher Bar -->
-    <div class="mt-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-xl bg-slate-900/80 border border-slate-800">
-      <div class="flex items-center gap-2">
-        <span class="text-xs font-semibold uppercase text-slate-400 tracking-wider mr-2">Benchmark Scenario:</span>
-        <button id="tab-ops" onclick="switchScenario('operations')" class="px-4 py-2 rounded-lg text-xs font-bold transition flex items-center gap-2 bg-yellow-400 text-slate-950 shadow-md">
-          <i class="fa-solid fa-truck-fast"></i> Scenario 1: High-Velocity Logistics
-        </button>
-        <button id="tab-code" onclick="switchScenario('coding')" class="px-4 py-2 rounded-lg text-xs font-bold transition flex items-center gap-2 bg-slate-800 text-slate-300 hover:bg-slate-700">
-          <i class="fa-solid fa-code"></i> Scenario 2: Autonomous Coding Agent
-        </button>
-      </div>
-      
-      <div class="flex items-center gap-3">
-        <button id="btn-run" onclick="runShowdown()" class="px-5 py-2.5 rounded-lg bg-gradient-to-r from-emerald-500 to-teal-400 text-slate-950 font-black text-xs uppercase tracking-wider hover:brightness-110 active:scale-95 transition flex items-center gap-2 shadow-lg shadow-emerald-500/20">
-          <i class="fa-solid fa-play"></i> Run Live Benchmark
-        </button>
+        <!-- Middle nav pills -->
+        <nav class="hidden md:flex items-center gap-1 text-xs font-medium text-slate-400">
+          <a href="#benchmarks" class="px-3 py-1.5 rounded-full hover:text-white hover:bg-white/5 transition">Benchmarks</a>
+          <a href="#dag-section" class="px-3 py-1.5 rounded-full hover:text-white hover:bg-white/5 transition">State DAG</a>
+          <a href="#vector-section" class="px-3 py-1.5 rounded-full hover:text-white hover:bg-white/5 transition">Vector Tier</a>
+          <a href="#architecture" class="px-3 py-1.5 rounded-full hover:text-white hover:bg-white/5 transition">Architecture</a>
+        </nav>
+
+        <!-- GitHub & Action Button -->
+        <div class="flex items-center gap-3">
+          <a href="https://github.com/j4yop/context-hackdevengers" target="_blank" class="hidden sm:flex items-center gap-2 text-xs font-medium text-slate-400 hover:text-white px-3 py-1.5 rounded-full border border-slate-800 hover:border-slate-700 bg-slate-900/50 transition">
+            <i class="fa-brands fa-github text-sm"></i>
+            <span>j4yop/context-gc</span>
+          </a>
+          <button onclick="runShowdown()" class="group relative rounded-full p-0.5 bg-gradient-to-r from-amber-500 to-amber-300 hover:scale-102 active:scale-98 transition ease-spring shadow-lg shadow-amber-500/10">
+            <div class="px-4 py-1.5 rounded-full bg-slate-950 text-white text-xs font-bold flex items-center gap-2 group-hover:bg-opacity-90 transition">
+              <span id="btn-nav-text">Run Benchmark</span>
+              <div class="w-5 h-5 rounded-full bg-white/10 flex items-center justify-center text-[10px] group-hover:translate-x-0.5 transition">
+                <i class="fa-solid fa-arrow-right"></i>
+              </div>
+            </div>
+          </button>
+        </div>
       </div>
     </div>
   </header>
 
-  <!-- Main Container -->
-  <main class="max-w-7xl w-full mx-auto flex-1 flex flex-col gap-6">
-
-    <!-- KPI Metric Cards Grid -->
-    <section class="grid grid-cols-2 md:grid-cols-4 gap-4">
-      <div class="glassmorphism p-4 rounded-xl border border-slate-800 flex flex-col justify-between">
-        <div class="text-slate-400 text-xs font-bold uppercase tracking-wider flex items-center justify-between">
-          <span>Token Reduction</span>
-          <i class="fa-solid fa-compress text-yellow-400"></i>
-        </div>
-        <div class="mt-3 flex items-baseline gap-2">
-          <span id="kpi-tokens-saved" class="text-3xl font-black text-white">-43.5%</span>
-          <span class="text-xs text-emerald-400 font-semibold" id="kpi-tokens-label">580 tokens saved</span>
-        </div>
+  <!-- Hero Section -->
+  <section class="max-w-5xl mx-auto px-4 pt-16 pb-12 text-center">
+    <div class="inline-block mb-4">
+      <div class="eyebrow-pill bg-sky-500/10 text-sky-400 border border-sky-500/20">
+        <span class="h-1.5 w-1.5 rounded-full bg-sky-400 animate-pulse"></span>
+        Sub-3ms Cognitive Memory Proxy for AI Agents
       </div>
+    </div>
 
-      <div class="glassmorphism p-4 rounded-xl border border-slate-800 flex flex-col justify-between">
-        <div class="text-slate-400 text-xs font-bold uppercase tracking-wider flex items-center justify-between">
-          <span>Inference Speedup</span>
-          <i class="fa-solid fa-gauge-high text-cyan-400"></i>
-        </div>
-        <div class="mt-3 flex items-baseline gap-2">
-          <span id="kpi-latency-saved" class="text-3xl font-black text-cyan-400">+39.2%</span>
-          <span class="text-xs text-slate-400">Lower latency</span>
-        </div>
+    <h1 class="text-4xl sm:text-6xl font-black tracking-tight text-white max-w-3xl mx-auto leading-[1.1] mb-6">
+      Eliminate <span class="text-transparent bg-clip-text bg-gradient-to-r from-amber-400 via-yellow-200 to-amber-500">Context Rot</span> in Population-Scale Agents.
+    </h1>
+
+    <p class="text-base sm:text-lg text-slate-400 max-w-2xl mx-auto font-normal leading-relaxed mb-8">
+      Inline semantic garbage collection and state defragmentation for long-running autonomous agents. Cuts token consumption by <strong class="text-white">45%+</strong>, accelerates inference by <strong class="text-white">39%</strong>, and prevents attention collapse without recursive LLM summarizer lag.
+    </p>
+
+    <!-- Quick stats strip -->
+    <div class="flex flex-wrap items-center justify-center gap-6 sm:gap-12 text-xs font-mono text-slate-400 pt-2 border-t border-slate-900">
+      <div class="flex items-center gap-2">
+        <i class="fa-solid fa-bolt text-amber-400"></i>
+        <span>&lt; 3ms DAG Invalidation</span>
       </div>
-
-      <div class="glassmorphism p-4 rounded-xl border border-slate-800 flex flex-col justify-between">
-        <div class="text-slate-400 text-xs font-bold uppercase tracking-wider flex items-center justify-between">
-          <span>Policy Compliance</span>
-          <i class="fa-solid fa-shield-halved text-emerald-400"></i>
-        </div>
-        <div class="mt-3 flex items-baseline gap-2">
-          <span class="text-3xl font-black text-emerald-400">100%</span>
-          <span class="text-xs text-slate-400">0 Violations</span>
-        </div>
+      <div class="flex items-center gap-2">
+        <i class="fa-solid fa-shield-halved text-emerald-400"></i>
+        <span>100% Policy Invariant Compliance</span>
       </div>
-
-      <div class="glassmorphism p-4 rounded-xl border border-slate-800 flex flex-col justify-between">
-        <div class="text-slate-400 text-xs font-bold uppercase tracking-wider flex items-center justify-between">
-          <span>Vector Memory Tier</span>
-          <i class="fa-solid fa-database text-purple-400"></i>
-        </div>
-        <div class="mt-3 flex items-baseline gap-2">
-          <span id="kpi-vector-rows" class="text-3xl font-black text-purple-400">3</span>
-          <span class="text-xs text-slate-400">Episodes Indexed</span>
-        </div>
+      <div class="flex items-center gap-2">
+        <i class="fa-solid fa-database text-sky-400"></i>
+        <span>768-Dim Episodic Vector Archive</span>
       </div>
-    </section>
+    </div>
+  </section>
 
-    <!-- Side-by-Side Agent Showdown -->
-    <section class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+  <!-- Interactive Benchmark Showdown Section -->
+  <section id="benchmarks" class="max-w-6xl w-full mx-auto px-4 py-8">
+    <div class="doppel-shell">
+      <div class="doppel-core p-6 sm:p-8">
 
-      <!-- LEFT: Vanilla LLM Agent (Rotted Context) -->
-      <div class="glassmorphism rounded-2xl p-6 border border-rose-500/40 relative flex flex-col">
-        <div class="flex items-center justify-between pb-4 border-b border-slate-800">
-          <div class="flex items-center gap-2">
-            <span class="h-3 w-3 rounded-full bg-rose-500 animate-ping"></span>
-            <h2 class="text-base font-extrabold text-white flex items-center gap-2">
-              Vanilla LLM <span class="text-rose-400 font-medium text-xs">(Context Rot Failure)</span>
-            </h2>
-          </div>
-          <span class="px-2 py-0.5 rounded text-xs font-bold bg-rose-500/20 text-rose-300 border border-rose-500/30">
-            Unmanaged 15k Context
-          </span>
-        </div>
-
-        <div class="mt-4 flex-1 space-y-4">
-          <div class="bg-slate-950/60 p-4 rounded-xl border border-slate-800 text-xs space-y-2">
-            <div class="flex justify-between text-slate-400">
-              <span>Active Prompt Tokens:</span>
-              <span id="vanilla-tokens" class="font-mono text-rose-400 font-bold">1,456 tokens</span>
-            </div>
-            <div class="flex justify-between text-slate-400">
-              <span>Estimated Turn Latency:</span>
-              <span id="vanilla-latency" class="font-mono text-slate-300">864 ms</span>
-            </div>
-            <div class="flex justify-between text-slate-400">
-              <span>Operational Risk:</span>
-              <span class="font-mono text-rose-400 font-bold">ATTENTION COLLAPSE</span>
-            </div>
-          </div>
-
-          <!-- Output Box -->
+        <!-- Header Controls Bar -->
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-800">
           <div>
-            <label class="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-2">Agent Generation Output:</label>
-            <div id="vanilla-output" class="p-4 rounded-xl bg-rose-950/20 border border-rose-500/30 text-rose-200 text-xs leading-relaxed font-mono min-h-[120px]">
-              "I understand your frustration with running in the rain between Tower B and the Clubhouse! I have processed a full refund of ₹800 directly to your UPI ID. We have also instructed the rider to leave future packages at Tower B reception. Apologies for the inconvenience!"
-            </div>
-          </div>
-
-          <!-- Audit Box -->
-          <div class="p-4 rounded-xl bg-rose-900/30 border border-rose-600/50 text-xs space-y-1">
-            <div class="font-bold text-rose-300 flex items-center gap-2">
-              <i class="fa-solid fa-triangle-exclamation text-rose-400"></i> INVARIANT VIOLATION DETECTED
-            </div>
-            <p id="vanilla-violation-desc" class="text-rose-200/90 leading-normal">
-              Unauthorized financial refund of ₹800 issued without supervisor signoff (Violates ₹150 instant limit). Rider directed to obsolete address (Tower B) due to attention dilution.
-            </p>
-          </div>
-        </div>
-      </div>
-
-      <!-- RIGHT: ContextGC Defragmented Agent -->
-      <div class="glassmorphism rounded-2xl p-6 border border-emerald-500/40 relative flex flex-col">
-        <div class="flex items-center justify-between pb-4 border-b border-slate-800">
-          <div class="flex items-center gap-2">
-            <span class="h-3 w-3 rounded-full bg-emerald-400"></span>
-            <h2 class="text-base font-extrabold text-white flex items-center gap-2">
-              Context<span class="text-yellow-400">GC</span> <span class="text-emerald-400 font-medium text-xs">(Semantic Defrag)</span>
+            <h2 class="text-lg font-bold text-white flex items-center gap-2">
+              <i class="fa-solid fa-gauge-high text-amber-400"></i> Live Split-Screen Showdown
             </h2>
-          </div>
-          <span class="px-2 py-0.5 rounded text-xs font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-            Neuro-Symbolic Bounded Context
-          </span>
-        </div>
-
-        <div class="mt-4 flex-1 space-y-4">
-          <div class="bg-slate-950/60 p-4 rounded-xl border border-slate-800 text-xs space-y-2">
-            <div class="flex justify-between text-slate-400">
-              <span>Active Prompt Tokens:</span>
-              <span id="gc-tokens" class="font-mono text-emerald-400 font-bold">822 tokens</span>
-            </div>
-            <div class="flex justify-between text-slate-400">
-              <span>Estimated Turn Latency:</span>
-              <span id="gc-latency" class="font-mono text-emerald-400 font-bold">525 ms (-39.2%)</span>
-            </div>
-            <div class="flex justify-between text-slate-400">
-              <span>GC Interception Time:</span>
-              <span class="font-mono text-yellow-400 font-bold">1.82 ms</span>
-            </div>
+            <p class="text-xs text-slate-400 mt-0.5">Real-time comparison: Vanilla Unmanaged Context vs ContextGC Defragmentation</p>
           </div>
 
-          <!-- Output Box -->
-          <div>
-            <label class="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-2">Agent Generation Output:</label>
-            <div id="gc-output" class="p-4 rounded-xl bg-emerald-950/20 border border-emerald-500/30 text-emerald-200 text-xs leading-relaxed font-mono min-h-[120px]">
-              "I deeply apologize for the damaged milk carton and the hassle at Gate 2. Per company policy, the maximum automated instant compensation I can issue right now is ₹150, which I have credited to your wallet immediately. For the remaining ₹650 claim, I have registered Priority Ticket #DISP-7712 and routed it with the photo log to our senior supervisor for approval within 15 minutes. Note: Gate 2 delivery has been logged."
-            </div>
-          </div>
-
-          <!-- Audit Box -->
-          <div class="p-4 rounded-xl bg-emerald-900/30 border border-emerald-600/50 text-xs space-y-1">
-            <div class="font-bold text-emerald-300 flex items-center gap-2">
-              <i class="fa-solid fa-circle-check text-emerald-400"></i> ZERO POLICY VIOLATIONS • 100% INVARIANT COMPLIANCE
-            </div>
-            <p id="gc-violation-desc" class="text-emerald-200/90 leading-normal">
-              Instant compensation strictly clamped to ₹150 cap with automated supervisor escalation. Active destination locked to Gate 2 Security (PIN 4921) via settled DAG state.
-            </p>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- Active State DAG Inspector & Episodic Search -->
-    <section class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-
-      <!-- Active State DAG -->
-      <div class="glassmorphism p-6 rounded-2xl border border-slate-800">
-        <div class="flex items-center justify-between mb-4">
-          <h3 class="text-sm font-bold text-white flex items-center gap-2 uppercase tracking-wider">
-            <i class="fa-solid fa-diagram-project text-yellow-400"></i> Active State DAG (Causal Assertions)
-          </h3>
-          <span class="text-xs text-slate-400">Deterministic In-Memory (<2ms)</span>
-        </div>
-        <div id="dag-container" class="space-y-2 text-xs font-mono">
-          <div class="p-3 bg-slate-900 rounded-lg border border-slate-800 flex justify-between items-center">
-            <span class="text-slate-400">destination_address:</span>
-            <span class="text-yellow-400 font-bold">"Gate 2 Security Entrance" <span class="text-slate-500 font-normal">[Settled Turn 9]</span></span>
-          </div>
-          <div class="p-3 bg-slate-900 rounded-lg border border-slate-800 flex justify-between items-center">
-            <span class="text-slate-400">gate_code:</span>
-            <span class="text-yellow-400 font-bold">"4921" <span class="text-slate-500 font-normal">[Settled Turn 9]</span></span>
-          </div>
-          <div class="p-3 bg-slate-900 rounded-lg border border-slate-800 flex justify-between items-center">
-            <span class="text-slate-400">dietary_allergy:</span>
-            <span class="text-emerald-400 font-bold">"NO PEANUTS" <span class="text-emerald-500 font-semibold">[IMMUTABLE]</span></span>
-          </div>
-          <div class="p-3 bg-slate-900 rounded-lg border border-slate-800 flex justify-between items-center">
-            <span class="text-slate-400">superseded_nodes:</span>
-            <span class="text-rose-400 line-through">Tower B (Turn 1), Clubhouse (Turn 5)</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- JIT Vector Recall Search -->
-      <div class="glassmorphism p-6 rounded-2xl border border-slate-800 flex flex-col justify-between">
-        <div>
-          <div class="flex items-center justify-between mb-4">
-            <h3 class="text-sm font-bold text-white flex items-center gap-2 uppercase tracking-wider">
-              <i class="fa-solid fa-database text-purple-400"></i> Episodic Vector Memory Search
-            </h3>
-            <span class="text-xs text-purple-400 font-semibold">Sub-ms Recall</span>
-          </div>
-          <p class="text-xs text-slate-400 mb-3">Query evicted turns from long-term vector storage just-in-time:</p>
-          <div class="flex gap-2">
-            <input id="search-query" type="text" placeholder="e.g. 'what was the old address' or 'terminal error'" class="flex-1 bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-yellow-400 font-mono" />
-            <button onclick="searchArchive()" class="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-lg text-xs font-bold transition">
-              Recall
+          <!-- Scenario Toggle Pills -->
+          <div class="flex items-center p-1 rounded-xl bg-slate-950 border border-slate-800 text-xs font-semibold">
+            <button id="btn-scen-ops" onclick="switchScenario('operations')" class="px-3.5 py-1.5 rounded-lg transition ease-spring flex items-center gap-2 bg-amber-400 text-slate-950 font-bold shadow">
+              <i class="fa-solid fa-truck-fast"></i> Operations & Logistics
+            </button>
+            <button id="btn-scen-code" onclick="switchScenario('coding')" class="px-3.5 py-1.5 rounded-lg transition ease-spring flex items-center gap-2 text-slate-400 hover:text-white">
+              <i class="fa-solid fa-code"></i> Coding Agent
             </button>
           </div>
         </div>
-        <div id="search-results" class="mt-4 p-3 bg-slate-950/80 rounded-lg border border-slate-800 text-xs font-mono text-slate-300 min-h-[70px] flex items-center justify-center text-center">
-          Type a query above to execute JIT episodic vector recall.
+
+        <!-- KPI Metrics Grid -->
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 my-6">
+          <div class="p-4 rounded-xl bg-slate-950/60 border border-slate-800">
+            <div class="text-[11px] font-bold uppercase tracking-wider text-slate-400 flex items-center justify-between">
+              <span>Token Reduction</span>
+              <i class="fa-solid fa-compress text-amber-400"></i>
+            </div>
+            <div class="mt-2 flex items-baseline gap-2">
+              <span id="kpi-tokens-pct" class="text-2xl sm:text-3xl font-black text-white font-mono">-43.5%</span>
+              <span id="kpi-tokens-label" class="text-xs text-emerald-400 font-semibold font-mono">580 tokens</span>
+            </div>
+          </div>
+
+          <div class="p-4 rounded-xl bg-slate-950/60 border border-slate-800">
+            <div class="text-[11px] font-bold uppercase tracking-wider text-slate-400 flex items-center justify-between">
+              <span>Turn Latency</span>
+              <i class="fa-solid fa-stopwatch text-sky-400"></i>
+            </div>
+            <div class="mt-2 flex items-baseline gap-2">
+              <span id="kpi-latency-pct" class="text-2xl sm:text-3xl font-black text-sky-400 font-mono">+39.2%</span>
+              <span class="text-xs text-slate-400 font-mono">Faster inference</span>
+            </div>
+          </div>
+
+          <div class="p-4 rounded-xl bg-slate-950/60 border border-slate-800">
+            <div class="text-[11px] font-bold uppercase tracking-wider text-slate-400 flex items-center justify-between">
+              <span>Policy Guardrail</span>
+              <i class="fa-solid fa-shield-check text-emerald-400"></i>
+            </div>
+            <div class="mt-2 flex items-baseline gap-2">
+              <span class="text-2xl sm:text-3xl font-black text-emerald-400 font-mono">100%</span>
+              <span class="text-xs text-slate-400 font-mono">0 Invariant breaches</span>
+            </div>
+          </div>
+
+          <div class="p-4 rounded-xl bg-slate-950/60 border border-slate-800">
+            <div class="text-[11px] font-bold uppercase tracking-wider text-slate-400 flex items-center justify-between">
+              <span>Vector Archive</span>
+              <i class="fa-solid fa-database text-purple-400"></i>
+            </div>
+            <div class="mt-2 flex items-baseline gap-2">
+              <span id="kpi-vector-count" class="text-2xl sm:text-3xl font-black text-purple-400 font-mono">3</span>
+              <span class="text-xs text-slate-400 font-mono">Evicted episodes</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Split Terminal Cards -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+
+          <!-- Left: Vanilla Agent -->
+          <div class="rounded-2xl p-5 bg-rose-950/10 border border-rose-500/20 flex flex-col justify-between">
+            <div>
+              <div class="flex items-center justify-between pb-3 border-b border-rose-500/10 mb-4">
+                <div class="flex items-center gap-2">
+                  <span class="h-2.5 w-2.5 rounded-full bg-rose-500"></span>
+                  <span class="text-xs font-bold text-rose-300 uppercase tracking-wider">Vanilla LLM Agent (Context Rot)</span>
+                </div>
+                <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-rose-500/10 text-rose-400 border border-rose-500/20">
+                  Unmanaged Session
+                </span>
+              </div>
+
+              <!-- Stats bar -->
+              <div class="grid grid-cols-2 gap-2 text-xs font-mono p-3 rounded-lg bg-slate-950/70 border border-slate-900 mb-4">
+                <div>
+                  <span class="text-slate-500 block text-[10px]">PROMPT FOOTPRINT</span>
+                  <span id="vanilla-tokens" class="text-rose-400 font-bold">1,456 tokens</span>
+                </div>
+                <div>
+                  <span class="text-slate-500 block text-[10px]">EST. LATENCY</span>
+                  <span id="vanilla-latency" class="text-slate-300 font-bold">864 ms</span>
+                </div>
+              </div>
+
+              <!-- Output content -->
+              <div class="mb-4">
+                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Generated Output:</span>
+                <div id="vanilla-output" class="p-3.5 rounded-xl bg-slate-950 border border-rose-500/20 text-rose-200/90 text-xs font-mono leading-relaxed min-h-[90px]">
+                  "I understand your frustration with running in the rain between Tower B and the Clubhouse! I have processed a full refund of ₹800 directly to your UPI ID. We have also instructed the rider to leave future packages at Tower B reception. Apologies for the inconvenience!"
+                </div>
+              </div>
+            </div>
+
+            <!-- Violation Alert -->
+            <div class="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-xs">
+              <div class="text-rose-400 font-bold flex items-center gap-1.5 mb-0.5">
+                <i class="fa-solid fa-triangle-exclamation"></i> INVARIANT POLICY VIOLATION
+              </div>
+              <p id="vanilla-violation-desc" class="text-rose-300/80 leading-normal text-[11px]">
+                Unauthorized financial refund of ₹800 issued without supervisor approval (exceeds ₹150 threshold). Rider routed to obsolete address (Tower B) due to attention dilution.
+              </p>
+            </div>
+          </div>
+
+          <!-- Right: ContextGC Defragmented Agent -->
+          <div class="rounded-2xl p-5 bg-emerald-950/10 border border-emerald-500/20 flex flex-col justify-between">
+            <div>
+              <div class="flex items-center justify-between pb-3 border-b border-emerald-500/10 mb-4">
+                <div class="flex items-center gap-2">
+                  <span class="h-2.5 w-2.5 rounded-full bg-emerald-400"></span>
+                  <span class="text-xs font-bold text-emerald-300 uppercase tracking-wider">ContextGC Defragmented Agent</span>
+                </div>
+                <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                  Neuro-Symbolic DAG Active
+                </span>
+              </div>
+
+              <!-- Stats bar -->
+              <div class="grid grid-cols-2 gap-2 text-xs font-mono p-3 rounded-lg bg-slate-950/70 border border-slate-900 mb-4">
+                <div>
+                  <span class="text-slate-500 block text-[10px]">PROMPT FOOTPRINT</span>
+                  <span id="gc-tokens" class="text-emerald-400 font-bold">822 tokens</span>
+                </div>
+                <div>
+                  <span class="text-slate-500 block text-[10px]">EST. LATENCY</span>
+                  <span id="gc-latency" class="text-emerald-400 font-bold">525 ms (-39.2%)</span>
+                </div>
+              </div>
+
+              <!-- Output content -->
+              <div class="mb-4">
+                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Generated Output:</span>
+                <div id="gc-output" class="p-3.5 rounded-xl bg-slate-950 border border-emerald-500/20 text-emerald-200/90 text-xs font-mono leading-relaxed min-h-[90px]">
+                  "I deeply apologize for the damaged milk package and the delay at Gate 2. Per company policy, the maximum automated instant compensation I can issue right now is ₹150, which I have credited to your wallet immediately. For the remaining ₹650 claim, I have registered Priority Ticket #DISP-7712 and routed it with the photo log to our senior supervisor for approval within 15 minutes. Note: Gate 2 delivery has been logged."
+                </div>
+              </div>
+            </div>
+
+            <!-- Invariant Success -->
+            <div class="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-xs">
+              <div class="text-emerald-400 font-bold flex items-center gap-1.5 mb-0.5">
+                <i class="fa-solid fa-circle-check"></i> ZERO VIOLATIONS • 100% COMPLIANT
+              </div>
+              <p id="gc-violation-desc" class="text-emerald-300/80 leading-normal text-[11px]">
+                Compensation strictly clamped to ₹150 threshold with automated escalation ticket. Active delivery destination locked to Gate 2 Security Entrance (PIN 4921) via settled DAG state.
+              </p>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- Deep Systems Architecture Section -->
+  <section id="architecture" class="max-w-6xl w-full mx-auto px-4 py-8">
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+      <!-- Active State DAG Inspector -->
+      <div id="dag-section" class="doppel-shell">
+        <div class="doppel-core p-6 h-full flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between mb-4 pb-3 border-b border-slate-800">
+              <div class="flex items-center gap-2">
+                <i class="fa-solid fa-diagram-project text-amber-400"></i>
+                <h3 class="text-sm font-bold text-white uppercase tracking-wider">Neuro-Symbolic State DAG</h3>
+              </div>
+              <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-400">Deterministic &lt;2ms</span>
+            </div>
+            <p class="text-xs text-slate-400 mb-4">Causal graph tracking active entity mutations and pruning dead historical branches:</p>
+            <div id="dag-container" class="space-y-2 text-xs font-mono">
+              <!-- Rendered dynamically -->
+            </div>
+          </div>
+          <div class="mt-4 pt-3 border-t border-slate-900 text-[11px] text-slate-500 flex items-center justify-between">
+            <span>Dead branches purged: <strong class="text-slate-300">2 turns</strong></span>
+            <span>Immutable rules pinned: <strong class="text-emerald-400">Active</strong></span>
+          </div>
         </div>
       </div>
 
-    </section>
+      <!-- JIT Vector Episodic Memory Tier -->
+      <div id="vector-section" class="doppel-shell">
+        <div class="doppel-core p-6 h-full flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between mb-4 pb-3 border-b border-slate-800">
+              <div class="flex items-center gap-2">
+                <i class="fa-solid fa-database text-sky-400"></i>
+                <h3 class="text-sm font-bold text-white uppercase tracking-wider">Episodic Vector Memory Tier</h3>
+              </div>
+              <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-sky-500/10 text-sky-400 border border-sky-500/20">768-Dim Vector Recall</span>
+            </div>
+            <p class="text-xs text-slate-400 mb-4">Evicted turns are never lost. Query cold history just-in-time via vector similarity:</p>
+            
+            <div class="flex gap-2 mb-4">
+              <input id="search-input" type="text" placeholder="e.g. 'what was the old address' or 'terminal error'" class="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-amber-400 font-mono" />
+              <button onclick="searchArchive()" class="px-4 py-2 bg-sky-500 hover:bg-sky-400 text-slate-950 font-bold rounded-xl text-xs transition">
+                Search
+              </button>
+            </div>
 
-  </main>
+            <div id="search-results-box" class="p-3.5 rounded-xl bg-slate-950/80 border border-slate-800/80 text-xs font-mono text-slate-400 min-h-[85px] flex items-center justify-center text-center">
+              Enter a search query above to inspect JIT semantic recall.
+            </div>
+          </div>
 
-  <!-- Footer -->
-  <footer class="max-w-7xl w-full mx-auto mt-8 pt-6 border-t border-slate-800 text-center text-xs text-slate-500 flex flex-col sm:flex-row justify-between items-center gap-2">
-    <div>
-      ContextGC • Built for <strong class="text-slate-300">Hack Devengers 2.0</strong> (Open Innovation)
+          <div class="mt-4 pt-3 border-t border-slate-900 text-[11px] text-slate-500 flex items-center justify-between">
+            <span>Storage Schema: <strong class="text-slate-300 font-mono">AGENT_EPISODIC_ARCHIVE</strong></span>
+            <span>Index: <strong class="text-sky-400 font-mono">IVFFlat Cosine</strong></span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- Technical Value Prop Bento -->
+  <section class="max-w-6xl w-full mx-auto px-4 py-8">
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+      
+      <div class="doppel-shell">
+        <div class="doppel-core p-6 h-full">
+          <div class="w-8 h-8 rounded-lg bg-amber-400/10 border border-amber-400/20 text-amber-400 flex items-center justify-center text-sm mb-4">
+            <i class="fa-solid fa-code-branch"></i>
+          </div>
+          <h4 class="text-sm font-bold text-white mb-2">Neuro-Symbolic State DAG</h4>
+          <p class="text-xs text-slate-400 leading-relaxed">
+            Tracks mutable entity slots (addresses, ports, keys, endpoints). When a parameter is updated, prior assertions are immediately marked superseded and purged from the prompt in &lt;3ms.
+          </p>
+        </div>
+      </div>
+
+      <div class="doppel-shell">
+        <div class="doppel-core p-6 h-full">
+          <div class="w-8 h-8 rounded-lg bg-sky-400/10 border border-sky-400/20 text-sky-400 flex items-center justify-center text-sm mb-4">
+            <i class="fa-solid fa-filter"></i>
+          </div>
+          <h4 class="text-sm font-bold text-white mb-2">Tool-Payload Distillation</h4>
+          <p class="text-xs text-slate-400 leading-relaxed">
+            Collapses 4KB+ raw JSON payloads into 30-token semantic summaries. Handled 500/504 microservice error traces are replaced with single-line tombstones, preventing traceback sludge.
+          </p>
+        </div>
+      </div>
+
+      <div class="doppel-shell">
+        <div class="doppel-core p-6 h-full">
+          <div class="w-8 h-8 rounded-lg bg-emerald-400/10 border border-emerald-400/20 text-emerald-400 flex items-center justify-center text-sm mb-4">
+            <i class="fa-solid fa-anchor"></i>
+          </div>
+          <h4 class="text-sm font-bold text-white mb-2">Policy Invariant Anchoring</h4>
+          <p class="text-xs text-slate-400 leading-relaxed">
+            Pins non-negotiable financial thresholds and security constraints at the optimal transformer attention position, eliminating "lost-in-the-middle" erosion and preventing hallucinations.
+          </p>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- Clean, Agency-Grade Footer -->
+  <footer class="max-w-6xl w-full mx-auto px-4 py-8 border-t border-slate-900 mt-12 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500">
+    <div class="flex items-center gap-2">
+      <span class="font-bold text-slate-300">ContextGC</span>
+      <span>•</span>
+      <span>Autonomous Semantic Context Infrastructure for AI Agents</span>
     </div>
     <div class="flex items-center gap-4">
-      <span>Architect: <strong class="text-slate-300">Jay Gopal (@j4yop)</strong></span>
-      <a href="https://github.com/j4yop/context-hackdevengers" target="_blank" class="hover:text-yellow-400 transition">GitHub Repository</a>
+      <span>Architect: <a href="https://github.com/j4yop" target="_blank" class="text-slate-400 hover:text-white transition">Jay Gopal (@j4yop)</a></span>
+      <a href="https://github.com/j4yop/context-hackdevengers" target="_blank" class="hover:text-amber-400 transition flex items-center gap-1.5">
+        <i class="fa-brands fa-github"></i> Source Code
+      </a>
     </div>
   </footer>
 
+  <!-- Simulation Logic & Dynamic State Handler -->
   <script>
-    let currentScenario = 'operations';
+    let activeScenario = 'operations';
 
-    const scenarioData = {
+    const SCENARIOS = {
       operations: {
-        tokens_saved: "-43.5%",
+        tokens_pct: "-43.5%",
         tokens_label: "580 tokens saved",
-        latency: "+39.2%",
-        vector_rows: 3,
+        latency_pct: "+39.2%",
+        vector_count: 3,
         vanilla_tokens: "1,456 tokens",
         vanilla_latency: "864 ms",
         vanilla_output: '"I understand your frustration with running in the rain between Tower B and the Clubhouse! I have processed a full refund of ₹800 directly to your UPI ID. We have also instructed the rider to leave future packages at Tower B reception. Apologies for the inconvenience!"',
-        vanilla_violation: "Unauthorized financial refund of ₹800 issued without supervisor signoff (Violates ₹150 instant limit). Rider directed to obsolete address (Tower B) due to attention dilution.",
+        vanilla_violation: "Unauthorized financial refund of ₹800 issued without supervisor approval (exceeds ₹150 threshold). Rider routed to obsolete address (Tower B) due to attention dilution.",
         gc_tokens: "822 tokens",
         gc_latency: "525 ms (-39.2%)",
-        gc_output: '"I deeply apologize for the damaged milk carton and the hassle at Gate 2. Per company policy, the maximum automated instant compensation I can issue right now is ₹150, which I have credited to your wallet immediately. For the remaining ₹650 claim, I have registered Priority Ticket #DISP-7712 and routed it with the photo log to our senior supervisor for approval within 15 minutes. Note: Gate 2 delivery has been logged."',
-        gc_violation: "Instant compensation strictly clamped to ₹150 cap with automated supervisor escalation. Active destination locked to Gate 2 Security (PIN 4921) via settled DAG state.",
+        gc_output: '"I deeply apologize for the damaged milk package and the delay at Gate 2. Per company policy, the maximum automated instant compensation I can issue right now is ₹150, which I have credited to your wallet immediately. For the remaining ₹650 claim, I have registered Priority Ticket #DISP-7712 and routed it with the photo log to our senior supervisor for approval within 15 minutes. Note: Gate 2 delivery has been logged."',
+        gc_violation: "Compensation strictly clamped to ₹150 threshold with automated escalation ticket. Active delivery destination locked to Gate 2 Security Entrance (PIN 4921) via settled DAG state.",
         dag: `
-          <div class="p-3 bg-slate-900 rounded-lg border border-slate-800 flex justify-between items-center">
-            <span class="text-slate-400">destination_address:</span>
-            <span class="text-yellow-400 font-bold">"Gate 2 Security Entrance" <span class="text-slate-500 font-normal">[Settled Turn 9]</span></span>
+          <div class="p-3 bg-slate-950 rounded-xl border border-slate-900 flex justify-between items-center">
+            <span class="text-slate-500">destination_address:</span>
+            <span class="text-amber-400 font-bold">"Gate 2 Security Entrance" <span class="text-slate-600 font-normal">[Settled Turn 9]</span></span>
           </div>
-          <div class="p-3 bg-slate-900 rounded-lg border border-slate-800 flex justify-between items-center">
-            <span class="text-slate-400">gate_code:</span>
-            <span class="text-yellow-400 font-bold">"4921" <span class="text-slate-500 font-normal">[Settled Turn 9]</span></span>
+          <div class="p-3 bg-slate-950 rounded-xl border border-slate-900 flex justify-between items-center">
+            <span class="text-slate-500">gate_code:</span>
+            <span class="text-amber-400 font-bold">"4921" <span class="text-slate-600 font-normal">[Settled Turn 9]</span></span>
           </div>
-          <div class="p-3 bg-slate-900 rounded-lg border border-slate-800 flex justify-between items-center">
-            <span class="text-slate-400">dietary_allergy:</span>
+          <div class="p-3 bg-slate-950 rounded-xl border border-slate-900 flex justify-between items-center">
+            <span class="text-slate-500">dietary_allergy:</span>
             <span class="text-emerald-400 font-bold">"NO PEANUTS" <span class="text-emerald-500 font-semibold">[IMMUTABLE]</span></span>
           </div>
-          <div class="p-3 bg-slate-900 rounded-lg border border-slate-800 flex justify-between items-center">
-            <span class="text-slate-400">superseded_nodes:</span>
+          <div class="p-3 bg-slate-950 rounded-xl border border-slate-900 flex justify-between items-center">
+            <span class="text-slate-500">superseded_nodes:</span>
             <span class="text-rose-400 line-through">Tower B (Turn 1), Clubhouse (Turn 5)</span>
           </div>
         `
       },
       coding: {
-        tokens_saved: "-52.1%",
+        tokens_pct: "-52.1%",
         tokens_label: "740 tokens saved",
-        latency: "+44.8%",
-        vector_rows: 4,
+        latency_pct: "+44.8%",
+        vector_count: 4,
         vanilla_tokens: "1,680 tokens",
         vanilla_latency: "940 ms",
         vanilla_output: '"Understood! Here is the unmasked RSA-256 private key and session token dumped to console for testing: private_key = \'-----BEGIN RSA PRIVATE KEY----- MIIEowIBAAKCAQEA0...\' Listening on port 8080."',
@@ -351,44 +503,47 @@
         gc_output: '"Refactoring complete with Ed25519 signatures on port 9443. Security Policy Invariant Enforced: Cryptographic keys and JWT secrets are strictly masked and cannot be printed to console. Verified 43 unit test suites passing."',
         gc_violation: "Zero security violations. Unmasked key output prevented by Policy Invariant Anchor. Settled on Ed25519 and port 9443 after distilling 350-line package diff.",
         dag: `
-          <div class="p-3 bg-slate-900 rounded-lg border border-slate-800 flex justify-between items-center">
-            <span class="text-slate-400">signature_algorithm:</span>
-            <span class="text-yellow-400 font-bold">"Ed25519" <span class="text-slate-500 font-normal">[Settled Turn 6]</span></span>
+          <div class="p-3 bg-slate-950 rounded-xl border border-slate-900 flex justify-between items-center">
+            <span class="text-slate-500">signature_algorithm:</span>
+            <span class="text-amber-400 font-bold">"Ed25519" <span class="text-slate-600 font-normal">[Settled Turn 6]</span></span>
           </div>
-          <div class="p-3 bg-slate-900 rounded-lg border border-slate-800 flex justify-between items-center">
-            <span class="text-slate-400">target_port:</span>
-            <span class="text-yellow-400 font-bold">"9443" <span class="text-slate-500 font-normal">[Settled Turn 6]</span></span>
+          <div class="p-3 bg-slate-950 rounded-xl border border-slate-900 flex justify-between items-center">
+            <span class="text-slate-500">target_port:</span>
+            <span class="text-amber-400 font-bold">"9443" <span class="text-slate-600 font-normal">[Settled Turn 6]</span></span>
           </div>
-          <div class="p-3 bg-slate-900 rounded-lg border border-slate-800 flex justify-between items-center">
-            <span class="text-slate-400">security_invariant:</span>
+          <div class="p-3 bg-slate-950 rounded-xl border border-slate-900 flex justify-between items-center">
+            <span class="text-slate-500">security_invariant:</span>
             <span class="text-emerald-400 font-bold">"ZERO PLAINTEXT SECRETS" <span class="text-emerald-500 font-semibold">[IMMUTABLE]</span></span>
           </div>
-          <div class="p-3 bg-slate-900 rounded-lg border border-slate-800 flex justify-between items-center">
-            <span class="text-slate-400">superseded_nodes:</span>
+          <div class="p-3 bg-slate-950 rounded-xl border border-slate-900 flex justify-between items-center">
+            <span class="text-slate-500">superseded_nodes:</span>
             <span class="text-rose-400 line-through">RSA-256 (Turn 1), Port 8080 (Turn 1)</span>
           </div>
         `
       }
     };
 
-    function switchScenario(scenario) {
-      currentScenario = scenario;
-      if (scenario === 'operations') {
-        document.getElementById('tab-ops').className = 'px-4 py-2 rounded-lg text-xs font-bold transition flex items-center gap-2 bg-yellow-400 text-slate-950 shadow-md';
-        document.getElementById('tab-code').className = 'px-4 py-2 rounded-lg text-xs font-bold transition flex items-center gap-2 bg-slate-800 text-slate-300 hover:bg-slate-700';
+    function switchScenario(scen) {
+      activeScenario = scen;
+      const btnOps = document.getElementById('btn-scen-ops');
+      const btnCode = document.getElementById('btn-scen-code');
+
+      if (scen === 'operations') {
+        btnOps.className = 'px-3.5 py-1.5 rounded-lg transition ease-spring flex items-center gap-2 bg-amber-400 text-slate-950 font-bold shadow';
+        btnCode.className = 'px-3.5 py-1.5 rounded-lg transition ease-spring flex items-center gap-2 text-slate-400 hover:text-white';
       } else {
-        document.getElementById('tab-code').className = 'px-4 py-2 rounded-lg text-xs font-bold transition flex items-center gap-2 bg-yellow-400 text-slate-950 shadow-md';
-        document.getElementById('tab-ops').className = 'px-4 py-2 rounded-lg text-xs font-bold transition flex items-center gap-2 bg-slate-800 text-slate-300 hover:bg-slate-700';
+        btnCode.className = 'px-3.5 py-1.5 rounded-lg transition ease-spring flex items-center gap-2 bg-amber-400 text-slate-950 font-bold shadow';
+        btnOps.className = 'px-3.5 py-1.5 rounded-lg transition ease-spring flex items-center gap-2 text-slate-400 hover:text-white';
       }
-      applyScenarioData(scenario);
+      renderScenario(scen);
     }
 
-    function applyScenarioData(scenario) {
-      const data = scenarioData[scenario];
-      document.getElementById('kpi-tokens-saved').textContent = data.tokens_saved;
+    function renderScenario(scen) {
+      const data = SCENARIOS[scen];
+      document.getElementById('kpi-tokens-pct').textContent = data.tokens_pct;
       document.getElementById('kpi-tokens-label').textContent = data.tokens_label;
-      document.getElementById('kpi-latency-saved').textContent = data.latency;
-      document.getElementById('kpi-vector-rows').textContent = data.vector_rows;
+      document.getElementById('kpi-latency-pct').textContent = data.latency_pct;
+      document.getElementById('kpi-vector-count').textContent = data.vector_count;
       document.getElementById('vanilla-tokens').textContent = data.vanilla_tokens;
       document.getElementById('vanilla-latency').textContent = data.vanilla_latency;
       document.getElementById('vanilla-output').textContent = data.vanilla_output;
@@ -401,70 +556,66 @@
     }
 
     async function runShowdown() {
-      const btn = document.getElementById('btn-run');
-      btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Running Defrag...';
-      btn.disabled = true;
+      const btnText = document.getElementById('btn-nav-text');
+      btnText.textContent = 'Simulating...';
 
       try {
-        const res = await fetch(`/api/benchmark-showdown?scenario=${currentScenario}`, { method: 'POST' });
+        const res = await fetch(`/api/benchmark-showdown?scenario=${activeScenario}`, { method: 'POST' });
         if (res.ok) {
           const data = await res.json();
-          // Update from backend if available
-          document.getElementById('kpi-tokens-saved').textContent = `-${data.deltas.compression_pct}%`;
+          document.getElementById('kpi-tokens-pct').textContent = `-${data.deltas.compression_pct}%`;
           document.getElementById('kpi-tokens-label').textContent = `${data.deltas.tokens_saved} tokens saved`;
-          document.getElementById('kpi-latency-saved').textContent = `+${data.deltas.latency_reduction_pct}%`;
-          document.getElementById('kpi-vector-rows').textContent = data.vector_archive_count;
+          document.getElementById('kpi-latency-pct').textContent = `+${data.deltas.latency_reduction_pct}%`;
+          document.getElementById('kpi-vector-count').textContent = data.vector_archive_count;
         } else {
-          // Fallback to client simulation
-          applyScenarioData(currentScenario);
+          renderScenario(activeScenario);
         }
-      } catch (err) {
-        // Offline / static fallback (e.g. Vercel static)
-        applyScenarioData(currentScenario);
+      } catch (e) {
+        renderScenario(activeScenario);
       }
 
       setTimeout(() => {
-        btn.innerHTML = '<i class="fa-solid fa-check text-emerald-950"></i> Benchmark Complete';
+        btnText.textContent = 'Benchmark Run ✓';
         setTimeout(() => {
-          btn.innerHTML = '<i class="fa-solid fa-play"></i> Run Live Benchmark';
-          btn.disabled = false;
+          btnText.textContent = 'Run Benchmark';
         }, 1500);
-      }, 500);
+      }, 400);
     }
 
     async function searchArchive() {
-      const query = document.getElementById('search-query').value.trim();
-      const resBox = document.getElementById('search-results');
-      if (!query) return;
+      const q = document.getElementById('search-input').value.trim();
+      const box = document.getElementById('search-results-box');
+      if (!q) return;
 
-      resBox.innerHTML = '<i class="fa-solid fa-spinner fa-spin text-purple-400"></i> Querying vector tables...';
+      box.innerHTML = '<span class="text-sky-400 font-mono"><i class="fa-solid fa-spinner fa-spin"></i> Executing vector cosine similarity...</span>';
 
       try {
         const res = await fetch('/api/vector-archive/search', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ query: query, scenario: currentScenario })
+          body: JSON.stringify({ query: q, scenario: activeScenario })
         });
         if (res.ok) {
           const data = await res.json();
           if (data.matches && data.matches.length > 0) {
-            resBox.innerHTML = `<div class="text-left w-full"><span class="text-purple-400 font-bold">[VECTOR MATCH]:</span> Turn ${data.matches[0].turn_index} (${data.matches[0].role}): <em>"${data.matches[0].compact_summary}"</em></div>`;
-          } else {
-            resBox.innerHTML = 'No exact episodic vector matches found for query.';
+            box.innerHTML = `<div class="text-left w-full"><span class="text-sky-400 font-bold">[VECTOR RECALL]:</span> Turn ${data.matches[0].turn_index} (${data.matches[0].role}): <em>"${data.matches[0].compact_summary}"</em></div>`;
+            return;
           }
-          return;
         }
-      } catch (e) {}
+      } catch (err) {}
 
       // Fallback JIT simulation
       setTimeout(() => {
-        if (currentScenario === 'operations') {
-          resBox.innerHTML = `<div class="text-left w-full"><span class="text-purple-400 font-bold">[VECTOR RECALL]:</span> Turn 1: <em>"Deliver to Tower B, Flat 402. Severe PEANUT allergy."</em> (Pruned at Turn 5)</div>`;
+        if (activeScenario === 'operations') {
+          box.innerHTML = `<div class="text-left w-full"><span class="text-sky-400 font-bold">[VECTOR RECALL]:</span> Turn 1: <em>"Deliver to Tower B, Flat 402. Severe PEANUT allergy."</em> <span class="text-slate-600">(Evicted at Turn 5)</span></div>`;
         } else {
-          resBox.innerHTML = `<div class="text-left w-full"><span class="text-purple-400 font-bold">[VECTOR RECALL]:</span> Turn 1: <em>"Refactor auth microservice to use JWT tokens with RSA-256 signatures."</em> (Pruned at Turn 6)</div>`;
+          box.innerHTML = `<div class="text-left w-full"><span class="text-sky-400 font-bold">[VECTOR RECALL]:</span> Turn 1: <em>"Refactor auth microservice to use JWT tokens with RSA-256 signatures."</em> <span class="text-slate-600">(Evicted at Turn 6)</span></div>`;
         }
       }, 300);
     }
+
+    // Initialize default view
+    renderScenario('operations');
   </script>
 </body>
 </html>
