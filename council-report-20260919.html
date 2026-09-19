@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Deep Research Council Report: ContextGC</title>
+  <style>
+    :root {
+      --bg: #090d16;
+      --card-bg: rgba(22, 30, 49, 0.7);
+      --card-border: rgba(255, 255, 255, 0.08);
+      --text: #f1f5f9;
+      --text-muted: #94a3b8;
+      --accent: #38bdf8;
+      --accent-glow: rgba(56, 189, 248, 0.15);
+      --emerald: #10b981;
+      --rose: #f43f5e;
+      --amber: #f59e0b;
+      --purple: #a855f7;
+      --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      --mono: "SF Mono", Menlo, Consolas, Monaco, monospace;
+    }
+
+    @media (prefers-color-scheme: light) {
+      :root {
+        --bg: #f8fafc;
+        --card-bg: #ffffff;
+        --card-border: rgba(0, 0, 0, 0.08);
+        --text: #0f172a;
+        --text-muted: #64748b;
+        --accent: #0284c7;
+        --accent-glow: rgba(2, 132, 199, 0.1);
+        --emerald: #059669;
+        --rose: #e11d48;
+        --amber: #d97706;
+        --purple: #9333ea;
+      }
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      font-family: var(--font);
+      line-height: 1.6;
+      padding: 2.5rem 1.5rem;
+      max-width: 1040px;
+      margin: 0 auto;
+    }
+
+    header {
+      border-bottom: 1px solid var(--card-border);
+      padding-bottom: 2rem;
+      margin-bottom: 2.5rem;
+    }
+
+    .badge-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+    }
+
+    .badge {
+      font-size: 0.75rem;
+      font-weight: 600;
+      padding: 0.25rem 0.65rem;
+      border-radius: 9999px;
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      color: var(--text-muted);
+    }
+    .badge.highlight {
+      background: var(--accent-glow);
+      color: var(--accent);
+      border-color: var(--accent);
+    }
+
+    h1 {
+      font-size: 2.25rem;
+      font-weight: 800;
+      letter-spacing: -0.025em;
+      margin-bottom: 0.75rem;
+      background: linear-gradient(to right, var(--text), var(--text-muted));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    p.lead {
+      font-size: 1.125rem;
+      color: var(--text-muted);
+      max-width: 800px;
+    }
+
+    .section-title {
+      font-size: 1.35rem;
+      font-weight: 700;
+      letter-spacing: -0.015em;
+      margin: 2.5rem 0 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .verdict-box {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-left: 4px solid var(--accent);
+      border-radius: 0.75rem;
+      padding: 1.5rem;
+      margin-bottom: 2rem;
+      box-shadow: 0 4px 20px -5px var(--accent-glow);
+    }
+
+    .verdict-box h2 {
+      font-size: 1.25rem;
+      color: var(--accent);
+      margin-bottom: 0.5rem;
+    }
+
+    .consensus-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 0.75rem;
+      padding: 1.25rem;
+      transition: transform 0.2s ease, border-color 0.2s ease;
+    }
+    .card:hover {
+      border-color: var(--accent);
+      transform: translateY(-2px);
+    }
+
+    .card h3 {
+      font-size: 1rem;
+      margin-bottom: 0.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .card p {
+      font-size: 0.875rem;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+
+    details {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 0.75rem;
+      margin-bottom: 1rem;
+      overflow: hidden;
+      transition: all 0.2s ease;
+    }
+
+    details[open] {
+      border-color: rgba(255, 255, 255, 0.15);
+    }
+
+    summary {
+      font-weight: 600;
+      padding: 1rem 1.25rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      user-select: none;
+      background: rgba(255, 255, 255, 0.02);
+    }
+    summary:hover {
+      background: var(--accent-glow);
+    }
+
+    .details-content {
+      padding: 1.25rem;
+      border-top: 1px solid var(--card-border);
+      font-size: 0.925rem;
+    }
+
+    .details-content ul {
+      margin-left: 1.25rem;
+      margin-top: 0.5rem;
+    }
+
+    .details-content li {
+      margin-bottom: 0.5rem;
+    }
+
+    .tag {
+      font-size: 0.7rem;
+      font-family: var(--mono);
+      text-transform: uppercase;
+      padding: 0.2rem 0.5rem;
+      border-radius: 4px;
+      font-weight: bold;
+    }
+    .tag-red { background: rgba(244, 63, 94, 0.15); color: var(--rose); }
+    .tag-blue { background: rgba(56, 189, 248, 0.15); color: var(--accent); }
+    .tag-green { background: rgba(16, 185, 129, 0.15); color: var(--emerald); }
+    .tag-amber { background: rgba(245, 158, 11, 0.15); color: var(--amber); }
+    .tag-purple { background: rgba(168, 85, 247, 0.15); color: var(--purple); }
+
+    .matrix-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 1rem 0 2rem;
+      font-size: 0.875rem;
+    }
+    .matrix-table th, .matrix-table td {
+      padding: 0.75rem 1rem;
+      text-align: left;
+      border-bottom: 1px solid var(--card-border);
+    }
+    .matrix-table th {
+      background: rgba(255, 255, 255, 0.03);
+      font-weight: 600;
+      color: var(--text-muted);
+    }
+
+    .action-steps {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      margin-top: 1rem;
+    }
+
+    .step-item {
+      display: flex;
+      gap: 1rem;
+      padding: 1rem;
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 0.5rem;
+    }
+    .step-number {
+      font-family: var(--mono);
+      font-weight: 800;
+      color: var(--accent);
+      font-size: 1.1rem;
+    }
+
+    footer {
+      margin-top: 3rem;
+      padding-top: 1.5rem;
+      border-top: 1px solid var(--card-border);
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      display: flex;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="badge-bar">
+      <span class="badge highlight">Council Protocol v2.4</span>
+      <span class="badge">Hack Devengers 2.0</span>
+      <span class="badge">Session ID: COUNCIL-DEVENGER-20260919</span>
+      <span class="badge">Andrej Karpathy LLM Council Framework</span>
+    </div>
+    <h1>Council Report: ContextGC Architecture & Strategy</h1>
+    <p class="lead">Independent 5-role multi-agent deliberation, anonymous cross-examination peer review, and synthesized executive engineering verdict for ContextGC.</p>
+  </header>
+
+  <!-- Executive Verdict -->
+  <div class="verdict-box">
+    <h2>🏆 Chairman's Synthesis & Final Verdict</h2>
+    <p><strong>Decisive Ruling:</strong> ContextGC's core thesis is physically and mathematically sound—softmax attention dilution ("Context Rot") is an entropy degradation phenomenon that deterministic state pruning resolves. However, the system faces an immediate architectural paradox: <em>middle-turn mutation conflicts with 2026 KV-cache prefix reuse</em>.</p>
+    <p style="margin-top: 0.75rem;">To transition from a brilliant hackathon demo into an undisputed winner and category-defining standard, ContextGC must immediately implement: <strong>(1) SSE Streaming Reverse Proxy</strong>, <strong>(2) Cache-Aware Prefix Partitioning</strong>, and <strong>(3) An Interactive Context Memory Flamegraph / Red-Green Diff Sandbox</strong> for judges.</p>
+  </div>
+
+  <!-- Consensus Matrix -->
+  <h2 class="section-title">📊 Council Consensus Matrix</h2>
+  <table class="matrix-table">
+    <thead>
+      <tr>
+        <th>Core Dimension</th>
+        <th>Contrarian</th>
+        <th>First Principles</th>
+        <th>Expansionist</th>
+        <th>Outsider</th>
+        <th>Executor</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Pruning Thesis</strong></td>
+        <td><span class="tag tag-amber">Flawed Invalidation</span></td>
+        <td><span class="tag tag-green">Entropy Valid</span></td>
+        <td><span class="tag tag-green">Category Moat</span></td>
+        <td><span class="tag tag-blue">Needs Generic</span></td>
+        <td><span class="tag tag-green">High Utility</span></td>
+      </tr>
+      <tr>
+        <td><strong>KV Cache Conflict</strong></td>
+        <td><span class="tag tag-red">Fatal Thrashing</span></td>
+        <td><span class="tag tag-red">Prefix Violation</span></td>
+        <td><span class="tag tag-amber">Dual-Mode Solution</span></td>
+        <td><span class="tag tag-blue">Invisible to Dev</span></td>
+        <td><span class="tag tag-amber">Tail-Register Fix</span></td>
+      </tr>
+      <tr>
+        <td><strong>SSE Streaming Proxy</strong></td>
+        <td><span class="tag tag-red">Missing (Broken)</span></td>
+        <td><span class="tag tag-blue">Non-Linear Flow</span></td>
+        <td><span class="tag tag-green">Must-Have</span></td>
+        <td><span class="tag tag-green">Key Friction</span></td>
+        <td><span class="tag tag-green">Immediate Ship</span></td>
+      </tr>
+      <tr>
+        <td><strong>Judge Conversion ("Aha!")</strong></td>
+        <td><span class="tag tag-amber">Synthetic Mock Risk</span></td>
+        <td><span class="tag tag-blue">Attention Proof</span></td>
+        <td><span class="tag tag-green">Flamegraph Profiler</span></td>
+        <td><span class="tag tag-green">Visual Red/Green Diff</span></td>
+        <td><span class="tag tag-green">Showdown Harness</span></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- Individual Advisor Critiques -->
+  <h2 class="section-title">👥 The 5 Independent Advisor Deliberations</h2>
+
+  <details open>
+    <summary>
+      <span><span class="tag tag-red">Advisor 1</span> The Contrarian / Red Team</span>
+      <span style="font-size: 0.8rem; color: var(--text-muted);">View Full Critique ▾</span>
+    </summary>
+    <div class="details-content">
+      <p><strong>Core Focus:</strong> Vulnerabilities, failure modes, scalability traps.</p>
+      <ul>
+        <li><strong>KV-Cache Prefix Thrashing:</strong> Mutating <code>messages[0]</code> with dynamic settled turns and deleting middle turns destroys exact byte prefix invariance (<code>Hash(T_{1:k})</code>). This forces providers (vLLM, OpenAI) to discard cached KV tokens, wiping out 50–90% cost discounts.</li>
+        <li><strong>Coarse Turn Eviction:</strong> Evicting entire turns when a single entity updates nukes critical reproduction logs and architectural constraints contained in the same turn.</li>
+        <li><strong>Regex Semantic Blindness & State Injection:</strong> Lack of negation polarity (*"Do NOT use port 9443"*) causes incorrect state updates; unescaped user strings in state blocks allow prompt injection.</li>
+        <li><strong>Tool-Call Protocol Breakage:</strong> Replacing turns with raw text tombstones risks breaking strict OpenAI <code>tool_call_id</code> pairings, causing HTTP 400 validation errors.</li>
+        <li><strong>Pseudo-Vector Degradation:</strong> <code>sha256(word) % 768</code> lacks semantic understanding and in-memory lists vanish across serverless lambda cold starts.</li>
+      </ul>
+    </div>
+  </details>
+
+  <details open>
+    <summary>
+      <span><span class="tag tag-purple">Advisor 2</span> The First Principles Thinker</span>
+      <span style="font-size: 0.8rem; color: var(--text-muted);">View Full Critique ▾</span>
+    </summary>
+    <div class="details-content">
+      <p><strong>Core Focus:</strong> Attention physics, Shannon entropy, rate-distortion theory.</p>
+      <ul>
+        <li><strong>Softmax Probability Dilution:</strong> Transformer attention normalizes over all input tokens ($\sum \alpha_{ij} = 1$). Dead-branch tokens steal finite attention mass from active causal dependencies.</li>
+        <li><strong>Information Entropy:</strong> Context Rot is an entropy degradation problem. Maximizing information density $I(S; X)/|X|$ is theoretically sound.</li>
+        <li><strong>The Mathematical Conflict:</strong> Token reduction vs. Prefix caching. Defragmenting middle tokens saves prompt size but forces quadratic prefill recomputations on inference hardware.</li>
+        <li><strong>The Optimal Structure:</strong> Decouple physical KV cache from logical state: (1) Immutable append-only historical prefix, (2) Compact canonical state register appended strictly at the tail ($T_N$), (3) Out-of-context episodic memory via JIT retrieval.</li>
+      </ul>
+    </div>
+  </details>
+
+  <details>
+    <summary>
+      <span><span class="tag tag-blue">Advisor 3</span> The Expansionist / Strategist</span>
+      <span style="font-size: 0.8rem; color: var(--text-muted);">View Full Critique ▾</span>
+    </summary>
+    <div class="details-content">
+      <p><strong>Core Focus:</strong> Category creation, platform leverage, market dominance.</p>
+      <ul>
+        <li><strong>Category Shift:</strong> Evolve from a "prompt cleaner" to the <strong>Context Virtual Memory Manager (CVMM)</strong> for autonomous agents.</li>
+        <li><strong>Dual-Mode Compactor:</strong> <em>Token Reduction Mode</em> (cost-cap / small window) vs. <em>Radix Cache-Friendly Mode</em> (prefix preservation).</li>
+        <li><strong>Streaming SSE Proxy:</strong> Provide full Server-Sent Events support for Cursor, LangChain, Claude Code, and Cline.</li>
+        <li><strong>Context Memory Flamegraph:</strong> Visual profiler displaying memory allocation across system rules, active state, tool payloads, and tombstones.</li>
+      </ul>
+    </div>
+  </details>
+
+  <details>
+    <summary>
+      <span><span class="tag tag-amber">Advisor 4</span> The Outsider / Domain Skeptic</span>
+      <span style="font-size: 0.8rem; color: var(--text-muted);">View Full Critique ▾</span>
+    </summary>
+    <div class="details-content">
+      <p><strong>Core Focus:</strong> DX ergonomics, setup friction, the 10-second "Aha!" test.</p>
+      <ul>
+        <li><strong>Domain Regex Brittleness:</strong> Claiming universal proxy magic while relying on hardcoded regexes (<code>gate_code</code>, <code>target_port</code>) alienates general developers. Needs schema-free heuristic diffing.</li>
+        <li><strong>Black-Box Trust Anxiety:</strong> Developers fear context amputation. They need transparent verification.</li>
+        <li><strong>The 10-Second Fix:</strong> Provide an interactive <strong>Red/Green Visual Diff Sandbox</strong> on the dashboard. Let engineers paste raw message arrays and see immediate red strikethroughs over dead tool outputs.</li>
+        <li><strong>Zero-Infra Functional API:</strong> Ship a 2-line Python import: <code>from contextgc import prune</code>.</li>
+      </ul>
+    </div>
+  </details>
+
+  <details>
+    <summary>
+      <span><span class="tag tag-green">Advisor 5</span> The Executor / Pragmatic Engineer</span>
+      <span style="font-size: 0.8rem; color: var(--text-muted);">View Full Critique ▾</span>
+    </summary>
+    <div class="details-content">
+      <p><strong>Core Focus:</strong> Concrete shippable features, production plumbing, implementation ROI.</p>
+      <ul>
+        <li><strong>SSE Streaming Reverse Proxy:</strong> Add <code>StreamingResponse</code> with <code>choices[0].delta</code> chunks and defrag telemetry trailing headers.</li>
+        <li><strong>Native Python Client Decorator:</strong> Implement <code>@defrag_context</code> and <code>patch_openai()</code> in <code>core/client.py</code>.</li>
+        <li><strong>Transactional DAG Rollback:</strong> Add <code>POST /api/dag/rollback</code> to cleanly rewind dead-end agent execution loops.</li>
+        <li><strong>OpenTelemetry Tracing:</strong> Export standard semantic spans (<code>gen_ai.usage.raw_tokens</code>, <code>context_gc.pruned_tokens</code>).</li>
+      </ul>
+    </div>
+  </details>
+
+  <!-- Cross Examination Peer Review -->
+  <h2 class="section-title">🔍 Anonymous Peer Review Findings</h2>
+  <div class="consensus-grid">
+    <div class="card">
+      <h3 style="color: var(--emerald);">🎯 Strongest Argument</h3>
+      <p><strong>KV-Cache Invalidation Paradox:</strong> The convergence between First Principles and Red Team proved that naive middle-turn mutation breaks modern LLM prompt caching (vLLM, Anthropic, OpenAI), forfeiting 80–90% cost discounts.</p>
+    </div>
+    <div class="card">
+      <h3 style="color: var(--rose);">⚠️ Fatal Blind Spot</h3>
+      <p><strong>Protocol Schema Compliance:</strong> Proposing enterprise tracing while overlooking OpenAI tool-call schema requirements (<code>tool_call_id</code> pairings) risks fatal HTTP 400 Bad Request errors from upstream LLMs.</p>
+    </div>
+    <div class="card">
+      <h3 style="color: var(--accent);">💡 Missing Consideration</h3>
+      <p><strong>Multi-Modal Bloat:</strong> Vision agents generate massive base64 image data that dwarfs text tool output. Perceptual hashing and image tombstoning represent an immediate expansion vector.</p>
+    </div>
+  </div>
+
+  <!-- Immediate Engineering Ships -->
+  <h2 class="section-title">🚀 Immediate Production Engineering Ships</h2>
+  <div class="action-steps">
+    <div class="step-item">
+      <div class="step-number">01</div>
+      <div>
+        <strong>Full SSE Streaming Support in <code>/v1/chat/completions</code>:</strong>
+        <p style="font-size: 0.875rem; color: var(--text-muted);">Enable <code>stream: true</code> handling with chunked Server-Sent Events, streaming both generated tokens and defrag telemetry without blocking.</p>
+      </div>
+    </div>
+    <div class="step-item">
+      <div class="step-number">02</div>
+      <div>
+        <strong>Interactive Context Memory Flamegraph & Visual Diff Sandbox:</strong>
+        <p style="font-size: 0.875rem; color: var(--text-muted);">Add a dedicated tab in <code>web/index.html</code> visualizing token allocation breakdown and red-strikethrough pruning diffs for instant judge conversion.</p>
+      </div>
+    </div>
+    <div class="step-item">
+      <div class="step-number">03</div>
+      <div>
+        <strong>Cache-Aware Compactor Mode & Schema-Free Heuristic Extraction:</strong>
+        <p style="font-size: 0.875rem; color: var(--text-muted);">Complement domain regexes with generic JSON dictionary diffing and add a <code>cache_friendly</code> option that appends state registers at the tail.</p>
+      </div>
+    </div>
+    <div class="step-item">
+      <div class="step-number">04</div>
+      <div>
+        <strong>Zero-Proxy Drop-in SDK (<code>core/client.py</code>):</strong>
+        <p style="font-size: 0.875rem; color: var(--text-muted);">Expose <code>defrag_context()</code> and <code>patch_openai()</code> for 1-line client-side execution without networking overhead.</p>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    <div>ContextGC Council Audit • Hack Devengers 2.0</div>
+    <div>Live Deployment: <a href="https://context-hackdevengers.vercel.app" target="_blank">context-hackdevengers.vercel.app</a></div>
+  </footer>
+
+</body>
+</html>

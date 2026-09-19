@@ -5,8 +5,9 @@
 > **Team Lead:** Jay Gopal ([GitHub: @j4yop](https://github.com/j4yop))  
 > **Live Production URL:** [https://context-hackdevengers.vercel.app](https://context-hackdevengers.vercel.app)  
 > **Interactive Pitch Deck:** [https://context-hackdevengers.vercel.app/presentation](https://context-hackdevengers.vercel.app/presentation)  
+> **Deep Research Council Audit:** [https://context-hackdevengers.vercel.app/council](https://context-hackdevengers.vercel.app/council)  
 > **GitHub Repository:** [https://github.com/j4yop/context-hackdevengers](https://github.com/j4yop/context-hackdevengers)  
-> **CI Status:** 20 Automated Unit & Benchmark Tests Passing (100% Green)
+> **CI Status:** 28 Automated Unit & Benchmark Tests Passing (100% Green)
 
 ---
 
@@ -34,39 +35,44 @@ This causes three catastrophic failures:
 
 ### 4. Proposed Solution & Technical Architecture
 ```text
-ContextGC operates as a high-performance, deterministic middleware layer between autonomous agents and LLM transformer runtimes. Its architecture consists of 4 tightly integrated neuro-symbolic components:
+ContextGC operates as a high-performance, deterministic middleware layer between autonomous agents and LLM transformer runtimes. Its architecture consists of 6 tightly integrated systems components:
 
-1. Neuro-Symbolic State DAG: A causal dependency graph tracking active entity mutations. When subsequent turns supersede prior instructions (e.g. Turn 4 overrides Turn 0's destination), the State DAG detects the mutation and atomically marks the old turn as a dead branch ready for eviction.
-2. Syntactic Tool Distillation & Error Tombstoning: Compacts sprawling JSON catalogs and compresses multi-line terminal error tracebacks. Once an error is resolved in subsequent turns, ContextGC replaces the raw stack trace with a single-line semantic tombstone.
-3. Deterministic Policy Invariant Anchoring: Injects non-negotiable operational invariants (e.g. instant refund limits, cryptographic key masking) at the optimal transformer attention position, preventing prompt injection or conversational policy drift.
-4. Episodic Vector Memory Tier: Rather than discarding evicted context, turns are asynchronously archived into high-speed vector storage with sub-millisecond Just-In-Time (JIT) cosine similarity recall.
+1. Neuro-Symbolic State DAG: A causal dependency graph tracking active entity mutations with negation/polarity awareness. When subsequent turns supersede prior instructions, the State DAG detects the mutation and atomically marks the old turn as a dead branch ready for eviction.
+2. Syntactic Tool Distillation & Error Tombstoning: Compacts sprawling JSON catalogs and compresses multi-line terminal error tracebacks. Once an error is resolved, ContextGC replaces the raw stack trace with a single-line semantic tombstone.
+3. Deterministic Policy Invariant Anchoring: Injects non-negotiable operational invariants at optimal attention positions, preventing policy drift.
+4. Episodic Vector Memory Tier: Evicted turns are asynchronously archived into high-speed vector storage with sub-millisecond JIT cosine recall.
+5. Real-Time SSE Streaming Reverse Proxy: Full Server-Sent Events drop-in proxy at /v1/chat/completions (supporting Cursor, LangChain, Claude Code).
+6. Cache-Aware Dual-Mode Compactor: Offers both Maximum Token Reduction mode and Radix Cache-Friendly mode (preserving exact byte prefixes for 100% KV-cache hit rates).
 ```
 
 ### 5. Tech Stack & Infrastructure
 ```text
-• Backend & Engine: Python 3.11+, FastAPI, Pydantic v2, Uvicorn, httpx
+• Backend & Engine: Python 3.11+, FastAPI, Pydantic v2, Uvicorn, httpx, asyncio
 • Graph & Defrag Runtime: Pure in-memory Neuro-Symbolic State DAG (<3ms execution overhead, zero external heavyweight framework dependencies)
+• Client SDK: 1-line Python SDK (`from core.client import defrag_context, patch_openai`) for zero-proxy client integration
 • Episodic Vector Storage: Vector SQL DDL schema + 768-dim normalized cosine similarity indexing
-• Frontend UI: Agency-grade responsive HTML5, CSS3 Glassmorphism (Plus Jakarta Sans & Fira Code), Vanilla JS (zero bundler bloat, sub-300ms First Contentful Paint)
+• Frontend UI: Agency-grade responsive HTML5, CSS3 Glassmorphism (Plus Jakarta Sans & Fira Code), Vanilla JS, Context Memory Flamegraph & Red/Green Diff Sandbox
 • Cloud Deployment: Vercel Serverless Edge Runtime with uv Python execution
-• Testing & CI/CD: Pytest (20 unit & scenario tests), GitHub Actions automated CI workflow
+• Testing & CI/CD: Pytest (28 unit & scenario tests), GitHub Actions automated CI workflow
 ```
 
 ### 6. Innovation & Uniqueness (Competitive Advantage)
 ```text
-Unlike existing approaches that rely on brute-force context window expansion (which increases cost and hallucination risk) or naive vector chunking (like LangChain/LlamaIndex, which shreds causal conversational continuity), ContextGC is the first to implement true Causal Dead-Branch Invalidation:
+Unlike existing approaches that rely on brute-force context window expansion or naive vector chunking (which shreds causal conversational continuity), ContextGC is the first to implement true Causal Dead-Branch Invalidation:
 
 • vs Naive Context Expansion: Cuts token consumption by 68.1%–68.9% and latency by ~42% while guaranteeing 0% policy drift.
 • vs Vector-Only RAG: Preserves active conversational causal state through the State DAG, avoiding false-positive retrieval of superseded facts.
 • vs MemGPT / LangMem: Uses deterministic semantic tombstones and attention-anchored invariants rather than relying on an LLM to remember to summarize its own memory.
+• KV-Cache Friendly: Solves the prompt-caching invalidation dilemma via dual-mode prefix preservation.
 ```
 
 ### 7. Key Features & Capabilities
 ```text
-• Dual Industrial Benchmark Scenarios:
-  1. High-Velocity Logistics Crisis: Multi-turn reroutes, 504 gateway timeout failovers, and aggressive user refund escalation testing.
-  2. Autonomous Coding Agent Refactor: Antigravity/Devin-style multi-file refactor, Jest test stack trace failures, 350-line git diffs, and security private-key extraction defense.
-• Real-Time Split-Screen Showdown Dashboard: Direct side-by-side comparison of Vanilla LLM Agent vs ContextGC Agent showing token counters, latency savings, and policy audit flags.
+• Dual Industrial Benchmark Scenarios: High-Velocity Logistics Crisis and Autonomous Coding Agent Refactor.
+• Real-Time Split-Screen Showdown Dashboard: Direct side-by-side comparison of Vanilla LLM Agent vs ContextGC Agent.
+• Context Memory Flamegraph & Live Diff Sandbox: Interactive memory allocation bar and git-style red-strikethrough prompt diff.
+• OpenAI-Compatible Streaming Reverse Proxy: Drop-in /v1/chat/completions with real-time SSE streaming (stream: true).
+• Deep Research Council Audit: Andrej Karpathy LLM Council audit report served live at /council with full transcript.
 • Interactive Episodic Vector Inspector: Live JIT semantic search across evicted conversation turns.
 • Standalone Interactive CLI Runner: Zero-browser terminal benchmark runner (`python3 demo/interactive_demo.py`) with rich ANSI formatting.
 • High-Impact Presentation Deck: 6-slide interactive deck built directly into the web application at `/presentation`.

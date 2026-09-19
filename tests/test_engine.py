@@ -290,4 +290,96 @@ def test_vector_archive_auto_seeding():
     search_data = search_res.json()
     assert search_data["results_found"] > 0
 
+# ---------------------------------------------------------------------------
+# 6. Advanced Council Enhancements & Protocol Tests
+# ---------------------------------------------------------------------------
+
+def test_state_dag_negation_awareness():
+    dag = StateDAG()
+    dag.register_turn(0, "user", "Switch target port to 8080.")
+    assert dag.active_state["target_port"].value == "8080"
+
+    # Turn 1: user says "Do NOT switch to port 9443"
+    dag.register_turn(1, "user", "Under no circumstances should you switch port to 9443, do not switch port to 9443.")
+    # Port 8080 must remain active, 9443 must be ignored due to negation
+    assert dag.active_state["target_port"].value == "8080"
+    assert dag.active_state["target_port"].turn_index == 0
+
+def test_state_dag_json_slot_extraction():
+    dag = StateDAG()
+    dag.register_turn(0, "user", 'Initialize microservice with config: {"database_cluster": "aurora-pg-01", "max_conns": 50}')
+    assert "slot_database_cluster" in dag.active_state
+    assert dag.active_state["slot_database_cluster"].value == "aurora-pg-01"
+
+def test_state_dag_transactional_rollback():
+    dag = StateDAG()
+    dag.register_turn(0, "user", "Please deliver to Tower 4, Flat 902.")
+    dag.register_turn(1, "user", "Wait, change address to Clubhouse Security Desk.")
+    assert "Clubhouse" in dag.active_state["destination_address"].value
+
+    # Roll back to turn 0
+    rollback = dag.rollback_to(target_turn=0)
+    assert rollback["rollback_target_turn"] == 0
+    assert "Tower 4" in dag.active_state["destination_address"].value
+    assert dag.active_state["destination_address"].turn_index == 0
+
+def test_gc_engine_cache_friendly_mode():
+    engine = ContextGCEngine(session_id="TEST-CACHE-01")
+    messages = [
+        {"role": "system", "content": "You are an enterprise logistics orchestrator."},
+        {"role": "user", "content": "Deliver to Tower 4."},
+        {"role": "user", "content": "Change address to Gate 2."}
+    ]
+    res = engine.process_session(messages, mode="cache_friendly")
+    telemetry = res["telemetry"]
+    assert telemetry["mode"] == "cache_friendly"
+    assert telemetry["kv_cache_prefix_preserved"] is True
+    # Ensure messages[0] system prompt was NOT mutated (prefix preserved)
+    assert res["cleaned_messages"][0]["content"] == "You are an enterprise logistics orchestrator."
+    # Ensure canonical state register was appended at tail
+    assert any("[CANONICAL_TAIL_STATE_REGISTER]" in m["content"] for m in res["cleaned_messages"])
+
+def test_client_sdk_defrag_context():
+    from core.client import defrag_context
+    messages = [
+        {"role": "user", "content": "Set cluster to us-east-1 and deliver to Tower B."},
+        {"role": "assistant", "content": "Acknowledged."},
+        {"role": "user", "content": "Change address to Gate 1."}
+    ]
+    cleaned, telemetry = defrag_context(messages)
+    assert len(cleaned) > 0
+    assert telemetry["tokens_saved"] >= 0
+    assert "active_state_slots" in telemetry
+
+def test_v1_chat_completions_streaming():
+    payload = {
+        "model": "gpt-4o",
+        "messages": [
+            {"role": "user", "content": "Hello, plan delivery to Gate 2."}
+        ],
+        "stream": True
+    }
+    res = client.post("/v1/chat/completions", json=payload)
+    assert res.status_code == 200
+    assert "text/event-stream" in res.headers.get("content-type", "")
+    content = res.text
+    assert "data: " in content
+    assert "chat.completion.chunk" in content
+    assert "[DONE]" in content
+    assert "x-context-gc-tokens-saved" in res.headers
+
+def test_api_dag_rollback_endpoint():
+    res = client.post("/api/dag/rollback", json={"scenario": "operations", "target_turn": 0})
+    assert res.status_code == 200
+    data = res.json()
+    assert data["status"] == "success"
+    assert data["target_turn"] == 0
+    assert "rollback" in data
+
+def test_council_report_endpoint():
+    res = client.get("/council")
+    assert res.status_code == 200
+    assert "Council Report" in res.text
+    assert "Chairman" in res.text
+
 

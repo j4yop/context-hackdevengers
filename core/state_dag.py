@@ -82,15 +82,24 @@ class StateDAG:
             self.immutable_entities.add(entity_name)
 
     def extract_entities(self, text: str, turn_index: int) -> List[FactNode]:
-        """Scans message content for entity slot mutations, both defined schemas and generic assignments."""
+        """Scans message content for entity slot mutations, polarity/negations, and generic JSON structures."""
         detected = []
         seen_entities = set()
 
-        # 1. Check registered schema patterns
+        # 1. Check registered schema patterns with negation awareness
         for entity_type, patterns in self.entity_patterns.items():
+            if entity_type in seen_entities:
+                continue
             for pat in patterns:
-                matches = re.finditer(pat, text, re.IGNORECASE)
+                matches = list(re.finditer(pat, text, re.IGNORECASE))
+                found_valid = False
                 for match in matches:
+                    # Check for preceding negation within 50 characters
+                    prefix_window = text[max(0, match.start() - 50):match.start()].lower()
+                    if re.search(r"\b(?:do not|don't|dont|never|cannot|cant|can't|should not|shouldnt|not|no|under no circumstances|refuse|cancel|avoid)\b", prefix_window):
+                        # Negated proposition: do not mutate state
+                        continue
+
                     val = match.group(1) if match.groups() else match.group(0)
                     val = val.strip().strip(".,;")
                     is_imm = entity_type in self.immutable_entities
@@ -103,11 +112,17 @@ class StateDAG:
                     )
                     detected.append(node)
                     seen_entities.add(entity_type)
+                    found_valid = True
+                    break
+                if found_valid:
                     break
 
         # 2. Generic key-value assignment detection (e.g., 'set timeout to 30s', 'retry_count = 5')
         generic_kv_pat = r"\b(?:set|switch|update)\s+([a-z_][a-z0-9_]{2,20})\s+(?:to|=)\s+([a-zA-Z0-9_\-\.\/]{1,40})\b"
         for match in re.finditer(generic_kv_pat, text, re.IGNORECASE):
+            prefix_window = text[max(0, match.start() - 35):match.start()].lower()
+            if re.search(r"\b(?:do not|don't|never|cannot|not to)\b", prefix_window):
+                continue
             key = match.group(1).lower()
             val = match.group(2).strip()
             if key not in seen_entities and key not in {"the", "this", "that", "it"}:
@@ -119,6 +134,32 @@ class StateDAG:
                     is_immutable=False
                 ))
                 seen_entities.add(key)
+
+        # 3. Schema-free JSON and structured payload detection
+        try:
+            import json
+            for jc in re.findall(r"\{[^{}\n\r]{4,200}\}", text):
+                try:
+                    parsed = json.loads(jc)
+                    if isinstance(parsed, dict):
+                        for k, v in parsed.items():
+                            key_str = str(k).strip()
+                            val_str = str(v).strip()
+                            if 2 <= len(key_str) <= 30 and 1 <= len(val_str) <= 60 and not key_str.startswith("_"):
+                                slot_name = f"slot_{re.sub(r'[^a-zA-Z0-9_]', '_', key_str.lower())}"
+                                if slot_name not in seen_entities:
+                                    detected.append(FactNode(
+                                        entity=slot_name,
+                                        value=val_str,
+                                        turn_index=turn_index,
+                                        raw_snippet=jc,
+                                        is_immutable=False
+                                    ))
+                                    seen_entities.add(slot_name)
+                except Exception:
+                    pass
+        except Exception:
+            pass
 
         return detected
 
@@ -166,12 +207,38 @@ class StateDAG:
                 self.active_state[node.entity] = node
                 new_assertions.append({"entity": node.entity, "value": node.value})
 
-
         return {
             "turn_index": turn_index,
             "new_assertions": new_assertions,
             "superseded_turns": list(superseded_turns),
             "current_active_slots": {k: v.value for k, v in self.active_state.items()}
+        }
+
+    def rollback_to(self, target_turn: int) -> Dict[str, Any]:
+        """
+        Rolls back state mutations to the exact point at `target_turn`.
+        Unwinds FactNodes asserted after target_turn and reactivates prior settled nodes.
+        """
+        reverted_entities = []
+        for entity, history in list(self.nodes.items()):
+            valid_nodes = [n for n in history if n.turn_index <= target_turn]
+            self.nodes[entity] = valid_nodes
+            if not valid_nodes:
+                if entity in self.active_state:
+                    del self.active_state[entity]
+                    reverted_entities.append({"entity": entity, "status": "evicted"})
+            else:
+                latest = valid_nodes[-1]
+                latest.superseded_by = None
+                self.active_state[entity] = latest
+                reverted_entities.append({"entity": entity, "restored_value": latest.value, "turn": latest.turn_index})
+
+        # Prune invalidation log entries past target_turn
+        self.invalidation_log = [l for l in self.invalidation_log if l.get("new_turn", 0) <= target_turn]
+        return {
+            "rollback_target_turn": target_turn,
+            "active_state": {k: v.value for k, v in self.active_state.items()},
+            "reverted_entities": reverted_entities
         }
 
     def get_prunable_turns(self) -> Set[int]:
@@ -184,11 +251,13 @@ class StateDAG:
         return prunable
 
     def get_active_state_summary(self) -> str:
-        """Returns a consolidated state representation for prompt injection."""
+        """Returns a consolidated state representation for prompt injection, safely escaped against delimiter injection."""
         if not self.active_state:
             return ""
         lines = ["[ACTIVE_AGENT_STATE_DAG]"]
         for entity, node in sorted(self.active_state.items()):
             imm_flag = " (IMMUTABLE)" if node.is_immutable else ""
-            lines.append(f"  • {entity}: \"{node.value}\" [Settled Turn {node.turn_index}{imm_flag}]")
+            # Escape newlines and bracket delimiters to prevent prompt boundary forgery
+            safe_val = str(node.value).replace("\n", " ").replace("[", "(").replace("]", ")")
+            lines.append(f"  • {entity}: \"{safe_val}\" [Settled Turn {node.turn_index}{imm_flag}]")
         return "\n".join(lines)
