@@ -18,6 +18,8 @@ class ToolSanitizer:
     @staticmethod
     def is_error_payload(content: str) -> bool:
         """Detects if a tool message contains an error or failure stack trace."""
+        if not content or not isinstance(content, str):
+            return False
         error_keywords = [
             "Traceback (most recent call last)",
             "FAIL ",
@@ -45,6 +47,8 @@ class ToolSanitizer:
         Compresses large JSON responses, git diffs, and tracebacks into high-density semantic schemas.
         Returns: (compacted_text, original_tokens, compacted_tokens)
         """
+        if not content or not isinstance(content, str):
+            return "", 0, 0
         orig_len = max(1, len(content) // 4)  # rough token approximation
 
         # Handle git diffs

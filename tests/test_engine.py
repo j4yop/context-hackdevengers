@@ -376,4 +376,108 @@ def test_api_dag_rollback_endpoint():
     assert data["target_turn"] == 0
     assert "rollback" in data
 
+def test_gc_engine_handles_none_content_in_tool_calls():
+    engine = ContextGCEngine(session_id="TEST-NONE-CONTENT")
+    messages = [
+        {"role": "user", "content": "Fetch database configurations."},
+        {
+            "role": "assistant",
+            "content": None,
+            "tool_calls": [
+                {
+                    "id": "call_abc123",
+                    "type": "function",
+                    "function": {"name": "get_db_config", "arguments": "{}"}
+                }
+            ]
+        },
+        {
+            "role": "tool",
+            "name": "get_db_config",
+            "tool_call_id": "call_abc123",
+            "content": '{"cluster": "prod-east", "port": 5432}'
+        }
+    ]
+    res = engine.process_session(messages)
+    assert res is not None
+    assert len(res["cleaned_messages"]) > 0
+    assert res["telemetry"]["tokens_saved"] >= 0
+
+def test_state_dag_negation_does_not_falsely_reject_no_problem():
+    dag = StateDAG()
+    dag.register_turn(0, "user", "No problem, please deliver to Gate 2.")
+    assert "destination_address" in dag.active_state
+    assert "Gate 2" in dag.active_state["destination_address"].value
+
+    # Also test 'No worries'
+    dag.register_turn(1, "user", "No worries, change address to Clubhouse Security Desk.")
+    assert "Clubhouse" in dag.active_state["destination_address"].value
+
+def test_state_dag_multiline_json_extraction():
+    dag = StateDAG()
+    multiline_payload = """Here is the system config:
+{
+  "database_cluster": "aurora-pg-01",
+  "max_conns": 50
+}"""
+    dag.register_turn(0, "user", multiline_payload)
+    assert "slot_database_cluster" in dag.active_state
+    assert dag.active_state["slot_database_cluster"].value == "aurora-pg-01"
+    assert "slot_max_conns" in dag.active_state
+    assert dag.active_state["slot_max_conns"].value == "50"
+
+def test_state_dag_partial_superseding_retention():
+    dag = StateDAG()
+    # Turn 0 sets destination_address AND dietary_allergy (immutable)
+    dag.register_turn(0, "user", "Please deliver to Tower 4, Flat 902. Severe allergy: peanuts.")
+    assert "destination_address" in dag.active_state
+    assert "dietary_allergy" in dag.active_state
+
+    # Turn 1 supersedes destination_address but NOT dietary_allergy
+    dag.register_turn(1, "user", "Change address to Clubhouse Security Desk.")
+    assert dag.active_state["destination_address"].turn_index == 1
+    assert dag.active_state["dietary_allergy"].turn_index == 0
+
+    # Turn 0 still holds an active immutable fact (dietary_allergy), so it must NOT be prunable
+    prunable = dag.get_prunable_turns()
+    assert 0 not in prunable
+
+def test_vector_tier_empty_query():
+    tier = VectorMemoryTier(session_id="TEST-EMPTY-Q")
+    tier.archive_turn(0, "user", "Some test content", "test")
+    # Empty string or whitespace queries must return empty list
+    assert tier.search_archive("") == []
+    assert tier.search_archive("   ") == []
+
+def test_openai_patch_idempotency():
+    from core.client import patch_openai
+
+    class MockChatCompletions:
+        def __init__(self):
+            self.calls = 0
+
+        def create(self, *args, **kwargs):
+            self.calls += 1
+            return {"status": "ok"}
+
+    class MockClient:
+        def __init__(self):
+            self.chat = type("Chat", (), {"completions": MockChatCompletions()})()
+
+    mock_client = MockClient()
+    patch_openai(mock_client)
+    first_wrapper = mock_client.chat.completions.create
+    patch_openai(mock_client)
+    second_wrapper = mock_client.chat.completions.create
+    # Should not double-wrap
+    assert first_wrapper is second_wrapper
+
+def test_api_simulate_mode_propagation():
+    res = client.post("/api/simulate", json={"scenario": "operations", "mode": "cache_friendly"})
+    assert res.status_code == 200
+    data = res.json()
+    assert data["telemetry"]["mode"] == "cache_friendly"
+    assert data["telemetry"]["kv_cache_prefix_preserved"] is True
+
+
 

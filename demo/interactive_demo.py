@@ -9,6 +9,13 @@ import sys
 import os
 import time
 
+# Ensure UTF-8 output on Windows consoles to prevent UnicodeEncodeError on emojis/symbols
+if sys.platform == "win32" and hasattr(sys.stdout, "reconfigure"):
+    try:
+        sys.stdout.reconfigure(encoding="utf-8")
+    except Exception:
+        pass
+
 # Ensure repo root is importable
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 

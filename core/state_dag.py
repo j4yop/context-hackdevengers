@@ -84,6 +84,8 @@ class StateDAG:
 
     def extract_entities(self, text: str, turn_index: int, role: str = "user") -> List[FactNode]:
         """Scans message content for entity slot mutations, polarity/negations, and generic JSON structures."""
+        if not text or not isinstance(text, str):
+            return []
         detected = []
         seen_entities = set()
 
@@ -95,9 +97,10 @@ class StateDAG:
                 matches = list(re.finditer(pat, text, re.IGNORECASE))
                 found_valid = False
                 for match in matches:
-                    # Check for preceding negation within 50 characters
+                    # Check for preceding negation within 50 characters (avoid false positive on 'no problem', 'no worries', etc.)
                     prefix_window = text[max(0, match.start() - 50):match.start()].lower()
-                    if re.search(r"\b(?:do not|don't|dont|never|cannot|cant|can't|should not|shouldnt|not|no|under no circumstances|refuse|cancel|avoid)\b", prefix_window):
+                    negation_pat = r"\b(?:do not|don't|dont|never|cannot|cant|can't|should not|shouldnt|under no circumstances|refuse(?: to)?|cancel|avoid|not to|no longer)\b"
+                    if re.search(negation_pat, prefix_window):
                         # Negated proposition: do not mutate state
                         continue
 
@@ -140,7 +143,7 @@ class StateDAG:
         if role not in ("tool", "system") and "TOOL_OUTPUT" not in text:
             try:
                 import json
-                for jc in re.findall(r"\{[^{}\n\r]{4,200}\}", text):
+                for jc in re.findall(r"\{[^{}]{4,400}\}", text, re.DOTALL):
                     try:
                         parsed = json.loads(jc)
                         if isinstance(parsed, dict):
@@ -245,12 +248,14 @@ class StateDAG:
 
     def get_prunable_turns(self) -> Set[int]:
         """Returns turn indices whose substantive facts have been completely superseded."""
-        prunable = set()
+        candidate_turns = set()
         for entity, history in self.nodes.items():
             for node in history:
                 if node.superseded_by is not None and not node.is_immutable:
-                    prunable.add(node.turn_index)
-        return prunable
+                    candidate_turns.add(node.turn_index)
+        # A turn is only safely prunable if NONE of its facts are still currently active in active_state
+        active_turn_indices = {node.turn_index for node in self.active_state.values()}
+        return candidate_turns - active_turn_indices
 
     def get_active_state_summary(self) -> str:
         """Returns a consolidated state representation for prompt injection, safely escaped against delimiter injection."""

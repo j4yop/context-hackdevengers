@@ -171,7 +171,7 @@ response = client.chat.completions.create(
 )
 ```
 
-### Option C: Run Local Test Suite (28 Tests)
+### Option C: Run Local Test Suite (34 Tests)
 ```bash
 pytest tests/test_engine.py -v
 ```
@@ -202,7 +202,7 @@ context-hackdevengers/
 ├── server/
 │   └── main.py                       # FastAPI Server, SSE Streaming Proxy, & Rollback API
 ├── tests/
-│   └── test_engine.py                # 27 Unit & Integration Pytests (100% passing)
+│   └── test_engine.py                # 34 Unit & Integration Pytests (100% passing)
 ├── web/
 │   └── index.html                    # Split-Screen Showdown Dashboard & Diff Sandbox
 ├── pyproject.toml                    # Package configuration & pytest settings

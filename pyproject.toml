@@ -5,7 +5,7 @@ description = "ContextGC: Autonomous Semantic Context Defragmenter"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
-    "fastapi>=0.100.0",
+    "fastapi>=0.115.0",
     "uvicorn>=0.23.0",
     "pydantic>=2.0.0",
     "httpx>=0.24.0",

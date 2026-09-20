@@ -48,6 +48,9 @@ def patch_openai(client: Any, mode: str = "compact") -> Any:
     so that client.chat.completions.create(...) automatically defragments context.
     Attaches `response.context_gc` containing token savings telemetry.
     """
+    if getattr(client, "_context_gc_patched", False):
+        return client
+
     original_create = client.chat.completions.create
 
     @functools.wraps(original_create)
@@ -85,4 +88,5 @@ def patch_openai(client: Any, mode: str = "compact") -> Any:
     else:
         client.chat.completions.create = wrapped_create
 
+    client._context_gc_patched = True
     return client

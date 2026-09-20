@@ -46,14 +46,15 @@ class VectorMemoryTier:
         Asynchronously commits an evicted turn into the episodic archive.
         Computes a 768-dim pseudo-embedding for zero-dependency local simulation.
         """
+        content_str = str(content or "")
         record = {
             "session_id": self.session_id,
             "turn_index": turn_index,
             "role": role,
-            "raw_content": content,
-            "compact_summary": content[:120] + "..." if len(content) > 120 else content,
+            "raw_content": content_str,
+            "compact_summary": content_str[:120] + "..." if len(content_str) > 120 else content_str,
             "evicted_reason": reason,
-            "embedding": self._generate_simulated_embedding(content),
+            "embedding": self._generate_simulated_embedding(content_str),
             "archived_at": time.strftime("%Y-%m-%d %H:%M:%S")
         }
         self.archive_table.append(record)
@@ -66,11 +67,11 @@ class VectorMemoryTier:
         Executes a hybrid BM25 + cosine similarity search against the archived episodic memory.
         Enforces a minimum relevance threshold so unrelated queries do not produce false-positive matches.
         """
-        if not self.archive_table:
+        if not self.archive_table or not query or not str(query).strip():
             return []
 
-        query_vec = self._generate_simulated_embedding(query)
-        clean_q = query.lower()
+        clean_q = str(query).strip().lower()
+        query_vec = self._generate_simulated_embedding(clean_q)
         q_words = set(re.findall(r"[a-z0-9]+", clean_q))
         stopwords = {"the", "a", "an", "is", "in", "to", "for", "of", "and", "or", "it", "at", "what", "was"}
         meaningful_q_words = q_words - stopwords
@@ -92,7 +93,7 @@ class VectorMemoryTier:
                     subword_overlap += 1
 
             # Exact phrase bonus (e.g., 'indiranagar rain' appearing in order)
-            phrase_bonus = 0.5 if clean_q in row_text else 0.0
+            phrase_bonus = 0.5 if (clean_q and clean_q in row_text) else 0.0
 
             # Combined hybrid score
             total_score = (sim * 0.4) + (exact_overlap * 0.35) + (subword_overlap * 0.2) + phrase_bonus

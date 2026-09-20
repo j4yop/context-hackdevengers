@@ -46,9 +46,27 @@ class ContextGCEngine:
 
         # 1. First Pass: Register all turns into State DAG and assess tool payloads
         annotated_turns = []
-        for idx, msg in enumerate(messages):
+        for idx, raw_msg in enumerate(messages):
+            # Normalize message dict or Pydantic model
+            if hasattr(raw_msg, "model_dump"):
+                msg = raw_msg.model_dump(exclude_none=False)
+            elif hasattr(raw_msg, "dict"):
+                msg = raw_msg.dict()
+            elif isinstance(raw_msg, dict):
+                msg = raw_msg
+            else:
+                msg = {
+                    "role": getattr(raw_msg, "role", "user"),
+                    "content": getattr(raw_msg, "content", ""),
+                    "name": getattr(raw_msg, "name", None),
+                    "tool_call_id": getattr(raw_msg, "tool_call_id", None),
+                    "tool_calls": getattr(raw_msg, "tool_calls", None)
+                }
+
             role = msg.get("role", "user")
-            content = msg.get("content", "")
+            content = msg.get("content")
+            if content is None:
+                content = ""
             raw_tokens = max(1, len(content) // 4)
             raw_token_count += raw_tokens
 
@@ -174,7 +192,7 @@ class ContextGCEngine:
                 cleaned_messages[-1]["content"] += f"\n{jit_retrieval_text}"
 
         # Recompute final cleaned token count
-        final_cleaned_tokens = sum(max(1, len(m["content"]) // 4) for m in cleaned_messages)
+        final_cleaned_tokens = sum(max(1, len(m.get("content") or "") // 4) for m in cleaned_messages)
         elapsed_ms = (time.perf_counter() - start_time) * 1000
 
         tokens_saved = max(0, raw_token_count - final_cleaned_tokens)

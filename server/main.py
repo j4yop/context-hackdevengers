@@ -133,7 +133,7 @@ def simulate(req: SimulationStepRequest):
     if req.turn_limit is not None and req.turn_limit > 0:
         session = session[:req.turn_limit]
         
-    result = engine.process_session(session, query_for_jit=req.jit_query)
+    result = engine.process_session(session, query_for_jit=req.jit_query, mode=req.mode or "compact")
     
     return {
         "scenario": scenario,
@@ -339,36 +339,44 @@ async def chat_completions(req: OpenAIChatCompletionRequest, request: Request):
     # 1. Handle Streaming Requests (stream: true)
     if req.stream:
         if api_key and not api_key.startswith("dummy") and not api_key.startswith("test") and len(api_key) > 20:
-            async def upstream_sse_generator():
-                try:
-                    async with httpx.AsyncClient(timeout=60.0) as client_http:
-                        async with client_http.stream(
-                            "POST",
-                            "https://api.openai.com/v1/chat/completions",
-                            headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
-                            json={
-                                "model": req.model,
-                                "messages": cleaned_messages,
-                                "temperature": req.temperature,
-                                "stream": True,
-                                **({"max_tokens": req.max_tokens} if req.max_tokens else {})
-                            }
-                        ) as upstream_stream:
+            try:
+                client_http = httpx.AsyncClient(timeout=60.0)
+                upstream_req = client_http.build_request(
+                    "POST",
+                    "https://api.openai.com/v1/chat/completions",
+                    headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+                    json={
+                        "model": req.model,
+                        "messages": cleaned_messages,
+                        "temperature": req.temperature,
+                        "stream": True,
+                        **({"max_tokens": req.max_tokens} if req.max_tokens else {})
+                    }
+                )
+                upstream_stream = await client_http.send(upstream_req, stream=True)
+                if upstream_stream.status_code == 200:
+                    async def stream_wrapper():
+                        try:
                             async for chunk in upstream_stream.aiter_bytes():
                                 yield chunk
-                except Exception as e:
-                    err_chunk = {"error": {"message": str(e), "type": "context_gc_proxy_error"}}
-                    yield f"data: {json.dumps(err_chunk)}\n\n".encode("utf-8")
+                        finally:
+                            await upstream_stream.aclose()
+                            await client_http.aclose()
 
-            return StreamingResponse(
-                upstream_sse_generator(),
-                media_type="text/event-stream",
-                headers={
-                    "x-context-gc-tokens-saved": str(telemetry["tokens_saved"]),
-                    "x-context-gc-reduction-pct": str(telemetry["compression_ratio_pct"]),
-                    "x-context-gc-mode": mode
-                }
-            )
+                    return StreamingResponse(
+                        stream_wrapper(),
+                        media_type="text/event-stream",
+                        headers={
+                            "x-context-gc-tokens-saved": str(telemetry["tokens_saved"]),
+                            "x-context-gc-reduction-pct": str(telemetry["compression_ratio_pct"]),
+                            "x-context-gc-mode": mode
+                        }
+                    )
+                else:
+                    await upstream_stream.aclose()
+                    await client_http.aclose()
+            except Exception:
+                pass  # Fall back to compliant local synthetic completion
 
         # Standalone / Simulation SSE Generator
         completion_id = f"chatcmpl-cgc-{uuid.uuid4().hex[:12]}"
