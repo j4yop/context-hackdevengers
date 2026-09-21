@@ -64,7 +64,8 @@ class ContextGCEngine:
                     tool_name = t_match.group(1)
 
             compacted_content = content
-            if role in ["function", "tool", "system"] or "TOOL_OUTPUT" in content or "{" in content or "FAIL" in content or "diff --git" in content:
+            is_tool_message = role in ["function", "tool"] or "TOOL_OUTPUT" in content or (role == "system" and ("{" in content or "FAIL" in content or "diff --git" in content))
+            if is_tool_message:
                 compacted_content, orig_toks, new_toks = self.sanitizer.distill_tool_payload(content, tool_name)
                 if new_toks < orig_toks:
                     sanitized_tools_count += 1
@@ -192,8 +193,31 @@ class ContextGCEngine:
             "compression_ratio_pct": compression_pct,
             "gc_execution_time_ms": round(elapsed_ms, 2),
             "evicted_turns_count": len(evicted_turns),
+            "evicted_turn_indices": sorted(list(evicted_turns)),
             "sanitized_tools_count": sanitized_tools_count,
             "active_state_slots": {k: v.value for k, v in self.dag.active_state.items()},
+            "dag_details": {
+                "active_nodes": [
+                    {
+                        "entity": k,
+                        "value": v.value,
+                        "turn_index": v.turn_index,
+                        "is_immutable": v.is_immutable
+                    }
+                    for k, v in self.dag.active_state.items()
+                ],
+                "superseded_nodes": [
+                    {
+                        "entity": n.entity,
+                        "value": n.value,
+                        "turn_index": n.turn_index,
+                        "superseded_by": n.superseded_by
+                    }
+                    for history in self.dag.nodes.values()
+                    for n in history
+                    if n.superseded_by is not None
+                ]
+            },
             "vector_rows_archived": len(self.vector_tier.archive_table),
             "estimated_vanilla_latency_ms": est_vanilla_latency_ms,
             "estimated_gc_latency_ms": est_gc_latency_ms,
