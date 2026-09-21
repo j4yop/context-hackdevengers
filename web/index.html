@@ -267,7 +267,7 @@
             <i class="fa-solid fa-database text-violet-600"></i>
           </div>
           <div class="mt-2 flex items-baseline gap-2">
-            <span id="kpi-evicted-count" class="text-2xl sm:text-3xl font-black text-violet-700 font-mono tabular-nums">5</span>
+            <span id="kpi-vector-count" class="text-2xl sm:text-3xl font-black text-violet-700 font-mono tabular-nums">6</span>
             <span class="text-xs text-slate-500 font-mono">Pruned dead turns</span>
           </div>
         </div>
@@ -655,7 +655,125 @@
       }
     };
 
-    function switchScenario(scen) {
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    function updateShowdownUI(data) {
+      if (!data) return;
+
+      // Update KPI banner
+      if (data.deltas) {
+        document.getElementById('kpi-tokens-pct').textContent = `-${data.deltas.compression_pct}%`;
+        document.getElementById('kpi-tokens-label').textContent = `${data.deltas.tokens_saved.toLocaleString()} tokens saved`;
+        document.getElementById('kpi-latency-pct').textContent = `+${data.deltas.latency_reduction_pct}%`;
+      }
+      if (data.vector_archive_count !== undefined) {
+        const vcEl = document.getElementById('kpi-vector-count');
+        if (vcEl) vcEl.textContent = data.vector_archive_count;
+      }
+
+      // Update Vanilla Agent Card
+      if (data.vanilla_agent) {
+        document.getElementById('vanilla-tokens').textContent = `${data.vanilla_agent.prompt_tokens.toLocaleString()} tokens`;
+        document.getElementById('vanilla-latency').textContent = `${data.vanilla_agent.latency_ms} ms`;
+        document.getElementById('vanilla-output').textContent = data.vanilla_agent.response;
+        
+        let violationText = "";
+        if (data.vanilla_agent.violations && data.vanilla_agent.violations.length > 0) {
+          violationText = data.vanilla_agent.violations.join(" ");
+        } else if (data.scenario === 'coding') {
+          violationText = "CRITICAL SECURITY VIOLATION: Agent dumped unmasked cryptographic private key to console output. Failed to adopt Ed25519 specification and port 9443 due to package-lock.json diff sludge.";
+        } else {
+          violationText = "Unauthorized financial refund issued without supervisor approval (exceeds ₹150 threshold). Rider routed to obsolete address due to attention dilution.";
+        }
+        document.getElementById('vanilla-violation-desc').textContent = violationText;
+      }
+
+      // Update ContextGC Agent Card
+      if (data.context_gc_agent) {
+        document.getElementById('gc-tokens').textContent = `${data.context_gc_agent.prompt_tokens.toLocaleString()} tokens`;
+        const latReduct = data.deltas ? ` (-${data.deltas.latency_reduction_pct}%)` : '';
+        document.getElementById('gc-latency').textContent = `${data.context_gc_agent.latency_ms} ms${latReduct}`;
+        document.getElementById('gc-output').textContent = data.context_gc_agent.response;
+
+        let gcViolationText = "";
+        if (data.scenario === 'coding') {
+          gcViolationText = "Zero security violations. Unmasked key output prevented by Policy Invariant Anchor. Settled on Ed25519 and port 9443 after distilling 350-line package diff.";
+        } else {
+          gcViolationText = "Compensation strictly clamped to ₹150 threshold with automated escalation ticket. Active delivery destination locked to Gate 2 Security Entrance (PIN 4921) via settled DAG state.";
+        }
+        document.getElementById('gc-violation-desc').textContent = gcViolationText;
+      }
+
+      // Update DAG Container dynamically
+      const dagContainer = document.getElementById('dag-container');
+      if (dagContainer) {
+        let dagHtml = "";
+        const dagDetails = data.dag_details;
+        if (dagDetails && dagDetails.active_nodes && dagDetails.active_nodes.length > 0) {
+          dagDetails.active_nodes.forEach(node => {
+            const immutableTag = node.is_immutable 
+              ? `<span class="text-emerald-600 font-semibold">[IMMUTABLE]</span>` 
+              : `<span class="text-slate-500 font-normal">[Settled Turn ${node.turn_index}]</span>`;
+            const valColor = node.is_immutable ? "text-emerald-700 font-bold" : "text-slate-950 font-bold";
+            dagHtml += `
+              <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 flex justify-between items-center">
+                <span class="text-slate-500 font-medium">${escapeHtml(node.entity)}:</span>
+                <span class="${valColor}">"${escapeHtml(node.value)}" ${immutableTag}</span>
+              </div>
+            `;
+          });
+
+          if (dagDetails.superseded_nodes && dagDetails.superseded_nodes.length > 0) {
+            const supersededStr = dagDetails.superseded_nodes.map(n => `${escapeHtml(n.value)} (Turn ${n.turn_index})`).join(', ');
+            dagHtml += `
+              <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 flex justify-between items-center">
+                <span class="text-slate-500 font-medium">superseded_nodes:</span>
+                <span class="text-rose-600 line-through">${supersededStr}</span>
+              </div>
+            `;
+          }
+        } else if (data.state_dag) {
+          for (const [entity, value] of Object.entries(data.state_dag)) {
+            const isImm = entity.includes('allergy') || entity.includes('invariant');
+            const immutableTag = isImm ? `<span class="text-emerald-600 font-semibold">[IMMUTABLE]</span>` : ``;
+            const valColor = isImm ? "text-emerald-700 font-bold" : "text-slate-950 font-bold";
+            dagHtml += `
+              <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 flex justify-between items-center">
+                <span class="text-slate-500 font-medium">${escapeHtml(entity)}:</span>
+                <span class="${valColor}">"${escapeHtml(value)}" ${immutableTag}</span>
+              </div>
+            `;
+          }
+        }
+        if (dagHtml) {
+          dagContainer.innerHTML = dagHtml;
+        }
+      }
+    }
+
+    async function loadShowdown(scen) {
+      try {
+        const res = await fetch(`/api/benchmark-showdown?scenario=${scen}`, { method: 'POST' });
+        if (res.ok) {
+          const data = await res.json();
+          updateShowdownUI(data);
+          return data;
+        }
+      } catch (err) {
+        console.warn('API benchmark-showdown fallback:', err);
+      }
+      renderScenario(scen);
+    }
+
+    async function switchScenario(scen) {
       activeScenario = scen;
       const btnOps = document.getElementById('btn-scen-ops');
       const btnCode = document.getElementById('btn-scen-code');
@@ -671,7 +789,12 @@
         btnOps.className = 'btn-tactile px-3.5 py-1.5 rounded-lg transition flex items-center gap-2 text-slate-600 hover:text-slate-950';
         btnOps.querySelector('i').className = 'fa-solid fa-truck-fast text-slate-500';
       }
-      renderScenario(scen);
+
+      await loadShowdown(scen);
+      const targetDiff = (scen === 'operations' ? 'ops' : 'code');
+      if (diffPreset !== targetDiff) {
+        setDiffPreset(targetDiff);
+      }
     }
 
     function renderScenario(scen) {
@@ -679,7 +802,8 @@
       document.getElementById('kpi-tokens-pct').textContent = data.tokens_pct;
       document.getElementById('kpi-tokens-label').textContent = data.tokens_label;
       document.getElementById('kpi-latency-pct').textContent = data.latency_pct;
-      document.getElementById('kpi-vector-count').textContent = data.vector_count;
+      const vcEl = document.getElementById('kpi-vector-count');
+      if (vcEl) vcEl.textContent = data.vector_count;
       document.getElementById('vanilla-tokens').textContent = data.vanilla_tokens;
       document.getElementById('vanilla-latency').textContent = data.vanilla_latency;
       document.getElementById('vanilla-output').textContent = data.vanilla_output;
@@ -695,20 +819,7 @@
       const btnText = document.getElementById('btn-nav-text');
       btnText.textContent = 'Simulating...';
 
-      try {
-        const res = await fetch(`/api/benchmark-showdown?scenario=${activeScenario}`, { method: 'POST' });
-        if (res.ok) {
-          const data = await res.json();
-          document.getElementById('kpi-tokens-pct').textContent = `-${data.deltas.compression_pct}%`;
-          document.getElementById('kpi-tokens-label').textContent = `${data.deltas.tokens_saved} tokens saved`;
-          document.getElementById('kpi-latency-pct').textContent = `+${data.deltas.latency_reduction_pct}%`;
-          document.getElementById('kpi-vector-count').textContent = data.vector_archive_count;
-        } else {
-          renderScenario(activeScenario);
-        }
-      } catch (e) {
-        renderScenario(activeScenario);
-      }
+      await loadShowdown(activeScenario);
 
       setTimeout(() => {
         btnText.textContent = 'Benchmark Run ✓';
@@ -734,20 +845,21 @@
         if (res.ok) {
           const data = await res.json();
           if (data.matches && data.matches.length > 0) {
-            box.innerHTML = `<div class="text-left w-full text-slate-800"><span class="text-blue-600 font-bold">[VECTOR RECALL]:</span> Turn ${data.matches[0].turn_index} (${data.matches[0].role}): <em>"${data.matches[0].compact_summary}"</em></div>`;
+            const m = data.matches[0];
+            const simBadge = m.similarity_score !== undefined ? ` <span class="text-xs text-blue-700 font-semibold">(Cosine: ${(m.similarity_score * 100).toFixed(1)}%)</span>` : '';
+            box.innerHTML = `<div class="text-left w-full text-slate-800"><span class="text-blue-600 font-bold">[VECTOR RECALL]:</span> Turn ${m.turn_index} (${m.role}): <em>"${escapeHtml(m.compact_summary)}"</em>${simBadge}</div>`;
+            return;
+          } else {
+            box.innerHTML = `<div class="text-left w-full text-slate-500 font-mono text-xs"><span class="text-slate-400 font-bold">[NO RELEVANT TURNS FOUND]:</span> Query "${escapeHtml(q)}" did not match any evicted episodic turns in the ${activeScenario} vector tier.</div>`;
             return;
           }
-        }
-      } catch (err) {}
-
-      // Fallback JIT simulation
-      setTimeout(() => {
-        if (activeScenario === 'operations') {
-          box.innerHTML = `<div class="text-left w-full text-slate-800"><span class="text-blue-600 font-bold">[VECTOR RECALL]:</span> Turn 1: <em>"Deliver to Tower B, Flat 402. Severe PEANUT allergy."</em> <span class="text-slate-500">(Evicted at Turn 5)</span></div>`;
         } else {
-          box.innerHTML = `<div class="text-left w-full text-slate-800"><span class="text-blue-600 font-bold">[VECTOR RECALL]:</span> Turn 1: <em>"Refactor auth microservice to use JWT tokens with RSA-256 signatures."</em> <span class="text-slate-500">(Evicted at Turn 6)</span></div>`;
+          box.innerHTML = `<div class="text-left w-full text-rose-500 font-mono text-xs"><i class="fa-solid fa-triangle-exclamation"></i> Vector search returned HTTP ${res.status}.</div>`;
+          return;
         }
-      }, 300);
+      } catch (err) {
+        box.innerHTML = `<div class="text-left w-full text-rose-500 font-mono text-xs"><i class="fa-solid fa-triangle-exclamation"></i> Vector search error: ${escapeHtml(err.message)}</div>`;
+      }
     }
 
     function applySearch(query) {
@@ -755,18 +867,17 @@
       searchArchive();
     }
 
-
     async function copyTelemetry() {
       const data = SCENARIOS[activeScenario];
       const payload = {
         product: "ContextGC",
         scenario: activeScenario,
-        tokens_reduction: data.tokens_pct,
-        tokens_saved: data.tokens_label,
-        latency_improvement: data.latency_pct,
-        vector_archive_count: data.vector_count,
-        vanilla_tokens: data.vanilla_tokens,
-        context_gc_tokens: data.gc_tokens,
+        tokens_reduction: document.getElementById('kpi-tokens-pct').textContent,
+        tokens_saved: document.getElementById('kpi-tokens-label').textContent,
+        latency_improvement: document.getElementById('kpi-latency-pct').textContent,
+        vector_archive_count: document.getElementById('kpi-vector-count') ? document.getElementById('kpi-vector-count').textContent : data.vector_count,
+        vanilla_tokens: document.getElementById('vanilla-tokens').textContent,
+        context_gc_tokens: document.getElementById('gc-tokens').textContent,
         timestamp: new Date().toISOString()
       };
       try {
@@ -793,19 +904,108 @@
       if (preset === 'ops') {
         tabOps.className = 'px-2.5 py-1 rounded bg-blue-600 text-white font-semibold';
         tabCode.className = 'px-2.5 py-1 rounded bg-slate-100 text-slate-600 hover:bg-slate-200';
-        document.getElementById('flame-ratio-label').innerHTML = '1,592 raw tokens → <strong class="text-blue-600">476 active tokens</strong> (70.1% reclaimed)';
       } else {
         tabCode.className = 'px-2.5 py-1 rounded bg-blue-600 text-white font-semibold';
         tabOps.className = 'px-2.5 py-1 rounded bg-slate-100 text-slate-600 hover:bg-slate-200';
-        document.getElementById('flame-ratio-label').innerHTML = '1,000 raw tokens → <strong class="text-blue-600">311 active tokens</strong> (68.9% reclaimed)';
       }
       renderDiffSandbox();
     }
 
-    function renderDiffSandbox() {
+    async function renderDiffSandbox() {
+      const box = document.getElementById('diff-content-box');
+      if (!box) return;
+      const scen = diffPreset === 'ops' ? 'operations' : 'coding';
+
+      box.innerHTML = '<div class="text-slate-500 font-mono text-xs"><i class="fa-solid fa-spinner fa-spin"></i> Loading live defragmentation diff from /api/simulate...</div>';
+
+      try {
+        const res = await fetch(`/api/simulate?scenario=${scen}`);
+        if (res.ok) {
+          const simData = await res.json();
+          const telem = simData.telemetry;
+          const rawTurns = simData.raw_turns || [];
+          const cleaned = simData.cleaned_messages || [];
+          const evictedIndices = new Set(telem.evicted_turn_indices || []);
+
+          // Update flame ratio label dynamically
+          const flameLabel = document.getElementById('flame-ratio-label');
+          if (flameLabel && telem) {
+            flameLabel.innerHTML = `${telem.raw_token_count.toLocaleString()} raw tokens → <strong class="text-blue-600">${telem.cleaned_token_count.toLocaleString()} active tokens</strong> (${telem.compression_ratio_pct}% reclaimed)`;
+          }
+
+          let diffHtml = `<div class="text-slate-400 mb-2">// --- ContextGC Defragmentation Diff: ${scen === 'operations' ? 'Scenario 1 (Operations Crisis)' : 'Scenario 2 (Autonomous Coding Agent)'} ---</div>`;
+
+          // 1. System Invariants Anchor
+          if (cleaned.length > 0 && cleaned[0].content && cleaned[0].content.includes('[SYSTEM_INVARIANTS_ANCHOR]')) {
+            const anchorPart = cleaned[0].content.split('[SYSTEM_INVARIANTS_ANCHOR]')[1] || '';
+            const anchorLines = anchorPart.split('\n').filter(l => l.trim().startsWith('•') || l.trim().startsWith('-')).slice(0, 3);
+            diffHtml += `
+<div class="text-blue-400 bg-blue-950/40 p-2 rounded mb-2 border-l-2 border-blue-400">
+  <span class="text-slate-400 font-semibold">[SYSTEM INVARIANTS ANCHOR INJECTED]</span><br>
+  ${anchorLines.map(l => escapeHtml(l.trim())).join('<br>')}
+</div>`;
+          } else {
+            diffHtml += `
+<div class="text-blue-400 bg-blue-950/40 p-2 rounded mb-2 border-l-2 border-blue-400">
+  <span class="text-slate-400 font-semibold">[SYSTEM INVARIANTS ANCHOR INJECTED]</span><br>
+  • IMMUTABLE Operational Guardrails Active
+</div>`;
+          }
+
+          // 2. Iterate raw turns vs cleaned state
+          rawTurns.forEach((turn, idx) => {
+            const role = turn.role;
+            const content = turn.content || '';
+            const isEvicted = evictedIndices.has(idx);
+
+            if (isEvicted) {
+              diffHtml += `
+<div class="text-rose-400/90 bg-rose-950/30 p-2 rounded mb-2 border-l-2 border-rose-500 line-through">
+  <span class="text-rose-300 no-underline font-semibold block">[PRUNED - SUPERSEDED STATE TURN ${idx}] (${role})</span>
+  ${escapeHtml(content.length > 140 ? content.slice(0, 140) + '...' : content)}
+</div>`;
+            } else if (content.length > 300 && (content.includes('{') || content.includes('diff') || role === 'system' || role === 'tool')) {
+              diffHtml += `
+<div class="text-amber-400/90 bg-amber-950/30 p-2 rounded mb-2 border-l-2 border-amber-500">
+  <span class="text-amber-300 font-semibold block">[TOOL OUTPUT DISTILLED: ${content.length.toLocaleString()} raw chars compacted]</span>
+  <span class="line-through text-slate-500 block mb-1">${escapeHtml(content.slice(0, 90))}...</span>
+  <span class="text-emerald-400 font-bold block">✓ [DISTILLED SEMANTIC TOMBSTONE APPLIED]</span>
+</div>`;
+            } else if (idx === 0 || idx === rawTurns.length - 1 || idx === rawTurns.length - 2) {
+              const borderCol = role === 'user' ? 'border-slate-700' : 'border-emerald-500 bg-emerald-950/30';
+              const textCol = role === 'user' ? 'text-slate-300' : 'text-emerald-300';
+              diffHtml += `
+<div class="${textCol} pl-3 border-l ${borderCol} p-1 mb-2">
+  <span class="font-semibold capitalize">${role}:</span> "${escapeHtml(content.length > 150 ? content.slice(0, 150) + '...' : content)}"
+</div>`;
+            }
+          });
+
+          // 3. Settled DAG State
+          if (telem.dag_details && telem.dag_details.active_nodes) {
+            const nodeItems = telem.dag_details.active_nodes.map(n => `• ${escapeHtml(n.entity)}: "${escapeHtml(n.value)}" ${n.is_immutable ? '(IMMUTABLE GUARDRAIL PROTECTED)' : `(Settled Turn ${n.turn_index})`}`).join('<br>');
+            diffHtml += `
+<div class="text-emerald-400 bg-emerald-950/40 p-2 rounded mb-2 border-l-2 border-emerald-400">
+  <span class="text-emerald-300 font-semibold block">[ACTIVE DAG STATE SETTLED]</span>
+  ${nodeItems}
+</div>`;
+          }
+
+          box.innerHTML = diffHtml;
+          return;
+        }
+      } catch (err) {
+        console.warn('Failed to load dynamic diff sandbox, rendering static fallback:', err);
+      }
+
+      renderDiffSandboxStatic();
+    }
+
+    function renderDiffSandboxStatic() {
       const box = document.getElementById('diff-content-box');
       if (!box) return;
       if (diffPreset === 'ops') {
+        document.getElementById('flame-ratio-label').innerHTML = '1,592 raw tokens → <strong class="text-blue-600">476 active tokens</strong> (70.1% reclaimed)';
         box.innerHTML = `
 <div class="text-slate-400 mb-2">// --- ContextGC Defragmentation Diff: Scenario 1 (Operations Crisis) ---</div>
 <div class="text-blue-400 bg-blue-950/40 p-2 rounded mb-2 border-l-2 border-blue-400">
@@ -850,6 +1050,7 @@
 </div>
 `;
       } else {
+        document.getElementById('flame-ratio-label').innerHTML = '1,000 raw tokens → <strong class="text-blue-600">311 active tokens</strong> (68.9% reclaimed)';
         box.innerHTML = `
 <div class="text-slate-400 mb-2">// --- ContextGC Defragmentation Diff: Scenario 2 (Autonomous Coding Agent) ---</div>
 <div class="text-blue-400 bg-blue-950/40 p-2 rounded mb-2 border-l-2 border-blue-400">
@@ -886,8 +1087,8 @@
       }
     }
 
-    // Initialize default view
-    renderScenario('operations');
+    // Initialize default view with dynamic load
+    loadShowdown('operations');
     renderDiffSandbox();
   </script>
 

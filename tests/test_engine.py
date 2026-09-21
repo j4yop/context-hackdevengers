@@ -376,4 +376,70 @@ def test_api_dag_rollback_endpoint():
     assert data["target_turn"] == 0
     assert "rollback" in data
 
+def test_dynamic_benchmark_showdown_and_dag_details():
+    # Test operations scenario
+    res_ops = client.post("/api/benchmark-showdown?scenario=operations")
+    assert res_ops.status_code == 200
+    data_ops = res_ops.json()
+    assert "dag_details" in data_ops
+    assert "active_nodes" in data_ops["dag_details"]
+    assert len(data_ops["dag_details"]["active_nodes"]) > 0
+    assert "superseded_nodes" in data_ops["dag_details"]
+    assert data_ops["metadata"]["inference_mode"] in ["dynamic_dag_ground_truth", "live_openai_upstream"]
+    assert "Gate 2" in data_ops["context_gc_agent"]["response"]
+    assert data_ops["vanilla_agent"]["policy_violation"] is True
+
+    # Test coding scenario
+    res_code = client.post("/api/benchmark-showdown?scenario=coding")
+    assert res_code.status_code == 200
+    data_code = res_code.json()
+    assert "dag_details" in data_code
+    assert "active_nodes" in data_code["dag_details"]
+    assert "ed25519" in str(data_code["state_dag"]).lower()
+    assert "9443" in str(data_code["state_dag"])
+    assert data_code["vanilla_agent"]["policy_violation"] is True
+    assert data_code["context_gc_agent"]["policy_violation"] is False
+
+def test_simulate_endpoint_dynamic_turns_and_eviction():
+    # Test GET method
+    res_get = client.get("/api/simulate?scenario=operations")
+    assert res_get.status_code == 200
+    data_get = res_get.json()
+    assert "raw_turns" in data_get
+    assert len(data_get["raw_turns"]) > 0
+    assert "cleaned_messages" in data_get
+    assert "evicted_turn_indices" in data_get["telemetry"]
+    assert "dag_details" in data_get["telemetry"]
+
+    # Test POST method
+    res_post = client.post("/api/simulate", json={"scenario": "coding"})
+    assert res_post.status_code == 200
+    data_post = res_post.json()
+    assert data_post["scenario"] == "coding"
+    assert "raw_turns" in data_post
+    assert data_post["telemetry"]["cleaned_token_count"] < data_post["telemetry"]["raw_token_count"]
+
+def test_vector_search_zero_fake_hits():
+    # Irrelevant random search must return 0 results, verifying no static/fake fallback hits
+    res = client.post("/api/vector-archive/search", json={"query": "xyzzy_completely_irrelevant_token_9999", "scenario": "operations"})
+    assert res.status_code == 200
+    data = res.json()
+    assert data["results_found"] == 0
+    assert len(data["matches"]) == 0
+
+def test_secret_leak_audit_enhanced():
+    from core.anchors import PolicyInvariantAnchor
+    anchor = PolicyInvariantAnchor()
+    # Test raw PEM header detection
+    leak_pem = "-----BEGIN RSA PRIVATE KEY-----\nMIIEowIBAAKCAQEA0...\n-----END RSA PRIVATE KEY-----"
+    audit_pem = anchor.check_violation(leak_pem)
+    assert audit_pem["has_violation"] is True
+    assert any("private key" in v["details"].lower() or "secret" in v["details"].lower() for v in audit_pem["violations"])
+
+    # Test clean masked output
+    clean_msg = "Refactoring completed with Ed25519 on port 9443. Key masked [KEY: ed25519_***_REDACTED]."
+    audit_clean = anchor.check_violation(clean_msg)
+    assert audit_clean["has_violation"] is False
+
+
 

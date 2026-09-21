@@ -45,7 +45,7 @@ class PolicyInvariantAnchor:
                 })
 
         # Check secret leak violations
-        if re.search(r"(?:private[-_ ]key|secret[-_ ]key|BEGIN PRIVATE KEY)\s*[:=]", text, re.IGNORECASE):
+        if re.search(r"(?:-----BEGIN [A-Z ]*PRIVATE KEY-----|private[-_ ]key\s*[:=]|secret[-_ ]key\s*[:=]|BEGIN PRIVATE KEY\s*[:=])", text, re.IGNORECASE):
             violations.append({
                 "rule": "SECURITY_GUARDRAIL",
                 "details": "Attempted to log or print unmasked cryptographic secret to console."
