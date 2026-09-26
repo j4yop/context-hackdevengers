@@ -101,6 +101,7 @@ def load_swe_agent(
     min_turns: int = 8,
     max_turns: int = 200,
     path: Optional[str] = None,
+    per_repo: Optional[int] = None,
 ) -> List[Transcript]:
     """
     Load real SWE-agent trajectories.
@@ -113,12 +114,18 @@ def load_swe_agent(
         max_turns: skip anything longer, to bound runtime.
         path: a local parquet shard. If absent, the shard is downloaded to the
             harness cache directory.
+        per_repo: cap on trajectories taken from any one ``instance_id``. The
+            shard is ordered by repository, so ``limit`` alone yields a sample
+            drawn from a handful of repos and a measurement that is really a
+            measurement of those repos. Capping forces breadth.
 
     Returns:
-        Transcripts tagged ``source="swe-agent-trajectories"``.
+        Transcripts tagged ``source="swe-agent-trajectories"``, spread over as
+        many distinct repositories as the shard allows.
     """
     frame = _read_shard(path)
     out: List[Transcript] = []
+    taken_per_repo: Dict[str, int] = {}
     for row_index, (_, row) in enumerate(frame.iterrows()):
         if len(out) >= limit:
             break
@@ -126,6 +133,13 @@ def load_swe_agent(
         messages = normalise_messages(raw)
         if not (min_turns <= len(messages) <= max_turns):
             continue
+        # Breadth before depth: the shard is repo-ordered, so without a cap the
+        # first N transcripts come from a couple of repositories and every
+        # number derived from them inherits that narrowness.
+        base = str(row.get("instance_id") or f"swe-{row_index}")
+        if per_repo is not None and taken_per_repo.get(base, 0) >= per_repo:
+            continue
+        taken_per_repo[base] = taken_per_repo.get(base, 0) + 1
         # `instance_id` repeats: a SWE-bench instance has several independent
         # trajectories. Ids must be unique or a per-transcript measurement --
         # including a precision label -- cannot be attributed to one of them.

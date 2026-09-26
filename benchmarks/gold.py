@@ -13,6 +13,7 @@ disagree with the judgement rather than having to reverse-engineer it.
 """
 
 import json
+import math
 import os
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -38,6 +39,46 @@ def save_labels(labels: List[Dict[str, Any]], path: Optional[str] = None) -> Non
     with open(target, "w", encoding="utf-8") as handle:
         json.dump(labels, handle, indent=2)
         handle.write("\n")
+
+
+def wilson_interval(correct: int, total: int, z: float = 1.96) -> Tuple[float, float]:
+    """
+    Wilson score interval for a binomial proportion.
+
+    A point estimate with no interval invites a reader to treat 88% from 16
+    correlated rows as 88% +/- nothing. This is the honest width on that claim.
+    """
+    if total <= 0:
+        return (0.0, 1.0)
+    phat = correct / total
+    denom = 1 + z * z / total
+    centre = phat + z * z / (2 * total)
+    margin = z * math.sqrt((phat * (1 - phat) + z * z / (4 * total)) / total)
+    return (max(0.0, (centre - margin) / denom), min(1.0, (centre + margin) / denom))
+
+
+def clusters_of(matched: List[Dict[str, Any]]) -> Dict[Tuple, str]:
+    """
+    Collapse matched labels to independent units.
+
+    SWE-agent trajectories for one issue share near-identical opening turns, so
+    two extractions from the same repository and turn are not two pieces of
+    evidence. Keying on (repository, turn, entity) treats them as one, which is
+    what stops ``n`` from being inflated by near-duplicates.
+    """
+    out: Dict[Tuple, str] = {}
+    for item in matched:
+        key = (
+            str(item["transcript"]).split("#")[0],
+            item.get("turn"),
+            item["entity"],
+        )
+        # A cluster is correct only if every judgement in it was correct; one
+        # confirmed error makes the cluster a failure, and a single "unclear"
+        # keeps it out of the denominator entirely.
+        verdicts = out.setdefault(key, [])
+        verdicts.append(item["verdict"])
+    return out
 
 
 def label_key(transcript_id: str, entity: str, turn_index: Any = None) -> Tuple:
@@ -92,6 +133,7 @@ def score(
         matched_values.append({
             "transcript": extraction["transcript"],
             "entity": extraction["entity"],
+            "turn": extraction.get("turn"),
             "extracted": extraction["value"],
             "label_said": label.get("value"),
             "verdict": label["verdict"],
@@ -108,6 +150,32 @@ def score(
     judged = correct + incorrect
     precision = (correct / judged) if judged else None
 
+    # Cluster-aware view. `n_raw` counts rows; `n_clusters` counts independent
+    # units. When they diverge the raw figure is the one to distrust.
+    cluster_verdicts: Dict[Tuple, List[str]] = {}
+    for item in matched_values:
+        key = (
+            str(item["transcript"]).split("#")[0],
+            item.get("turn"),
+            item["entity"],
+        )
+        cluster_verdicts.setdefault(key, []).append(item["verdict"])
+
+    clusters_correct = clusters_incorrect = clusters_unclear = 0
+    for verdicts in cluster_verdicts.values():
+        if any(v == INCORRECT for v in verdicts):
+            clusters_incorrect += 1
+        elif any(v == UNCLEAR for v in verdicts):
+            clusters_unclear += 1
+        else:
+            clusters_correct += 1
+
+    clusters_judged = clusters_correct + clusters_incorrect
+    cluster_precision = (
+        clusters_correct / clusters_judged if clusters_judged else None
+    )
+    lo, hi = wilson_interval(clusters_correct, clusters_judged)
+
     return {
         "n_labelled": matched,
         "n_unmatched_labels": len(labels) - matched,
@@ -116,6 +184,13 @@ def score(
         "unclear": unclear,
         "precision": round(precision, 3) if precision is not None else None,
         "n": judged,
+        "n_clusters": clusters_judged,
+        "n_clusters_unclear": clusters_unclear,
+        "cluster_precision": (
+            round(cluster_precision, 3) if cluster_precision is not None else None
+        ),
+        "ci95": [round(lo, 3), round(hi, 3)],
+        "n_repos": len({str(m["transcript"]).split("#")[0] for m in matched_values}),
         "matched": matched_values,
     }
 
@@ -142,11 +217,32 @@ def render(result: Dict[str, Any]) -> str:
     lines.append(f"  JUDGED                 {result['n']}   <- the denominator")
     lines.append(f"    correct              {result['correct']}")
     lines.append(f"    incorrect            {result['incorrect']}")
-    lines.append(f"  PRECISION              {result['precision'] * 100:.0f}%   (n={result['n']})")
+    lines.append(f"  PRECISION (rows)       {result['precision'] * 100:.0f}%   (n={result['n']})")
+
+    # The row count overstates the evidence whenever trajectories for one issue
+    # share opening turns. Show the clustered figure and the interval beside it.
+    if result.get("n_clusters") is not None and result["n_clusters"] != result["n"]:
+        lines.append(f"  n is inflated          {result['n']} rows collapse to "
+                     f"{result['n_clusters']} independent units")
+        lines.append("                        (same repo + turn + slot counted once)")
+    if result.get("cluster_precision") is not None:
+        lo, hi = result["ci95"]
+        lines.append(f"  PRECISION (clusters)   {result['cluster_precision'] * 100:.0f}%   "
+                     f"(n={result['n_clusters']}, 95% CI {lo * 100:.0f}-{hi * 100:.0f}%)")
+    if result.get("n_repos") is not None:
+        lines.append(f"  repositories covered  {result['n_repos']}")
+    if result.get("n_clusters_unclear"):
+        lines.append(f"  unclear clusters      {result['n_clusters_unclear']}  "
+                     "(excluded from the ratio)")
+
     if result["n"] < 20:
         lines.append("")
         lines.append(f"  ! n={result['n']} is a small sample. Treat this as a smell test, not a")
         lines.append("    statistic. It is here to catch gross regression, not to be quoted.")
+    if result.get("ci95") and (result["ci95"][1] - result["ci95"][0]) > 0.3:
+        lines.append(f"  ! the 95% interval spans {(result['ci95'][1] - result['ci95'][0]) * 100:.0f}"
+                     " points. The point estimate is not a measurement of anything")
+        lines.append("    precise; the interval is the finding.")
     lines.append("")
     lines.append("  means: of the extractions a human read in context and judged, this")
     lines.append("         fraction named a value that was really there.")

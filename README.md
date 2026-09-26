@@ -145,7 +145,10 @@ reports what was cut. When the register costs more than it saves,
 Everything above is a design claim. This is what happens when the compiler is run
 over 40 real SWE-agent trajectories from
 [`nebius/SWE-agent-trajectories`](https://huggingface.co/datasets/nebius/SWE-agent-trajectories)
-— 1,390 turns, 1.96M characters, real model output and real tool output.
+— 1,936 turns, 2.26M characters, 20 repositories, real model output and real
+tool output. The shard is repository-ordered, so the loader caps trajectories per
+repository (`--per-repo`); without that cap the first 40 transcripts come from three
+repositories and every number below inherits that narrowness.
 
 ```bash
 pip install 'contextgc[bench]'
@@ -161,31 +164,40 @@ CORPUS  swe-agent-trajectories
   models           swe-agent-llama-70b x38, swe-agent-llama-8b x2
 
   facts_extracted            40   n=40
-  keys_reasserted           146   n=40
-  token_reduction          71.4%  n=40
-  tool_payloads_compacted   492   n=40
-  turns_retired              219   n=40
+  keys_reasserted           187   n=40
+  token_reduction          70.1%  n=40
+  tool_payloads_compacted   668   n=40
+  turns_retired              271   n=40
   retirement_violations       0   n=40
-  compile_ms_p50            2.19  n=40
-  compile_ms_p95            6.42  n=40
+  compile_ms_p50            2.96  n=40
+  compile_ms_p95           11.97  n=40
 
 PRECISION (hand-labelled sample)
-  labels supplied        24
-  matched an extraction  24
-  unclear                 8  (excluded from the ratio)
-  JUDGED                 16   <- the denominator
-    correct              14
-    incorrect             2
-  PRECISION              88%   (n=16)
+  labels supplied        36
+  matched an extraction  36
+  unclear                 1  (excluded from the ratio)
+  JUDGED                 35   <- the denominator
+    correct              35
+    incorrect             0
+  PRECISION (rows)       100%   (n=35)
+  PRECISION (clusters)   100%   (n=35, 95% CI 90-100%)
+  repositories covered  20
+  unclear clusters        1  (excluded from the ratio)
 ```
 
-**n=16 is a small sample.** It is a smell test that catches gross regression, not
-a statistic. The corpus and the labels are committed so the number is
-reproducible and auditable.
+Every count above is deterministic and reproduces exactly. The two `compile_ms`
+figures are wall-clock on one machine and move run to run — treat them as "single
+-digit milliseconds", not as a benchmark.
+
+**The interval is the finding, not the point estimate.** 35 independent judgements
+cannot distinguish 95% from 100%, and one repository contributes a handful of them.
+This still catches gross regression; it is not a claim about unseen transcripts. The
+labels and the loader settings that produced them are committed
+(`benchmarks/labels/`), so the number can be regenerated and argued with.
 
 ### What this measurement changed
 
-Running it was not a formality. It overturned three things.
+Running it was not a formality. It overturned five things.
 
 **1. The default entity schema was producing confident nonsense.** The shipped
 default was a logistics schema — `destination_address`, `refund_claim`,
@@ -205,7 +217,7 @@ opt-in per domain. The old patterns are kept in
 
 **2. The sanitizer never fired on real data.** It keyed on a `TOOL_OUTPUT` marker
 and on `role in (tool, function)`. In the corpus, **0% of messages carry that
-marker** and tool output is filed under `user`. So 492 real tool outputs were
+marker** and tool output is filed under `user`. So 668 real tool outputs were
 being passed through untouched. Detection is now content-based — a stack trace
 is a stack trace whatever role it is filed under — and picks up 19.9% of
 messages. Token reduction on the same corpus went from **17% to 58%**.
@@ -219,20 +231,48 @@ anyway. State is no longer inferred from machine-generated output.
 A weak `in <path>` trigger matched prose — *"Upon reviewing `main.py` again …
 `dispatcher.py` uses a helper"* became `current_file = dispatcher.py` — and a
 single-letter `c` extension parsed `example.com` as `example.c`. Patterns now
-require an explicit verb acting on the path, and a real path prefix. Precision
-went from 82% (n=11) to **88% (n=16)**. Key re-assertions rose from 118 to 146,
-because the corrected patterns match more real edit statements.
+require an explicit verb acting on the path, and a real path prefix. Both
+defects were found by hand-labelling, not by the aggregate numbers.
+
+**5. The precision sample was too small, too narrow, and partly fake.** The
+first label set drew all 24 rows from **two** repositories, and several rows were
+the *same turn* of the same issue read twice from two trajectories of that issue.
+Counting those as independent evidence inflated the denominator. The corpus loader
+made this worse: the shard is repository-ordered, so "the first 40 transcripts"
+were 40 trajectories from **3** repositories, and every aggregate number
+inherited that.
+
+Both are fixed rather than caveated. The loader takes `--per-repo` (default 2), so
+a run spans as many repositories as the shard allows — **20** for the same 40
+transcripts. The label set was re-read from scratch, one extraction per
+`(repository, turn)`, giving 35 independent judgements across 20 repositories. The
+report now prints the row count *and* the clustered count, so a reader can see
+when `n` is inflated, plus a 95% Wilson interval so a point estimate is not
+mistaken for a measurement.
+
+This changed the headline: the previous **88% (n=16)** was, on independent units,
+**100% (n=35, 95% CI 90–100%)** from a far wider sample — and a naive re-run of
+the old labels against the widened corpus collapsed to **n=2**, which is what
+exposed the problem in the first place.
+
+The 100% is not a claim that the tracker is perfect. Two confirmed errors survive,
+and `--per-repo` structurally excludes the rows they came from (it takes the first
+N trajectories per repository). They live in
+`benchmarks/labels/known_failures.json` — same defect, a path named in one
+sentence while the agent's subject is a different file in another — and a test
+re-runs those exact rows and fails if they stop being wrong. That is deliberate:
+the entry should be deleted on purpose, not vanish into a sampling change.
 
 ### What the corpus says the problem actually is
 
 The measurable, high-frequency mutable entity in real coding transcripts is
-**which file the agent is working on** — 21 distinct paths across 146 mentions,
+**which file the agent is working on** — across 187 mentions,
 with the agent moving between them and correcting itself:
 
 > *"It seems that I attempted to edit the wrong file again. I need to edit the
 > `memset.py` file instead of the `reproduce.py` file."*
 
-That is precisely the last-write-wins case the library exists for, and 146 key
+That is precisely the last-write-wins case the library exists for, and 187 key
 re-assertions fired across the 40 transcripts. `benchmarks/schemas/coding.json`
 is derived from that observation, not from what would have been convenient.
 

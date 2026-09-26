@@ -29,6 +29,7 @@ def _load(args):
         limit=args.limit,
         min_turns=args.min_turns,
         path=args.corpus_path,
+        per_repo=getattr(args, "per_repo", None),
     )
 
 
@@ -116,6 +117,15 @@ def main(argv=None):
         p.add_argument("--corpus", choices=("swe-agent", "synthetic"), default="swe-agent")
         p.add_argument("--corpus-path", help="local parquet shard or synthetic transcript file")
         p.add_argument("--min-turns", type=int, default=8)
+        p.add_argument(
+            "--per-repo",
+            type=int,
+            default=2,
+            metavar="N",
+            help="max trajectories per repository (default 2). The shard is "
+                 "repo-ordered, so without this the first N transcripts come "
+                 "from a couple of repos and the measurement inherits that.",
+        )
         if with_limit:
             p.add_argument("--limit", type=int, default=100)
 

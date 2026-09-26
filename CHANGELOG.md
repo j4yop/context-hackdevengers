@@ -2,7 +2,7 @@
 
 All notable changes. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
-## [0.4.0] — systems check, and two more precision defects
+## [0.4.0] — systems check, two more precision defects, and a corpus that was too narrow
 
 A full pass over the package: clean-venv install from the wheel, every endpoint
 exercised, the website driven end to end, and a second labelling round. Four
@@ -35,17 +35,46 @@ defects found, three of them visible only when the site was actually used.
 
 | | before | after | n |
 |---|---|---|---|
-| precision (hand-labelled) | 82% | **88%** | 11 → 16 judged |
-| key re-assertions | 118 | 146 | 40 |
-| token reduction | 58% | 71.4% | 40 |
-| tool payloads compacted | 371 | 492 | 40 |
-| turns retired | 191 | 219 | 40 |
+| precision, independent units | — | **100%** (95% CI 90–100%) | 35 |
+| repositories in the corpus | 3 | **20** | 40 |
+| key re-assertions | 118 | 187 | 40 |
+| token reduction | 58% | 70.1% | 40 |
+| tool payloads compacted | 371 | 668 | 40 |
+| turns retired | 191 | 271 | 40 |
 | retirement violations | 0 | 0 | 40 |
 
-The remaining two incorrect labels share one cause: the path matched a
-*different sentence* in the same message. That is not fixed — knowing which file
-an agent *intends* to edit needs intent, not a regex — and precision is the
-honest place to record it.
+### The precision sample was not measuring what it claimed
+
+Two problems, both in the measurement rather than the compiler, and both larger
+than the number they were attached to:
+
+- **The corpus was 3 repositories wide.** The shard is repository-ordered and the
+  loader took the first N usable rows, so "40 transcripts" meant 40 trajectories
+  from three codebases. `load_swe_agent` now takes `per_repo` (CLI default 2),
+  which spreads the same 40 transcripts over **20** repositories. This changed
+  every aggregate number above, not just precision.
+- **The label set was 2 repositories wide and partly self-repeating.** All 24
+  rows came from two repositories, and several were the *same turn* of the same
+  issue read twice from two trajectories of that issue — one observation counted
+  two or three times. Re-running the old labels against the widened corpus
+  collapsed the sample to **n=2**, which is how this surfaced.
+
+Fixed by re-reading the labels from scratch, one extraction per
+`(repository, turn)`: 36 labels, 35 judged, across 20 repositories.
+`gold.score` now reports the clustered count alongside the row count and a 95%
+Wilson interval, so `n` inflation is visible and a point estimate is not mistaken
+for a measurement. `benchmarks/labels/corpus.json` records the exact loader
+settings, so the sample can be regenerated rather than guessed at.
+
+### Still not fixed
+
+The two confirmed extraction errors — a path named in one sentence while the
+agent's subject is a different file in another — are **not** fixed. Knowing which
+file an agent *intends* to edit needs intent, not a regex. Worse, `--per-repo`
+structurally excludes the rows they came from, so a sampling change could have
+hidden them. They now live in `benchmarks/labels/known_failures.json`, and
+`test_known_failures_still_reproduce_as_errors` re-runs those exact rows and fails
+if they stop being wrong. The entry has to be deleted on purpose.
 
 ### Added
 

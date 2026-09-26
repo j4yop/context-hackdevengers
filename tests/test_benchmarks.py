@@ -8,10 +8,12 @@ emitted context, and that the numbers it reports are internally consistent.
 """
 
 import json
+import os
 
 import pytest
 from conftest import MINIMAL
 
+from benchmarks import corpus as corpus_module
 from benchmarks import gold, harness, report, shadow
 from benchmarks.corpus import Transcript, describe, normalise_messages
 
@@ -390,3 +392,186 @@ def test_agent_prose_is_not_machine_output(content):
     from contextgc.sanitizer import ToolSanitizer
 
     assert not ToolSanitizer.looks_like_tool_output(content, "assistant")
+
+
+# --- label-set integrity -----------------------------------------------------
+#
+# The precision figure is only as trustworthy as the label file, and a label
+# file can rot in ways that quietly inflate the number: duplicated turns, labels
+# that no longer match the corpus, verdicts asserted without evidence. These
+# guard the guards.
+
+def _precision_labels():
+    with open(gold.LABELS_PATH, encoding="utf-8") as handle:
+        return json.load(handle)
+
+
+def test_no_label_duplicates_the_same_slot_in_the_same_turn():
+    """A repeated (transcript, entity, turn) is one piece of evidence, not two."""
+    seen = set()
+    for label in _precision_labels():
+        key = (label["transcript"], label["entity"], label.get("turn_index"))
+        assert key not in seen, f"duplicate label for {key}"
+        seen.add(key)
+
+
+def test_every_judged_label_records_why():
+    """A verdict with no note cannot be disagreed with, only trusted."""
+    for label in _precision_labels():
+        assert label.get("note"), f"unjustified verdict: {label}"
+        assert label.get("labelled_by"), f"unattributed verdict: {label}"
+
+
+def test_labels_span_many_repositories():
+    """
+    The previous label file drew every row from two repositories, so the
+    precision figure was largely a measurement of those two codebases.
+    """
+    repos = {label["transcript"].split("#")[0] for label in _precision_labels()}
+    assert len(repos) >= 10, f"labels cover only {len(repos)} repos: {sorted(repos)}"
+
+
+def test_label_corpus_spec_is_recorded():
+    """Precision cannot be reproduced without knowing which corpus produced it."""
+    spec_path = os.path.join(os.path.dirname(gold.LABELS_PATH), "corpus.json")
+    assert os.path.exists(spec_path), "labels/corpus.json is missing"
+    with open(spec_path, encoding="utf-8") as handle:
+        spec = json.load(handle)
+    for key in ("limit", "per_repo", "min_turns", "max_turns", "schema"):
+        assert key in spec, f"corpus spec does not record {key}"
+
+
+def test_known_failures_are_kept_out_of_the_precision_denominator():
+    """
+    Two confirmed different-sentence errors sit in rows the per_repo cap skips.
+    They are tracked in their own file so a sampling change cannot make them
+    disappear -- and so they cannot quietly pad the precision ratio either.
+    """
+    path = os.path.join(os.path.dirname(gold.LABELS_PATH), "known_failures.json")
+    with open(path, encoding="utf-8") as handle:
+        known = json.load(handle)
+    assert known["cases"], "known_failures.json lists no cases"
+    labelled = {
+        (label["transcript"], label["entity"], label.get("turn_index"))
+        for label in _precision_labels()
+    }
+    for case in known["cases"]:
+        assert case["verdict"] == gold.INCORRECT
+        key = (case["transcript"], case["entity"], case["turn_index"])
+        assert key not in labelled, f"{key} is counted in precision.json as well"
+
+
+def test_known_failures_still_reproduce_as_errors():
+    """
+    Load the exact rows the known failures came from and confirm they are still
+    wrong. If a future change fixes them this fails, which is the point: the
+    entry should be deleted deliberately, not by accident.
+    """
+    path = os.path.join(os.path.dirname(gold.LABELS_PATH), "known_failures.json")
+    with open(path, encoding="utf-8") as handle:
+        known = json.load(handle)
+    corpus = corpus_module.cached_shard()
+    if corpus is None or not os.path.exists(corpus):
+        pytest.skip("benchmark shard not present")
+
+    from benchmarks.corpus import load_swe_agent
+
+    transcripts = load_swe_agent(limit=10_000, per_repo=None, path=corpus)
+    by_id = {t.id: t for t in transcripts}
+    for case in known["cases"]:
+        transcript = by_id.get(case["transcript"])
+        if transcript is None:
+            pytest.skip(f"{case['transcript']} not in this shard slice")
+        engine = harness.run(
+            [transcript], schema=_coding_schema()
+        )
+        hits = [
+            e
+            for e in engine.extractions
+            if e["transcript"] == case["transcript"]
+            and e.get("turn") == case["turn_index"]
+            and e["value"] == case["value"]
+        ]
+        assert hits, (
+            f"{case['transcript']} turn {case['turn_index']} no longer extracts "
+            f"{case['value']!r}; if that is a fix, delete this known failure "
+            f"rather than leaving a stale entry"
+        )
+
+
+def _coding_schema():
+    import os as _os
+
+    here = _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__)))
+    with open(_os.path.join(here, "benchmarks", "schemas", "coding.json")) as handle:
+        return json.load(handle)["entities"]
+
+
+def test_clustering_collapses_one_turn_counted_twice():
+    """
+    Trajectories for one issue replay the same opening turns. Two rows from the
+    same repository, turn and slot are one observation, and the report must say
+    so rather than counting them twice.
+    """
+    extractions = [
+        {"transcript": "repo-a#1", "entity": "current_file", "value": "x.py", "turn": 7},
+        {"transcript": "repo-a#2", "entity": "current_file", "value": "x.py", "turn": 7},
+        {"transcript": "repo-b#3", "entity": "current_file", "value": "y.py", "turn": 9},
+    ]
+    labels = [
+        {"transcript": "repo-a#1", "entity": "current_file", "value": "x.py",
+         "turn_index": 7, "verdict": gold.CORRECT},
+        {"transcript": "repo-a#2", "entity": "current_file", "value": "x.py",
+         "turn_index": 7, "verdict": gold.CORRECT},
+        {"transcript": "repo-b#3", "entity": "current_file", "value": "y.py",
+         "turn_index": 9, "verdict": gold.CORRECT},
+    ]
+    result = gold.score(extractions, labels=labels)
+    assert result["n"] == 3, "row count"
+    assert result["n_clusters"] == 2, "the two repo-a rows are one observation"
+    assert result["cluster_precision"] == 1.0
+
+
+def test_a_confirmed_error_sinks_its_whole_cluster():
+    """One bad extraction in a cluster is a failed cluster, not a passing one."""
+    extractions = [
+        {"transcript": "repo-a#1", "entity": "current_file", "value": "x.py", "turn": 7},
+        {"transcript": "repo-a#2", "entity": "current_file", "value": "y.py", "turn": 7},
+    ]
+    labels = [
+        {"transcript": "repo-a#1", "entity": "current_file", "value": "x.py",
+         "turn_index": 7, "verdict": gold.CORRECT},
+        {"transcript": "repo-a#2", "entity": "current_file", "value": "y.py",
+         "turn_index": 7, "verdict": gold.INCORRECT},
+    ]
+    result = gold.score(extractions, labels=labels)
+    assert result["precision"] == 0.5, "rows: one of two wrong"
+    assert result["n_clusters"] == 1
+    assert result["cluster_precision"] == 0.0, "the cluster is not a clean pass"
+
+
+def test_wilson_interval_is_wider_for_small_n():
+    """The interval has to reflect how little a small sample knows."""
+    small = gold.wilson_interval(9, 10)
+    large = gold.wilson_interval(900, 1000)
+    assert (small[1] - small[0]) > (large[1] - large[0])
+    assert small[0] < 0.9 < 1.0, "10 judgements cannot pin 90% from below"
+
+
+def test_a_corpus_run_reports_precision_with_its_interval():
+    """End to end: a real run must print the clustered figure and the interval."""
+    from benchmarks.report import render
+
+    result = harness.run(
+        [Transcript(
+            transcript_id="r#1",
+            source="unit-test",
+            messages=normalise_messages([
+                {"role": "user", "content": "look at a.py"},
+                {"role": "assistant", "content": "opening `a.py` now"},
+            ]),
+        )],
+        schema=_coding_schema(),
+    )
+    text = render(result)
+    assert "retirement_violations" in text
