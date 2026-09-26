@@ -226,6 +226,22 @@ assistant: updated
           </div>
         </div>
 
+        <label class="opt" for="schem">Entity schema
+          <span style="font-weight:400;color:var(--ink-3)">— required for state tracking; there is no default</span>
+        </label>
+        <select id="schem" onchange="SCHEMA=this.value; syncSchemaNote(); if($('src').value) run()"
+          style="width:100%;padding:8px 11px;font-size:13px;background:var(--panel-2);
+                 border:1px solid var(--line);border-radius:9px;color:var(--ink)">
+          <option value="">none — compaction only</option>
+        </select>
+        <div id="schema-note" class="note" style="margin-top:8px;background:var(--warn-bg);
+             border-color:var(--warn-line);color:var(--warn)">
+          <div><b>No schema selected.</b> contextgc ships an empty entity schema on purpose — the
+          default it replaced matched prose in unrelated domains. Without one you still get tool
+          compaction and turn retirement, but <b>no state is tracked</b>, because there is nothing
+          telling the compiler what a fact looks like.</div>
+        </div>
+
         <label class="opt" for="inv">Invariants to pin <span style="font-weight:400;color:var(--ink-3)">(one per line, optional)</span></label>
         <input type="text" id="inv" placeholder="refunds over 500 need supervisor approval" />
 
@@ -311,6 +327,8 @@ SAFETY-FLAGGED ROWS RETAINED: [{"name":
 <script>
 let MODE = 'compact';
 let TEACH = false;
+let SCHEMA = '';
+let SCHEMAS = {};
 
 const $ = id => document.getElementById(id);
 const esc = s => String(s == null ? '' : s)
@@ -329,15 +347,68 @@ function clearAll(){
 }
 
 async function loadExample(kind){
+  if (!$('src').value || $('src').value.indexOf('Paste a transcript') === 0) {}
   try{
     const r = await fetch('/api/example');
     const d = await r.json();
     $('src').value = (kind === 'write' && d.write_path_example) ? d.write_path_example : d.transcript;
     if (kind === 'write') setTeach(true);
+    const g = guessSchemaFor($('src').value);
+    if (g && SCHEMAS[g]) { SCHEMA = g; $('schem').value = g; }
+    syncSchemaNote();
   }catch(e){
     $('src').value = 'user: deliver to Tower B, Flat 402\nuser: actually change the address to Gate 2, code 4921\nuser: thanks';
   }
   run();
+}
+
+async function loadSchemas(){
+  try{
+    const r = await fetch('/api/schemas');
+    const d = await r.json();
+    SCHEMAS = Object.fromEntries((d.schemas||[]).map(s => [s.name, s]));
+    const sel = $('schem');
+    for (const s of (d.schemas||[])){
+      const o = document.createElement('option');
+      o.value = s.name;
+      o.textContent = s.name + '  (' + s.entities.length + ' slots)';
+      sel.appendChild(o);
+    }
+    // Default to a schema whose entities the example actually contains, so the
+    // first thing a visitor sees is a working state table rather than an
+    // empty one.
+    const guessed = guessSchemaFor($('src').value);
+    if (guessed && SCHEMAS[guessed]) { SCHEMA = guessed; sel.value = guessed; }
+    syncSchemaNote();
+  }catch(e){
+    $('schema-note').innerHTML = '<div><b>Could not load schemas.</b> State tracking is unavailable; compaction still works.</div>';
+  }
+}
+
+function guessSchemaFor(text){
+  const t = (text||'').toLowerCase();
+  if (/\.py|traceback|pytest|def |class /.test(t)) return 'coding';
+  if (/deliver to|order|address|gate code|refund/.test(t)) return 'logistics';
+  return '';
+}
+
+function syncSchemaNote(){
+  const note = $('schema-note');
+  if (!SCHEMA){
+    note.hidden = false;
+    note.className = 'note';
+    note.style.cssText = 'margin-top:8px;background:var(--warn-bg);border-color:var(--warn-line);color:var(--warn)';
+  } else {
+    const meta = SCHEMAS[SCHEMA];
+    note.hidden = false;
+    note.className = 'note';
+    note.style.cssText = 'margin-top:8px;background:var(--accent-bg);border-color:#c7d7fb;color:var(--accent-ink)';
+    note.innerHTML = '<div><b>Schema: <code>' + SCHEMA + '</code>.</b> Tracking ' +
+      (meta ? meta.entities.length : 0) + ' slot(s): <code>' +
+      (meta ? meta.entities.join('</code>, <code>') : '') + '</code>.' +
+      (meta && meta.summary ? '<br><span style="opacity:.8">' + esc(meta.summary) + '</span>' : '') +
+      '</div>';
+  }
 }
 
 function setTeach(on){
@@ -366,7 +437,8 @@ async function run(){
         mode: MODE,
         invariants,
         recall_query: $('rec').value.trim() || null,
-        teach_protocol: TEACH
+        teach_protocol: TEACH,
+        entity_schema: SCHEMA || null
       })
     });
     const data = await res.json();
@@ -492,7 +564,11 @@ function render(data){
           <td class="mono strike">${esc(n.value)}</td>
           <td class="mono">turn ${n.superseded_by}</td>
         </tr>`).join('')}</tbody>
-    </table>` : '<div class="empty" style="padding:18px">Nothing was superseded — no fact was re-asserted.</div>';
+    </table>` : `<div class="empty" style="padding:18px">${
+        SCHEMA
+          ? 'Nothing was superseded &mdash; no fact was re-asserted in this transcript.'
+          : 'Nothing was superseded. State tracking is off, so no fact can be re-asserted. Select a schema above.'
+      }</div>`;
 
   /* ---- retired turns ---- */
   const retired = t.retired_turn_indices || [];
@@ -502,7 +578,7 @@ function render(data){
       <tbody>${retired.map(i => `
         <tr><td class="mono">${i}</td>
         <td><span class="tag del">retired</span> superseded state removed from context</td></tr>`).join('')}</tbody>
-    </table>` : '<div class="empty" style="padding:18px">No turns were retired.</div>';
+    </table>` : '<div class="empty" style="padding:18px">No turns were retired. Retirement is driven by superseded state, so it needs a schema to do anything.</div>';
 
   /* ---- the actual output ---- */
   const compiledText = data.compiled_messages

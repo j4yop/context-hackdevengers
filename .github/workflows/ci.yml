@@ -42,7 +42,7 @@ jobs:
           python -m benchmarks run \
             --corpus synthetic \
             --corpus-path benchmarks/corpus/sample.txt \
-            --schema benchmarks/schemas/logistics.json \
+            --schema benchmarks/schemas/coding.json \
             --json /tmp/bench.json
       - name: Show the report
         run: cat /tmp/bench.json

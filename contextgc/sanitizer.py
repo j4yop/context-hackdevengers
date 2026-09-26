@@ -51,6 +51,12 @@ class ToolSanitizer:
         # is editing that file. It is reading a search listing.
         "Found ", " matches for ", "matches in ", "End of search",
         "test session starts", "collected ", "PASSED", "FAILED ",
+        # Agent-environment responses. Short, so the length heuristic misses
+        # them, and they name the file the editor is sitting on -- which is
+        # exactly the value the `current_file` schema wants. Inferring from
+        # these is inference from machine output.
+        "Open file:", "Current directory:", "bash-$", "String to edit",
+        "Your proposed edit has", "isn't valid Python", "No lines selected",
     )
 
     @classmethod

@@ -161,25 +161,25 @@ CORPUS  swe-agent-trajectories
   models           swe-agent-llama-70b x38, swe-agent-llama-8b x2
 
   facts_extracted            40   n=40
-  keys_reasserted           118   n=40
-  token_reduction            58%  n=40
-  tool_payloads_compacted   371   n=40
-  turns_retired             191   n=40
+  keys_reasserted           146   n=40
+  token_reduction          71.4%  n=40
+  tool_payloads_compacted   492   n=40
+  turns_retired              219   n=40
   retirement_violations       0   n=40
-  compile_ms_p50            2.46  n=40
-  compile_ms_p95            6.71  n=40
+  compile_ms_p50            2.19  n=40
+  compile_ms_p95            6.42  n=40
 
 PRECISION (hand-labelled sample)
-  labels supplied        20
-  matched an extraction  20
-  unclear                 9  (excluded from the ratio)
-  JUDGED                 11   <- the denominator
-    correct               9
+  labels supplied        24
+  matched an extraction  24
+  unclear                 8  (excluded from the ratio)
+  JUDGED                 16   <- the denominator
+    correct              14
     incorrect             2
-  PRECISION              82%   (n=11)
+  PRECISION              88%   (n=16)
 ```
 
-**n=11 is a small sample.** It is a smell test that catches gross regression, not
+**n=16 is a small sample.** It is a smell test that catches gross regression, not
 a statistic. The corpus and the labels are committed so the number is
 reproducible and auditable.
 
@@ -205,7 +205,7 @@ opt-in per domain. The old patterns are kept in
 
 **2. The sanitizer never fired on real data.** It keyed on a `TOOL_OUTPUT` marker
 and on `role in (tool, function)`. In the corpus, **0% of messages carry that
-marker** and tool output is filed under `user`. So 371 real tool outputs were
+marker** and tool output is filed under `user`. So 492 real tool outputs were
 being passed through untouched. Detection is now content-based — a stack trace
 is a stack trace whatever role it is filed under — and picks up 19.9% of
 messages. Token reduction on the same corpus went from **17% to 58%**.
@@ -214,6 +214,14 @@ messages. Token reduction on the same corpus went from **17% to 58%**.
 grep listing (`Found 14 matches for X in /path/to/dispatcher.py:`) is not a
 statement about which file the agent is editing, but the pattern promoted it
 anyway. State is no longer inferred from machine-generated output.
+
+**4. Two more precision defects, found by the second labelling pass.**
+A weak `in <path>` trigger matched prose — *"Upon reviewing `main.py` again …
+`dispatcher.py` uses a helper"* became `current_file = dispatcher.py` — and a
+single-letter `c` extension parsed `example.com` as `example.c`. Patterns now
+require an explicit verb acting on the path, and a real path prefix. Precision
+went from 82% (n=11) to **88% (n=16)**. Key re-assertions rose from 118 to 146,
+because the corrected patterns match more real edit statements.
 
 ### What the corpus says the problem actually is
 
@@ -224,7 +232,7 @@ with the agent moving between them and correcting itself:
 > *"It seems that I attempted to edit the wrong file again. I need to edit the
 > `memset.py` file instead of the `reproduce.py` file."*
 
-That is precisely the last-write-wins case the library exists for, and 118 key
+That is precisely the last-write-wins case the library exists for, and 146 key
 re-assertions fired across the 40 transcripts. `benchmarks/schemas/coding.json`
 is derived from that observation, not from what would have been convenient.
 
@@ -454,7 +462,7 @@ Responses carry `X-ContextGC-Telemetry: raw=…; compiled=…; saved=…%; compi
 git clone https://github.com/j4yop/context-hackdevengers
 cd context-hackdevengers
 pip install -e ".[dev]"
-pytest -q                      # 159 tests
+pytest -q                      # 194 tests
 uvicorn server.main:app --reload
 ```
 

@@ -39,7 +39,7 @@ from .state_protocol import (
 from .transcript import parse_transcript
 from .vector_tier import RetiredTurnArchive, VectorMemoryTier
 
-__version__ = "0.3.0"
+__version__ = "0.4.0"
 
 __all__ = [
     "compile_messages",

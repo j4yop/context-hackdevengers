@@ -2,80 +2,57 @@
 
 All notable changes. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
-## [0.3.0] — measured against real agent transcripts
+## [0.4.0] — systems check, and two more precision defects
 
-The previous release shipped claims. This one ships a harness and reports what it
-found, including three things that were wrong.
+A full pass over the package: clean-venv install from the wheel, every endpoint
+exercised, the website driven end to end, and a second labelling round. Four
+defects found, three of them visible only when the site was actually used.
+
+### Fixed
+
+- **The website was broken by the empty default schema.** Its own example produced
+  zero state and zero retired turns, so the "Current state" and "What changed"
+  panels rendered empty and the site silently demonstrated nothing. The site now
+  has a schema picker, defaults to the schema that matches the loaded transcript,
+  and states plainly *why* there is no state when none is selected — rather than
+  showing an empty table that reads as "nothing found".
+- **`GET /api/schemas`** exposes the shipped schemas with their slots and the note
+  explaining why there is no default. `POST /api/compile` takes
+  `entity_schema`; an unknown name is a **404**, not a silent empty state.
+- **A weak `in <path>` trigger matched prose.** *"Upon reviewing `main.py` again
+  … `dispatcher.py` uses a helper"* was recorded as `current_file = dispatcher.py`.
+  Every incorrect label in the first precision pass traced to it. Patterns now
+  require an explicit verb acting on the path.
+- **A single-letter `c` extension parsed `example.com` as `example.c`.** Patterns
+  now require a real path prefix.
+- **Agent-environment responses leaked into inference.** `(Open file: …)`,
+  `(Current directory: …)`, `bash-$` and the edit-rejection notice are short
+  enough to miss the length heuristic, and they name the file the editor is
+  sitting on — exactly the value the schema wants. Now recognised as machine
+  output.
 
 ### Measured
 
-40 real SWE-agent trajectories from `nebius/SWE-agent-trajectories` — 1,390
-turns, 1.96M characters, real model output and real tool output:
+| | before | after | n |
+|---|---|---|---|
+| precision (hand-labelled) | 82% | **88%** | 11 → 16 judged |
+| key re-assertions | 118 | 146 | 40 |
+| token reduction | 58% | 71.4% | 40 |
+| tool payloads compacted | 371 | 492 | 40 |
+| turns retired | 191 | 219 | 40 |
+| retirement violations | 0 | 0 | 40 |
 
-| | value | n |
-|---|---|---|
-| facts extracted | 40 | 40 |
-| keys re-asserted | 118 | 40 |
-| token reduction | 58% | 40 |
-| tool payloads compacted | 371 | 40 |
-| turns retired | 191 | 40 |
-| retirement violations | 0 | 40 |
-| compile time p50 / p95 | 2.46 / 6.71 ms | 40 |
-| **precision (hand-labelled)** | **82%** | **11 judged** |
-
-n=11 is a smell test, not a statistic, and the report says so.
-
-### Fixed, because the measurement found them
-
-- **`ENTITY_PATTERNS` is now empty.** The default was a logistics schema applied
-  to every domain; on 60 real coding transcripts it produced 75 facts and every
-  sampled one was prose matched by accident (`destination_address = "of
-  parentheses"`). A schema is now opt-in per domain, via
-  `compile_messages(..., schema=...)` or `StateDAG.register_entity_schema`. The
-  old patterns are kept in `benchmarks/schemas/logistics.json` alongside the
-  measurement that condemns them.
-- **Tool-output detection is content-based, not convention-based.** The sanitizer
-  keyed on a `TOOL_OUTPUT` marker and on `role in (tool, function)`; **0% of
-  corpus messages carry that marker** and tool output is filed under `user`, so
-  371 real tool outputs were passed through untouched. Token reduction on the
-  same corpus went from 17% to 58%.
-- **State is no longer inferred from machine-generated output.** A path inside a
-  grep listing is not a statement about what the agent is editing, and the
-  pattern was promoting it. Search, listing and pytest-output markers are now
-  recognised.
-- **`compile_messages` gained a `schema` parameter.** The empty default made
-  opting in impossible without monkeypatching.
-- The harness records a crashing transcript instead of aborting the run, and
-  counts a transcript that cannot report its own length rather than dropping it.
+The remaining two incorrect labels share one cause: the path matched a
+*different sentence* in the same message. That is not fixed — knowing which file
+an agent *intends* to edit needs intent, not a regex — and precision is the
+honest place to record it.
 
 ### Added
 
-- `benchmarks/` — corpus loader with provenance, measurement harness, shadow-mode
-  comparison, hand-label precision scoring, and a report renderer.
-- `python -m benchmarks run|shadow|sample|fetch`.
-- `benchmarks/schemas/` — `coding.json` (derived from what the corpus actually
-  contains), `logistics.json` (the old default, kept as a measured cautionary
-  example), `devtools.json`.
-- `benchmarks/labels/precision.json` — 20 hand labels with the reasoning for
-  each, so the precision figure is auditable rather than asserted.
-- `benchmarks/corpus/sample.txt` — a six-trajectory vendored slice for offline CI,
-  labelled with its real source so it is never reported as synthetic.
-- 19 tests for the harness itself, including that it refuses to report a
-  precision it did not measure, and that shadow mode cannot leak a declaration
-  into emitted context.
-
-### Known limitations
-
-- The write path is still unmeasured. `benchmarks shadow` exists and works, but
-  it needs a capture file from a real run with a real model, and none exists. The
-  command refuses rather than inventing a number.
-- Precision rests on 11 judged labels. Widening it is the highest-value next
-  step.
-- The corpus is one domain (Python bug-fixing). Nothing here establishes that the
-  mechanism transfers to other agent workloads.
-- Token reduction is the library's own `chars/4` estimator on both sides. It is a
-  ratio between two numbers from the same estimator, not a billing figure and not
-  a latency proxy.
+- 16 tests covering the empty-default contract, schema survival across the
+  per-invocation graph reset, the three precision defects above, and
+  machine-output detection for agent-environment responses.
+- `entity_schema` on both compile endpoints; `GET /api/schemas`.
 
 ## [0.2.0] — the write path, and a correction
 

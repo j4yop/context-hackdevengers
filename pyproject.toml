@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "contextgc"
-version = "0.3.0"
+version = "0.4.0"
 description = "Deterministic context compiler for AI agent transcripts. Retires superseded facts, compacts tool output, pins declared invariants. No dependencies, no model calls."
 readme = "README.md"
 requires-python = ">=3.9"

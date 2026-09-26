@@ -234,3 +234,159 @@ def test_unmatched_labels_are_surfaced():
     )
     assert scored["n_unmatched_labels"] == 1
     assert "did not match" in gold.render(scored)
+
+
+# ---------------------------------------------------------------------------
+# The empty default schema is a decision, and must stay visible
+# ---------------------------------------------------------------------------
+
+def test_the_default_schema_is_empty():
+    """
+    The library has no built-in entity domain.
+
+    The default it replaced was a logistics schema that matched prose in
+    unrelated domains. If this test ever fails, a domain has been reintroduced
+    and every caller outside that domain silently gets nonsense.
+    """
+    from contextgc.state_dag import StateDAG
+
+    assert StateDAG.ENTITY_PATTERNS == {}, "a built-in entity schema was reintroduced"
+
+
+def test_structural_guardrails_survive_the_empty_default():
+    """The safety slots are protection, not domain, so they stay."""
+    from contextgc.state_dag import StateDAG
+
+    assert "dietary_allergy" in StateDAG.IMMUTABLE_ENTITIES
+    assert "security_invariant" in StateDAG.IMMUTABLE_ENTITIES
+
+
+def test_no_schema_yields_no_state_rather_than_a_wrong_one():
+    from contextgc import compile_messages
+
+    messages = [
+        {"role": "user", "content": "deliver to Tower B, Flat 402"},
+        {"role": "user", "content": "change the address to Gate 2 security entrance"},
+        {"role": "user", "content": "thanks"},
+    ]
+    _, telemetry = compile_messages(messages)
+    assert telemetry["active_state_slots"] == {}
+    assert telemetry["retired_turn_indices"] == []
+
+
+def test_opting_in_enables_state_and_survival():
+    from contextgc import compile_messages
+
+    messages = [
+        {"role": "user", "content": "deliver to Tower B, Flat 402"},
+        {"role": "user", "content": "change the address to Gate 2 security entrance"},
+        {"role": "user", "content": "thanks"},
+    ]
+    _, telemetry = compile_messages(messages, schema=MINIMAL)
+    assert telemetry["active_state_slots"]["destination_address"].startswith("Gate 2")
+    assert telemetry["retired_turn_indices"], "supersession did not fire under a schema"
+
+
+def test_the_schema_survives_the_per_invocation_reset():
+    """process_session rebuilds the graph each call; the schema must be re-applied."""
+    from contextgc import ContextGCEngine
+
+    engine = ContextGCEngine(schema=MINIMAL)
+    first = engine.process_session([{"role": "user", "content": "deliver to Tower B"}])
+    second = engine.process_session([{"role": "user", "content": "deliver to Tower B"}])
+    assert first["telemetry"]["active_state_slots"].keys() == \
+        second["telemetry"]["active_state_slots"].keys()
+    assert "destination_address" in second["telemetry"]["active_state_slots"]
+
+
+# ---------------------------------------------------------------------------
+# Precision: the two defects the labelling found
+# ---------------------------------------------------------------------------
+
+def test_a_bare_in_does_not_constitute_a_file_under_edit():
+    """
+    The weak trigger that caused every incorrect label in the first pass.
+
+    A path mentioned in a sentence is not a statement about what the agent is
+    working on.
+    """
+    import json
+    import os
+    import re
+
+    path = os.path.join(os.path.dirname(__file__), "..", "benchmarks", "schemas", "coding.json")
+    with open(path, encoding="utf-8") as handle:
+        patterns = json.load(handle)["entities"]["current_file"]
+
+    prose = (
+        "Upon reviewing the `main.py` file again, there is nothing here. "
+        "Interestingly, `dispatcher.py` uses a helper."
+    )
+    assert not any(re.findall(p, prose) for p in patterns), (
+        "prose mentioning a path was read as the file under edit"
+    )
+
+
+def test_an_explicit_edit_verb_does_match():
+    import json
+    import os
+    import re
+
+    path = os.path.join(os.path.dirname(__file__), "..", "benchmarks", "schemas", "coding.json")
+    with open(path, encoding="utf-8") as handle:
+        patterns = json.load(handle)["entities"]["current_file"]
+
+    for statement in (
+        "I need to edit the `memset.py` file instead of the `reproduce.py` file.",
+        "Let's open the `cli.py` file to examine the `handle_output` function.",
+        "We should create a test script named `test_thread_count.py` to verify.",
+        "I mistakenly edited the `constants.py` file instead of `dispatcher.py`.",
+    ):
+        assert any(re.findall(p, statement) for p in patterns), (
+            f"an explicit edit statement did not match: {statement!r}"
+        )
+
+
+def test_a_domain_name_is_not_a_path():
+    """`example.com` must not yield `example.c` via a single-letter extension."""
+    import json
+    import os
+    import re
+
+    path = os.path.join(os.path.dirname(__file__), "..", "benchmarks", "schemas", "coding.json")
+    with open(path, encoding="utf-8") as handle:
+        patterns = json.load(handle)["entities"]["current_file"]
+
+    prose = "lexicon memset create example.com TXT --name _acme-challenge.example.com"
+    found = any(re.findall(p, prose) for p in patterns)
+    assert not found, "a hostname was parsed as a source file"
+
+
+# ---------------------------------------------------------------------------
+# Machine-output detection
+# ---------------------------------------------------------------------------
+
+@pytest.mark.parametrize("content", [
+    "(Open file: /lexicon/reproduce.py)\n(Current directory: /lexicon)\nbash-$",
+    "Your proposed edit has introduced new syntax error(s). Please retry editing the file.",
+    "Found 14 matches for \"X\" in /repo/dispatcher.py:\n  Line 27: ...",
+    "========================= test session starts ==========================",
+    "Traceback (most recent call last):\n  File \"x.py\", line 1",
+])
+def test_agent_environment_responses_are_machine_output(content):
+    from contextgc.sanitizer import ToolSanitizer
+
+    assert ToolSanitizer.looks_like_tool_output(content, "user"), (
+        f"machine output not recognised: {content[:50]!r}"
+    )
+
+
+@pytest.mark.parametrize("content", [
+    "I need to edit the `memset.py` file instead of the `reproduce.py` file.",
+    "The `Provider` class extends `BaseProvider`, which handles provider options.",
+    "Thanks, that worked.",
+])
+def test_agent_prose_is_not_machine_output(content):
+    from contextgc.sanitizer import ToolSanitizer
+
+    assert not ToolSanitizer.looks_like_tool_output(content, "assistant")
