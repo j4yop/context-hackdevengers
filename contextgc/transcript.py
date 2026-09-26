@@ -19,7 +19,7 @@ Accepts two shapes, because those are what people actually have:
 
 import json
 import re
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 #: Roles accepted on input, mapped to canonical OpenAI role names.
 _ROLE_ALIASES = {
@@ -76,7 +76,7 @@ def parse_transcript(text: str) -> Tuple[List[Dict[str, Any]], List[str]]:
 
     # -- line-oriented path ------------------------------------------------
     messages: List[Dict[str, Any]] = []
-    current: Dict[str, Any] | None = None
+    current: Optional[Dict[str, Any]] = None
     buffer: List[str] = []
 
     def flush() -> None:
@@ -112,7 +112,7 @@ def parse_transcript(text: str) -> Tuple[List[Dict[str, Any]], List[str]]:
     return messages, warnings
 
 
-def _normalise(raw: Any, warnings: List[str]) -> Dict[str, Any] | None:
+def _normalise(raw: Any, warnings: List[str]) -> Optional[Dict[str, Any]]:
     """Coerce one JSON element into a message dict, or explain why we can't."""
     if not isinstance(raw, dict):
         warnings.append(f"skipped non-object message entry: {str(raw)[:60]!r}")

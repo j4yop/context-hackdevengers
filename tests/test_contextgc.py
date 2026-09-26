@@ -604,3 +604,67 @@ def test_single_message_input_is_handled():
 def test_message_with_missing_content_is_handled():
     compiled, _ = compile_messages([{"role": "user"}, {"role": "user", "content": None}])
     assert compiled
+
+
+# ---------------------------------------------------------------------------
+# Declared-version compatibility
+# ---------------------------------------------------------------------------
+
+def test_package_declares_python_39_support():
+    """pyproject claims >=3.9; keep the claim and the code in agreement."""
+    import pathlib
+    import re
+
+    pyproject = pathlib.Path(__file__).resolve().parents[1] / "pyproject.toml"
+    match = re.search(r'requires-python\s*=\s*">=([0-9.]+)"', pyproject.read_text())
+    assert match, "requires-python is missing from pyproject.toml"
+    assert match.group(1) == "3.9", (
+        f"floor is {match.group(1)}; update this test if that is deliberate"
+    )
+
+
+def test_no_py310_only_annotations_in_runtime_evaluated_positions():
+    """
+    `X | None` in a signature is evaluated at def time and is a TypeError on 3.9.
+
+    This walks the AST rather than trusting a read of the source: local variable
+    annotations are not evaluated, but module-level, class-level, parameter, and
+    return annotations all are.
+    """
+    import ast
+    import pathlib
+
+    package = pathlib.Path(__file__).resolve().parents[1] / "contextgc"
+    offenders = []
+
+    for path in sorted(package.glob("*.py")):
+        tree = ast.parse(path.read_text(), filename=str(path))
+        has_future_annotations = any(
+            isinstance(n, ast.ImportFrom)
+            and n.module == "__future__"
+            and any(a.name == "annotations" for a in n.names)
+            for n in tree.body
+        )
+        if has_future_annotations:
+            continue  # annotations are strings; nothing is evaluated
+
+        def check(node, label):
+            if node is None:
+                return
+            rendered = ast.unparse(node)
+            # A `|` that is part of a bitwise expression is fine; one inside a
+            # subscript or bare annotation is the PEP 604 union we care about.
+            if "|" in rendered and "Optional" not in rendered and "Union" not in rendered:
+                offenders.append(f"{path.name}:{label} {rendered}")
+
+        for node in ast.walk(tree):
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                check(node.returns, f"{node.name}() return")
+                for arg in list(node.args.args) + list(node.args.kwonlyargs):
+                    check(arg.annotation, f"{node.name}({arg.arg})")
+            elif isinstance(node, ast.AnnAssign):
+                check(node.annotation, "assignment")
+
+    assert offenders == [], (
+        "PEP 604 unions break the declared 3.9 floor:\n  " + "\n  ".join(offenders)
+    )
