@@ -160,6 +160,23 @@ tool output. The shard is repository-ordered, so the loader caps trajectories pe
 repository (`--per-repo`); without that cap the first 40 transcripts come from three
 repositories and every number below inherits that narrowness.
 
+**Two corpora, because one is not evidence of generalisation.**
+
+| | coding | customer service |
+|---|---|---|
+| corpus | `nebius/SWE-agent-trajectories` | `Salesforce/APIGen-MT-5k` |
+| what it is | SWE-agent bug-fixing trajectories | airline-reservation agent tool use |
+| sample | 40 transcripts, 20 repositories, 1,936 turns | 60 conversations, 52 with a tracked fact, 901 turns |
+| facts tracked | 39 | 72 |
+| token reduction | **66.5%** | **54.3%** |
+| turns retired | 161 | 9 |
+| tool payloads compacted | 668 | 72 |
+| retirement violations | 0 | 0 |
+| contexts that grew | 0 | 0 |
+| precision, independent units | 100% (n=39, CI 90–100%) | 100% (n=72, CI 95–100%) |
+
+Run either with `--corpus swe-agent` or `--corpus apigen`.
+
 ```bash
 pip install 'contextgc[bench]'
 python -m benchmarks fetch          # 85 MB parquet shard
@@ -174,32 +191,30 @@ CORPUS  swe-agent-trajectories
   models           swe-agent-llama-70b x38, swe-agent-llama-8b x2
 
   facts_extracted            40   n=40
-  keys_reasserted           187   n=40
-  token_reduction          70.1%  n=40
+  keys_reasserted            77   n=40
+  token_reduction          66.5%  n=40
   tool_payloads_compacted   668   n=40
-  turns_retired              271   n=40
+  turns_retired              161   n=40
   retirement_violations       0   n=40
   compile_ms_p50            2.96  n=40
   compile_ms_p95           11.97  n=40
 
 PRECISION (hand-labelled sample)
-  labels supplied        36
-  matched an extraction  36
-  unclear                 1  (excluded from the ratio)
-  JUDGED                 35   <- the denominator
-    correct              35
+  labels supplied        39
+  matched an extraction  39
+  JUDGED                 39   <- the denominator
+    correct              39
     incorrect             0
-  PRECISION (rows)       100%   (n=35)
-  PRECISION (clusters)   100%   (n=35, 95% CI 90-100%)
+  PRECISION (rows)       100%   (n=39)
+  PRECISION (clusters)   100%   (n=39, 95% CI 90-100%)
   repositories covered  20
-  unclear clusters        1  (excluded from the ratio)
 ```
 
 Every count above is deterministic and reproduces exactly. The two `compile_ms`
 figures are wall-clock on one machine and move run to run — treat them as "single
 -digit milliseconds", not as a benchmark.
 
-**The interval is the finding, not the point estimate.** 35 independent judgements
+**The interval is the finding, not the point estimate.** 39 independent judgements
 cannot distinguish 95% from 100%, and one repository contributes a handful of them.
 This still catches gross regression; it is not a claim about unseen transcripts. The
 labels and the loader settings that produced them are committed
@@ -295,6 +310,31 @@ single-letter `c` extension parsed `example.com` as `example.c`. Patterns now
 require an explicit verb acting on the path, and a real path prefix. Both
 defects were found by hand-labelling, not by the aggregate numbers.
 
+**6. A repeat was being treated as a contradiction.** There was no value
+comparison at all: any new extraction for a live entity superseded the previous
+one. An agent that said `**Cabin Class:** Business` and then `business class` had
+not changed its mind, yet the earlier turn was retired as superseded — taking
+whatever else it carried with it. A repeat is now a reaffirmation, and a value
+that differs only in case is recorded as one rather than acted on. Genuinely
+different values supersede as before.
+
+This one is worth stating plainly because it changed the headline. Fixing it
+removed phantom supersession that had been inflating every figure: coding
+re-assertions fell from 187 to 77 and retirements from 271 to 161, and travel
+retirements from 58 to 9. The numbers above are the corrected ones. The earlier
+figures were not wrong arithmetic — they were measuring repeats as changes.
+
+**7. A schema-free extractor survived the rewrite.** Behind the registered
+patterns sat a generic `set <key> to <value>` scraper and a harvester that turned
+any `{"k": "v"}` in any turn into a `slot_k` fact. Both contradicted claims this
+README makes: that the default schema is empty *because* a default matching
+everything produces confident nonsense, and that state is never inferred from
+machine output. The JSON harvester's only guard was `role not in ("tool",
+"system")`, and every corpus measured here files tool results under `user`. It
+was found by extracting `slot_symbol = "€"` out of `currency = {"symbol": "€"}`.
+One extraction in 40 transcripts, so removing it barely moved any aggregate —
+which is exactly why it survived: the numbers never showed it.
+
 **5. The precision sample was too small, too narrow, and partly fake.** The
 first label set drew all 24 rows from **two** repositories, and several rows were
 the *same turn* of the same issue read twice from two trajectories of that issue.
@@ -306,15 +346,16 @@ inherited that.
 Both are fixed rather than caveated. The loader takes `--per-repo` (default 2), so
 a run spans as many repositories as the shard allows — **20** for the same 40
 transcripts. The label set was re-read from scratch, one extraction per
-`(repository, turn)`, giving 35 independent judgements across 20 repositories. The
+`(repository, turn)`, giving 39 independent judgements across 20 repositories. The
 report now prints the row count *and* the clustered count, so a reader can see
 when `n` is inflated, plus a 95% Wilson interval so a point estimate is not
 mistaken for a measurement.
 
 This changed the headline: the previous **88% (n=16)** was, on independent units,
-**100% (n=35, 95% CI 90–100%)** from a far wider sample — and a naive re-run of
+**100% (n=39, 95% CI 90–100%)** from a far wider sample — and a naive re-run of
 the old labels against the widened corpus collapsed to **n=2**, which is what
-exposed the problem in the first place.
+exposed the problem in the first place. It then had to be re-read a second time,
+because fixing the repeat bug in defect 6 changed what the compiler extracts.
 
 The 100% is not a claim that the tracker is perfect. Two confirmed errors survive,
 and `--per-repo` structurally excludes the rows they came from (it takes the first
@@ -327,19 +368,66 @@ the entry should be deleted on purpose, not vanish into a sampling change.
 ### What the corpus says the problem actually is
 
 The measurable, high-frequency mutable entity in real coding transcripts is
-**which file the agent is working on** — across 187 mentions,
+**which file the agent is working on** — across 77 re-assertions,
 with the agent moving between them and correcting itself:
 
 > *"It seems that I attempted to edit the wrong file again. I need to edit the
 > `memset.py` file instead of the `reproduce.py` file."*
 
-That is precisely the last-write-wins case the library exists for, and 187 key
+That is precisely the last-write-wins case the library exists for, and 77 key
 re-assertions fired across the 40 transcripts. `contextgc/schemas/coding.json`
 is derived from that observation, not from what would have been convenient.
 
 The logistics scenario in the demo is not representative of coding work. This is
 a domain-specific mechanism, and the corpus says which domain it actually
 applies to.
+
+### What the second domain settled about the write path
+
+The write path is still unmeasured in the sense that no capture exists — but the
+second domain answers the question that motivated it, and the answer is not
+subtle. In customer-service transcripts, **82–99% of every mutable entity's
+mentions live in tool output**, not in speech:
+
+| entity | in speech | in machine output | machine share |
+|---|---|---|---|
+| `reservation_id` | 610 | 2,922 | **83%** |
+| `airport` | 1,060 | 4,768 | **82%** |
+| `payment_method` | 18 | 1,395 | **99%** |
+| `cabin_class` | 271 | 96 | 26% |
+
+The read path is forbidden to infer state from machine output — a grep listing is
+not a statement about intent, and that rule was measured on the coding corpus. So
+a pattern-based tracker structurally *cannot* see reservation ids or payment
+methods here. That is a property of tool-heavy domains, not a defect in the
+tracker, and it is the strongest argument for the write path that this project has
+produced: the agent knows those values, and only the agent can say them.
+
+What is left reachable is cabin class, which is spoken often and changes in 41% of
+conversations. That is the whole of the travel schema.
+
+### Measuring the write path, when there is a model
+
+`benchmarks shadow` replays captured declarations. Producing a capture needs a real
+model, and one will not be invented here — a synthetic declaration set would
+measure the harness rather than the write path. The tooling is in place so it is
+one command:
+
+```bash
+# any OpenAI-compatible endpoint; a local ollama works and needs no key
+export CONTEXTGC_CAPTURE_BASE_URL=http://localhost:11434/v1
+export CONTEXTGC_CAPTURE_MODEL=qwen2.5:7b
+python -m benchmarks capture --transcript <file> --out captures/run1.json --schema coding
+python -m benchmarks capture --verify --out captures/run1.json
+python -m benchmarks shadow --captures captures/run1.json --corpus swe-agent --schema coding
+```
+
+The endpoint is read from the environment rather than an argument, so a key cannot
+land in a shell history or a CI log. `capture --verify` refuses a capture that
+recorded no declarations, or one that does not say which endpoint produced it —
+a capture that cannot be attributed is an anecdote, and one where the model never
+declared anything would make `shadow` report a clean comparison having measured
+nothing.
 
 ### Is the write path worth it? Still unmeasured
 

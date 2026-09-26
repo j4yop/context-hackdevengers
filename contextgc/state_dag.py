@@ -30,6 +30,23 @@ SOURCE_INFERRED = "inferred"  # a regex matched it in the text
 UNSETTLED = "unsettled"
 
 
+def _same_value(left: Any, right: Any) -> bool:
+    """
+    True when two extracted values say the same thing.
+
+    Exact equality, then case-insensitive equality with surrounding
+    whitespace ignored. Deliberately not more than that: no numeric
+    coercion, no path normalisation, no fuzzy matching. A tracker that
+    decides two different values are "close enough" is a tracker that
+    quietly discards a real change.
+    """
+    if left == right:
+        return True
+    if not isinstance(left, str) or not isinstance(right, str):
+        return False
+    return left.strip().lower() == right.strip().lower()
+
+
 @dataclass
 class FactNode:
     entity: str
@@ -141,51 +158,27 @@ class StateDAG:
                 if found_valid:
                     break
 
-        # 2. Generic key-value assignment detection (e.g., 'set timeout to 30s', 'retry_count = 5')
-        generic_kv_pat = r"\b(?:set|switch|update)\s+([a-z_][a-z0-9_]{2,20})\s+(?:to|=)\s+([a-zA-Z0-9_\-\.\/]{1,40})\b"
-        for match in re.finditer(generic_kv_pat, text, re.IGNORECASE):
-            prefix_window = text[max(0, match.start() - 35):match.start()].lower()
-            if re.search(r"\b(?:do not|don't|never|cannot|not to)\b", prefix_window):
-                continue
-            key = match.group(1).lower()
-            val = match.group(2).strip()
-            if key not in seen_entities and key not in {"the", "this", "that", "it"}:
-                detected.append(FactNode(
-                    entity=f"config_{key}",
-                    value=val,
-                    turn_index=turn_index,
-                    raw_snippet=match.group(0),
-                    is_immutable=False
-                ))
-                seen_entities.add(key)
-
-        # 3. Schema-free JSON detection: only for user instructions or assistant commitments, NOT raw tool catalog dumps
-        if role not in ("tool", "system") and "TOOL_OUTPUT" not in text:
-            try:
-                import json
-                for jc in re.findall(r"\{[^{}\n\r]{4,200}\}", text):
-                    try:
-                        parsed = json.loads(jc)
-                        if isinstance(parsed, dict):
-                            for k, v in parsed.items():
-                                key_str = str(k).strip()
-                                val_str = str(v).strip()
-                                if 2 <= len(key_str) <= 30 and 1 <= len(val_str) <= 60 and not key_str.startswith("_"):
-                                    slot_name = f"slot_{re.sub(r'[^a-zA-Z0-9_]', '_', key_str.lower())}"
-                                    if slot_name not in seen_entities:
-                                        detected.append(FactNode(
-                                            entity=slot_name,
-                                            value=val_str,
-                                            turn_index=turn_index,
-                                            raw_snippet=jc,
-                                            is_immutable=False
-                                        ))
-                                        seen_entities.add(slot_name)
-                    except Exception:
-                        pass
-            except Exception:
-                pass
-
+        # There is deliberately no second and third path here.
+        #
+        # This used to fall through to a generic `set <key> to <value>` scraper and
+        # then to a schema-free JSON harvester that turned any `{"k": "v"}` in any
+        # turn into a `slot_k` fact. Both were left over from before the rewrite,
+        # and both contradicted claims the README makes:
+        #
+        #   * the library ships an *empty* default schema because a default that
+        #     matches everything produces confident nonsense -- and then scraped
+        #     matches anyway, with no schema and no opt-in;
+        #   * state is never inferred from machine output, since a grep listing
+        #     is not a statement about intent -- and the JSON harvester's only
+        #     guard was `role not in ("tool", "system")`, while every corpus
+        #     measured here files its tool results under `user`.
+        #
+        # It was found by extracting `slot_symbol = "€"` out of
+        # `currency = {"symbol": "€"}` in a real SWE-agent trajectory. One
+        # extraction in 40 transcripts, so removing it barely moves any aggregate
+        # -- which is exactly why it survived: the numbers never showed it.
+        #
+        # A caller who wants a slot has to say so, with a schema.
         return detected
 
     def register_turn(
@@ -321,6 +314,7 @@ class StateDAG:
     ) -> Dict[str, Any]:
         """Merge extracted nodes into the graph, honouring immutability and provenance."""
         superseded_turns = set()
+        reaffirmed: List[Dict[str, Any]] = []
         new_assertions = []
         rejected = []
         repinned = repinned or set()
@@ -371,6 +365,57 @@ class StateDAG:
                     })
                     continue
 
+                # A repeat is not a contradiction. Found by measuring a second
+                # corpus: an agent that says "**Cabin Class:** Business" and then
+                # "business class" has not changed its mind, but the earlier turn
+                # was being retired as superseded anyway -- taking any other
+                # information it carried with it. Capitalisation differs between
+                # the two, and so does `Dispatcher.py` versus `dispatcher.py`,
+                # which on a case-sensitive filesystem is a different file and a
+                # real change.
+                #
+                # So: an identical value is a reaffirmation, and a value that
+                # differs only in case is recorded as one too rather than acted
+                # on. Neither retires a turn. Genuinely different values
+                # supersede as before.
+                if _same_value(prev_node.value, node.value):
+                    # The value has not changed, but a declaration over an
+                    # inference is still an upgrade in provenance, and the
+                    # write path exists to record provenance. Dropping it would
+                    # leave a fact marked "inferred" that the agent explicitly
+                    # asserted, which is the one thing the register must not say.
+                    if prev_node.source != SOURCE_DECLARED and node.source == SOURCE_DECLARED:
+                        node.turn_index = prev_node.turn_index
+                        node.raw_snippet = prev_node.raw_snippet
+                        self.active_state[node.entity] = node
+                        key = node.entity
+                        self.nodes.setdefault(key, [])
+                        self.nodes[key] = [
+                            n for n in self.nodes[key]
+                            if n.turn_index != prev_node.turn_index
+                        ] + [node]
+                        reaffirmed.append({
+                            "entity": node.entity,
+                            "value": node.value,
+                            "previous_value": prev_node.value,
+                            "turn": turn_index,
+                            "kind": "provenance_upgraded",
+                        })
+                        continue
+                    reaffirmed.append({
+                        "entity": node.entity,
+                        "value": node.value,
+                        "previous_value": prev_node.value,
+                        "turn": turn_index,
+                        "kind": (
+                            "reaffirmed" if prev_node.value == node.value
+                            else "reaffirmed_case_only"
+                        ),
+                    })
+                    # Keep the existing node, spelling and all: it is already on
+                    # the record, and rewriting it would churn the register.
+                    continue
+
                 prev_node.superseded_by = turn_index
                 superseded_turns.add(prev_node.turn_index)
                 self.invalidation_log.append({
@@ -398,6 +443,7 @@ class StateDAG:
             "new_assertions": new_assertions,
             "rejected": rejected,
             "superseded_turns": list(superseded_turns),
+            "reaffirmed": reaffirmed,
             "current_active_slots": {k: v.value for k, v in self.active_state.items()},
         }
 

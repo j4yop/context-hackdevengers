@@ -723,3 +723,129 @@ def test_a_drifted_label_file_is_visible_in_the_json(tmp_path):
     assert precision["n_labelled"] == 0
     assert precision["n_unmatched_labels"] > 0
     assert precision["precision"] is None
+
+
+def test_an_options_menu_is_not_recorded_as_a_booking():
+    """
+    Found by reading the registering turns of the second domain. A turn listed
+    every cabin with its seat count and price and then asked the user to choose;
+    the pattern took `Basic Economy` off the price list and recorded it as the
+    passenger's cabin.
+    """
+    from contextgc.schemas import load_schema
+
+    menu = (
+        "Here are the available flights from DFW to SEA: 1. **Flight HAT038** - "
+        "Available Seats: Basic Economy (7), Economy (1), Business (6) - Prices: "
+        "Basic Economy ($88), Economy ($123), Business ($463). Please let me know "
+        "which flight and cabin class you would like to book."
+    )
+    result = harness.run(
+        [Transcript(
+            transcript_id="menu#1", source="unit-test",
+            messages=normalise_messages([
+                {"role": "user", "content": "book me a flight"},
+                {"role": "assistant", "content": menu},
+            ]),
+        )],
+        schema=load_schema("travel"),
+    )
+    assert not result.extractions, (
+        f"an options menu became state: {result.extractions}"
+    )
+
+
+def test_the_travel_schema_still_reads_real_statements():
+    """The menu guard must not cost the extractions that were right."""
+    from contextgc.schemas import load_schema
+
+    result = harness.run(
+        [Transcript(
+            transcript_id="t#1", source="unit-test",
+            messages=normalise_messages([
+                {"role": "user", "content": "hello"},
+                {"role": "assistant", "content":
+                    "Your reservation is in the business cabin, so 2 bags are free."},
+                {"role": "user", "content": "thanks"},
+                {"role": "assistant", "content":
+                    "You have a basic economy ticket, so bags cost $50 each."},
+            ]),
+        )],
+        schema=load_schema("travel"),
+    )
+    # The harness reports the final value per entity, so the earlier statement is
+    # visible as a supersession rather than as a second extraction.
+    assert [e["value"].lower() for e in result.extractions] == ["basic economy"]
+    assert result.per_transcript[0]["superseded"] == 1, (
+        "the business cabin statement should have been superseded, not lost"
+    )
+
+
+# --- captures ----------------------------------------------------------------
+#
+# The write path cannot be measured without a record of what a real model
+# actually declared, and that record cannot be invented. These cover the
+# mechanical half only: nothing here fabricates a declaration.
+
+def test_blocks_are_extracted_and_counted():
+    from benchmarks import capture as cap
+
+    text = ('sure\n<contextgc-state>{"assert": {"a": "1"}}</contextgc-state>\n'
+            'and also\n<contextgc-state>{"pin": {"b": "2"}}</contextgc-state>')
+    assert cap.extract_blocks(text) == ['{"assert": {"a": "1"}}', '{"pin": {"b": "2"}}']
+    assert cap.parse_block('{"assert": {"a": "1"}}') == {"assert": {"a": "1"}}
+    assert cap.parse_block("not json") is None
+
+
+def test_a_malformed_block_is_counted_not_hidden():
+    from benchmarks import capture as cap
+
+    turns = [
+        {"role": "assistant", "content": '<contextgc-state>{"assert": {"a": "1"}}</contextgc-state>'},
+        {"role": "assistant", "content": "<contextgc-state>totally not json</contextgc-state>"},
+    ]
+    summary = cap.summarise(turns)
+    assert summary["blocks"] == 2
+    assert summary["malformed"] == 1, "a model that emits broken JSON is a finding"
+    assert summary["declared_turns"] == 2
+
+
+def test_a_capture_with_no_declarations_is_reported_as_unusable():
+    """
+    A capture where the model never declared anything would make `shadow` report
+    a clean comparison having measured nothing. It has to be refused.
+    """
+    from benchmarks import capture as cap
+
+    payload = {
+        "version": cap.CAPTURE_VERSION,
+        "endpoint": "http://localhost:1/v1",
+        "model": "test",
+        "turns": [{"role": "assistant", "content": "just talking, no block here"}],
+    }
+    problems = cap.verify(payload)
+    assert any("never emitted" in p for p in problems), problems
+
+
+def test_a_capture_without_an_endpoint_cannot_be_attributed():
+    from benchmarks import capture as cap
+
+    payload = {
+        "version": cap.CAPTURE_VERSION,
+        "turns": [{"role": "assistant",
+                   "content": '<contextgc-state>{"assert": {"a": "1"}}</contextgc-state>'}],
+    }
+    assert any("endpoint" in p for p in cap.verify(payload))
+
+
+def test_a_complete_capture_verifies_clean():
+    from benchmarks import capture as cap
+
+    payload = {
+        "version": cap.CAPTURE_VERSION,
+        "endpoint": "http://localhost:1/v1",
+        "model": "test",
+        "turns": [{"role": "assistant",
+                   "content": '<contextgc-state>{"assert": {"a": "1"}}</contextgc-state>'}],
+    }
+    assert cap.verify(payload) == []

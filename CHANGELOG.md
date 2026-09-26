@@ -2,6 +2,81 @@
 
 All notable changes. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [Unreleased] — a second domain, and three defects it exposed
+
+Measuring a second corpus was the last thing on the list of gaps, and it found
+more than a second set of numbers.
+
+### Added
+
+- **A second corpus: `Salesforce/APIGen-MT-5k`.** Airline-reservation customer
+  service with real tool calls, via `--corpus apigen`. Everything measured before
+  this was Python bug-fixing, which is a statement about one domain rather than
+  evidence of generalisation.
+- **`contextgc/schemas/travel.json`**, derived by measuring 200 conversations
+  rather than by choosing convenient entities.
+- **Per-corpus label files.** `gold.score` picks the label file belonging to the
+  corpus it is scoring, so travel labels are not checked against coding
+  extractions. Travel precision: 100% on 72 independent units across 52
+  conversations, 95% CI 95–100%.
+- **`benchmarks capture`** — records what a real model actually declared, so
+  `shadow` has something honest to replay. `capture --verify` refuses a capture
+  that recorded no declarations or does not say which endpoint produced it. The
+  endpoint comes from the environment, never an argument, so a key cannot land in
+  a shell history or a CI log. No capture is fabricated: with no model reachable,
+  the write path stays unmeasured.
+- **Short JSON payloads are recognised as machine output.** APIGen files its tool
+  results under `user` as compact JSON and the length-based heuristic caught none
+  of them, so they were never compacted. Now 15,937 of 21,955 are detected, with
+  no false positives on human or assistant turns, and an agent quoting JSON is
+  still an agent.
+
+### Fixed
+
+- **A repeat was being treated as a contradiction.** There was no value comparison
+  at all: any new extraction for a live entity superseded the previous one, so
+  restating a fact retired the earlier turn and took everything else it carried.
+  Found by reading registering turns in the second domain, where an agent says
+  `**Cabin Class:** Business` and then `business class`. A repeat is now a
+  reaffirmation; a value differing only in case is recorded as one; genuinely
+  different values supersede as before; and a declaration over an identical
+  inference still upgrades the recorded provenance.
+- **A schema-free extractor survived the rewrite.** A generic `set <key> to
+  <value>` scraper and a `{"k": "v"}` harvester sat behind the registered
+  patterns, creating `slot_*` and `config_*` facts with no schema and no opt-in —
+  and the JSON one read machine output, its only guard being `role not in
+  ("tool", "system")` while every corpus files tool results under `user`. Found by
+  extracting `slot_symbol = "€"` out of `currency = {"symbol": "€"}`. Both are
+  gone; a caller who wants a slot has to declare a schema.
+- **`reservation ID corresponds` was extracted as `active_reservation = "corres"`.**
+  No trailing word boundary, so six characters of a thirteen-letter word matched,
+  and case-insensitive compilation let lowercase prose satisfy an uppercase-id
+  class. The id group is now case-scoped and closed.
+- **`basic economy` was collapsed to `economy`.** The airline domain prices them
+  differently — the phrase appears 435 times in 60 conversations — so the
+  extraction was confidently wrong exactly when it mattered. It is its own value
+  now.
+- **A flight-options menu was read as a booking.** One turn listed every cabin with
+  seat counts and prices and then asked the user to choose; the pattern took
+  `Basic Economy` off the price list.
+
+### Corrected
+
+Fixing the repeat bug removed phantom supersession, so the previously published
+figures were counting repeats as changes. The corrected numbers:
+
+| | before | after |
+|---|---|---|
+| coding, key re-assertions | 187 | 77 |
+| coding, turns retired | 271 | 161 |
+| coding, token reduction | 70.1% | 66.5% |
+| travel, turns retired | 58 | 9 |
+| travel, token reduction | 57.5% | 54.3% |
+| coding, independent units | 35 | 39 |
+
+The earlier figures were not arithmetic errors. They were measuring a restatement
+as a change of mind.
+
 ## [0.4.0] — systems check, two more precision defects, and a corpus that was too narrow
 
 A full pass over the package: clean-venv install from the wheel, every endpoint

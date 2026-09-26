@@ -818,3 +818,137 @@ def test_the_last_two_turns_are_never_retired():
     assert "editing `wrong.py`" in body
     # The contradiction is still resolved, by the state register.
     assert 'current_file = "right.py"' in body
+
+
+# --- repetition is not contradiction ------------------------------------------
+#
+# Found by measuring a second corpus (APIGen-MT customer-service transcripts).
+# There was no comparison of values at all: any new extraction for a live entity
+# superseded the previous one, so an agent that restated the same fact retired
+# the earlier turn and took everything else it carried with it.
+
+def test_restating_the_same_value_does_not_retire_the_earlier_turn():
+    schema = {"entities": {"cabin_class": [r"\b(business|economy) class\b"]}}
+    messages = [
+        {"role": "user", "content": "hello"},
+        {"role": "assistant", "content": "Your booking is confirmed. Business class."},
+        {"role": "user", "content": "great"},
+        {"role": "assistant", "content": "As a business class passenger you get 2 bags."},
+    ]
+    out, telemetry = compile_messages(messages, mode="compact", schema=schema)
+    body = "\n".join(m["content"] for m in out)
+
+    assert telemetry["retired_turn_count"] == 0, "a repeat is not a contradiction"
+    assert "Your booking is confirmed" in body, (
+        "the earlier turn was retired, taking its other content with it"
+    )
+    assert telemetry["retirement_violations"] == []
+
+
+def test_a_repeat_that_differs_only_in_case_is_still_a_repeat():
+    """`**Cabin Class:** Business` then `business class` is the same claim."""
+    schema = {"entities": {"cabin_class": [r"\b(business|economy) class\b"]}}
+    messages = [
+        {"role": "user", "content": "hello"},
+        {"role": "assistant", "content": "Cabin Class: Business"},
+        {"role": "user", "content": "ok"},
+        {"role": "assistant", "content": "business class includes 2 bags"},
+    ]
+    out, telemetry = compile_messages(messages, mode="compact", schema=schema)
+    assert telemetry["retired_turn_count"] == 0
+    assert "Cabin Class: Business" in "\n".join(m["content"] for m in out)
+
+
+def test_a_genuine_change_still_supersedes_and_retires():
+    schema = {"entities": {"cabin_class": [r"\b(business|economy) class\b"]}}
+    messages = [
+        {"role": "user", "content": "hello"},
+        {"role": "assistant", "content": "You are booked in economy class."},
+        {"role": "user", "content": "ok"},
+        {"role": "assistant", "content": "You have been upgraded to business class."},
+    ]
+    out, telemetry = compile_messages(messages, mode="compact", schema=schema)
+    assert telemetry["active_state_slots"]["cabin_class"] == "business"
+    assert telemetry["retired_turn_count"] == 1, "a real change must still retire"
+    assert "booked in economy" not in "\n".join(m["content"] for m in out)
+
+
+def test_a_declaration_confirming_an_inference_upgrades_its_provenance():
+    """
+    Same value, but the agent stated it outright. Provenance is the entire point
+    of the write path, so the register must not keep calling it inferred.
+    """
+    messages = [
+        {"role": "user", "content": "set the gate code to 1111"},
+        {"role": "assistant", "content": 'noted\n<contextgc-state>{"assert": '
+                                         '{"gate_code": "1111"}}</contextgc-state>'},
+        {"role": "user", "content": "ok"},
+    ]
+    _, telemetry = compile_messages(messages, schema=MINIMAL)
+    assert telemetry["declarations"]["declared_share"] == 1.0
+    assert telemetry["active_state_slots"]["gate_code"] == "1111"
+
+
+def test_short_json_tool_payloads_are_recognised_as_machine_output():
+    """
+    APIGen-MT files its tool results under `user` as compact JSON, and the
+    length-based heuristic caught none of them, so they were never compacted and
+    sat in the transcript looking like something a person had said.
+    """
+    payload = '{"reservation_id": "0U4NPP", "origin": "PHL", "destination": "DEN"}'
+    assert ToolSanitizer.looks_like_tool_output(payload, role="user")
+    assert not ToolSanitizer.looks_like_tool_output(
+        "I will call get_reservation_details now.", role="user"
+    )
+
+
+def test_an_agent_quoting_json_is_still_an_agent():
+    """Only a message that is *entirely* one JSON value is machine output."""
+    quote = ('I need the details, so I will call get_reservation_details'
+             '({"reservation_id": "0U4NPP"}).')
+    assert not ToolSanitizer.looks_like_tool_output(quote, role="assistant")
+
+
+def test_there_is_no_schema_free_extraction_path():
+    """
+    A generic `set <key> to <value>` scraper and a schema-free JSON harvester used
+    to sit behind the registered patterns. They produced `config_*` and `slot_*`
+    facts with no schema and no opt-in, and the JSON one read machine output --
+    its only guard was `role not in ("tool", "system")`, while every corpus
+    measured here files tool results under `user`.
+
+    Found by extracting `slot_symbol = "€"` out of `currency = {"symbol": "€"}`.
+    """
+    from contextgc.state_dag import StateDAG
+
+    dag = StateDAG()
+    for slot, patterns in MINIMAL.items():
+        if slot == "__immutable__":
+            continue
+        dag.register_entity_schema(slot, list(patterns))
+
+    harvested = dag.extract_entities(
+        'Let us set retry_count to 5 and use {"symbol": "€", "region": "eu"}.', 0
+    )
+    entities = {n.entity for n in harvested}
+    assert not any(e.startswith("slot_") for e in entities), entities
+    assert not any(e.startswith("config_") for e in entities), entities
+
+
+def test_json_in_a_tool_result_under_the_user_role_is_not_state():
+    """
+    The machine-output rule, tested at the exact shape that broke it: a short
+    JSON payload filed under `user`, which is how both corpora store tool output.
+    """
+    from contextgc.state_dag import StateDAG
+
+    dag = StateDAG()
+    for slot, patterns in MINIMAL.items():
+        if slot == "__immutable__":
+            continue
+        dag.register_entity_schema(slot, list(patterns))
+
+    harvested = dag.extract_entities(
+        '{"gate_code": "9999", "destination_address": "Gate 9"}', 0, role="user"
+    )
+    assert harvested == [], f"machine output produced state: {harvested}"

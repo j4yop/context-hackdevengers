@@ -115,6 +115,11 @@ def run(
             "source": transcripts[0].source if transcripts else "unknown",
             "note": f"corpus summary incomplete: {type(exc).__name__}: {exc}",
         }
+    # Exposed so the report can pick the label file belonging to this corpus
+    # rather than scoring one domain's labels against another's extractions.
+    corpus_summary["corpus_source"] = (
+        transcripts[0].source if transcripts else "unknown"
+    )
     result = HarnessResult(corpus_summary)
 
     totals = {

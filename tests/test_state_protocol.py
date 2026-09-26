@@ -161,7 +161,11 @@ def test_a_later_declaration_does_override_an_earlier_inferred_fact():
 
 
 def test_inferred_cannot_overwrite_a_pinned_declared_fact():
-    """A generic regex key lands in the `config_` namespace, so it cannot collide."""
+    """
+    "set spend_cap to 99999" no longer extracts anything at all: the generic
+    key-value scraper that used to catch it is gone, so this now passes because
+    the write is never attempted. Kept because the property matters either way.
+    """
     dag = make_dag()
     dag.register_declaration(0, {}, pins={"spend_cap": "500"})
     dag.register_turn(1, "user", "set spend_cap to 99999")

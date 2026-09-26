@@ -78,7 +78,35 @@ class ToolSanitizer:
         # A wall of structured text with no prose sentence structure.
         if len(content) > 1500 and content.count("\n") > 12 and '"' in content:
             return True
-        return False
+        return cls._is_json_payload(content)
+
+    @staticmethod
+    def _is_json_payload(content: str) -> bool:
+        """
+        True when the whole message is one JSON value.
+
+        Found by measuring a second corpus: APIGen-MT files its tool results
+        under the ``user`` role as compact JSON --
+        ``{"reservation_id": "0U4NPP", "origin": "PHL", ...}`` -- and the
+        length-based rule above caught none of them, because a single record is
+        well under 1500 characters. Those payloads were therefore never
+        compacted, and worse, they sat in the transcript looking like something a
+        person had said.
+
+        A message that is *entirely* one JSON object or array is machine output.
+        The "entirely" part matters: an agent that quotes JSON inside a sentence
+        is still speaking, and only the pure-payload case is claimed here.
+        """
+        stripped = content.strip()
+        if not stripped or stripped[0] not in "{[":
+            return False
+        # Cheap reject first: JSON has no sentence punctuation at the top level
+        # often enough that this is worth checking before paying for a parse.
+        try:
+            json.loads(stripped)
+        except (ValueError, TypeError):
+            return False
+        return True
 
     @staticmethod
     def is_error_payload(content: str) -> bool:

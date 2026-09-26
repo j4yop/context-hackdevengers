@@ -25,6 +25,9 @@ def _load(args):
         if not args.corpus_path:
             sys.exit("synthetic corpus needs --corpus-path")
         return load_synthetic(args.corpus_path)
+    if args.corpus == "apigen":
+        from .corpus import load_apigen_mt
+        return load_apigen_mt(limit=args.limit, path=args.corpus_path)
     return load_swe_agent(
         limit=args.limit,
         min_turns=args.min_turns,
@@ -88,7 +91,11 @@ def cmd_run(args):
     if not transcripts:
         sys.exit("no transcripts matched the filters")
     result = run_harness(transcripts, schema=_schema(args.schema))
-    precision = score_precision(result.extractions)
+    from .gold import labels_path_for
+
+    precision = score_precision(
+        result.extractions, labels_path=labels_path_for((result.corpus or {}).get("corpus_source"))
+    )
     print(render(result))
     print()
     print(render_precision(precision))
@@ -117,6 +124,65 @@ def cmd_run(args):
             json.dump(payload, handle, indent=2)
         print(f"\nfull results -> {args.json}")
     return 0
+
+
+def cmd_capture(args):
+    """
+    Record what a real model declares, so `shadow` has something honest to
+    replay. Refuses rather than inventing: a synthetic declaration set would
+    measure this harness, not the write path.
+    """
+    from .capture import capture, summarise, verify
+
+    if args.verify:
+        if not os.path.exists(args.out):
+            sys.exit(
+                f"no capture at {args.out}\n"
+                "  one is produced by: python -m benchmarks capture "
+                "--transcript <file> --out captures/run1.json\n"
+                "  which needs a real model; see benchmarks/capture.py"
+            )
+        with open(args.out, encoding="utf-8") as handle:
+            payload = json.load(handle)
+        problems = verify(payload)
+        print(render_capture_summary(summarise(payload.get("turns", [])), payload))
+        if problems:
+            print()
+            print("CAPTURE NOT USABLE:")
+            for problem in problems:
+                print(f"  - {problem}")
+            sys.exit(1)
+        print()
+        print("capture is usable: `benchmarks shadow --captures` can replay it")
+        return 0
+
+    if not args.transcript:
+        sys.exit("capture needs --transcript (a transcript file) or --verify")
+    payload = capture(
+        args.transcript, args.out, limit=args.limit, schema_path=args.schema
+    )
+    print(render_capture_summary(summarise(payload["turns"]), payload))
+    print(f"\nwritten -> {args.out}")
+    return 0
+
+
+def render_capture_summary(summary, payload):
+    lines = ["-" * 78, "CAPTURE"]
+    lines.append(f"  endpoint             {payload.get('endpoint')}")
+    lines.append(f"  model                {payload.get('model')}")
+    lines.append(f"  turns recorded       {summary['turns']}")
+    lines.append(f"  state blocks         {summary['blocks']}")
+    lines.append(f"  malformed blocks     {summary['malformed']}")
+    lines.append(f"  turns that declared  {summary['declared_turns']}")
+    if summary["keys"]:
+        lines.append("  keys declared:")
+        for key, count in list(summary["keys"].items())[:10]:
+            lines.append(f"    {key:<28} {count}")
+    lines.append("")
+    if not summary["declared_turns"]:
+        lines.append("  The model never declared anything, so this capture would measure")
+        lines.append("  nothing. That is a result about the setup, not a pass.")
+    return "\n".join(lines)
 
 
 def cmd_shadow(args):
@@ -156,7 +222,13 @@ def main(argv=None):
     sub = parser.add_subparsers(dest="command", required=True)
 
     def common(p, with_limit=True):
-        p.add_argument("--corpus", choices=("swe-agent", "synthetic"), default="swe-agent")
+        p.add_argument(
+            "--corpus",
+            choices=("swe-agent", "apigen", "synthetic"),
+            default="swe-agent",
+            help="swe-agent: coding trajectories. apigen: customer-service "
+                 "tool use, a second domain. synthetic: a vendored text file.",
+        )
         p.add_argument("--corpus-path", help="local parquet shard or synthetic transcript file")
         p.add_argument("--min-turns", type=int, default=8)
         p.add_argument(
@@ -184,6 +256,18 @@ def main(argv=None):
     )
     run_parser.add_argument("--json", help="write full results here")
     run_parser.set_defaults(func=cmd_run)
+
+    capture_parser = sub.add_parser(
+        "capture",
+        help="record what a real model declares, for shadow mode to replay",
+    )
+    capture_parser.add_argument("--transcript", help="transcript file to run")
+    capture_parser.add_argument("--out", default="captures/run1.json")
+    capture_parser.add_argument("--verify", action="store_true",
+                                help="check an existing capture instead of making one")
+    capture_parser.add_argument("--limit", type=int, default=20)
+    capture_parser.add_argument("--schema", help="schema name, passed to the agent")
+    capture_parser.set_defaults(func=cmd_capture)
 
     shadow_parser = sub.add_parser("shadow", help="compare read path against declarations")
     common(shadow_parser)
