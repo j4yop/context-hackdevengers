@@ -1025,3 +1025,23 @@ def test_a_contrastive_sentence_keeps_the_value_it_keeps():
         assert _is_rejected(text, start) is want, (
             f"{text!r}: expected rejected={want} for {value!r}"
         )
+
+
+def test_a_negator_in_an_earlier_sentence_does_not_reject_the_next_claim():
+    """
+    Found by label drift, not by a number: this sentence is a real agent turn.
+
+        "...inherits from `Base` rather than directly from `AnotherBaseClass`.
+         Let's modify the `reproduce.py` file..."
+
+    "rather than" governs `AnotherBaseClass`. Without a sentence terminator in
+    the guard, the extraction that follows stopped matching and the precision
+    sample quietly lost a row.
+    """
+    from contextgc.state_dag import _is_rejected
+
+    text = (
+        "It inherits from `Base` rather than directly from `AnotherBaseClass`. "
+        "Let's modify the `reproduce.py` file to reflect this change."
+    )
+    assert _is_rejected(text, text.index("reproduce.py")) is False
