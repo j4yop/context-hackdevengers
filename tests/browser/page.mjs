@@ -136,11 +136,35 @@ const exText = await page.textContent('#result');
 ok(/Gate 2|Tower B|destination_address|Reduction/.test(exText), 'example produced a real result');
 
 console.log('\n10. responsive: no horizontal overflow at 375px');
+// Checked in the state the previous steps leave the page in, not on a fresh
+// load: a fresh load fit fine locally while the post-interaction state overflowed
+// by 5px in CI. A responsive check that only ever sees one state is decoration.
 await page.setViewportSize({ width: 375, height: 900 });
 await page.waitForTimeout(300);
-const overflow = await page.evaluate(() =>
-  document.documentElement.scrollWidth - document.documentElement.clientWidth);
-ok(overflow <= 1, 'no horizontal overflow at 375px', `overflow=${overflow}px`);
+const measure = () => page.evaluate(() => {
+  const vw = document.documentElement.clientWidth;
+  const bad = [];
+  for (const el of document.querySelectorAll('*')) {
+    const r = el.getBoundingClientRect();
+    if (r.width && (r.right > vw + 0.5 || r.left < -0.5)) {
+      bad.push(`${el.tagName.toLowerCase()}${el.id ? '#' + el.id : ''}` +
+        `${el.className ? '.' + String(el.className).split(' ')[0] : ''} ` +
+        `[${Math.round(r.left)}..${Math.round(r.right)}]`);
+    }
+  }
+  return { over: document.documentElement.scrollWidth - vw, bad: bad.slice(0, 6) };
+});
+const widths = [320, 360, 375, 414, 768];
+const overflowing = [];
+for (const w of widths) {
+  await page.setViewportSize({ width: w, height: 900 });
+  await page.waitForTimeout(250);
+  const r = await measure();
+  if (r.over > 1) overflowing.push(`${w}px:+${r.over}px ${r.bad.join(' ')}`);
+}
+ok(overflowing.length === 0, 'no horizontal overflow at 320/360/375/414/768px',
+   overflowing.join(' | ') || 'all clean');
+await page.setViewportSize({ width: 375, height: 900 });
 
 console.log('\n11. no console errors / failed requests');
 ok(errors.length === 0, 'no page errors', errors.slice(0,2).join(' | '));

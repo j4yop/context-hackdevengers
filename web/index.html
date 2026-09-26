@@ -87,7 +87,7 @@
     background:var(--panel-2); border:1px solid var(--line); border-radius:9px; color:var(--ink); }
   input[type=text]:focus { outline:2px solid var(--accent); outline-offset:-1px; }
 
-  .stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(112px,1fr)); gap:1px; background:var(--line-2);
+  .stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(112px,100%),1fr)); gap:1px; background:var(--line-2);
     border:1px solid var(--line); border-radius:12px; overflow:hidden; margin-bottom:16px; }
   .stat { background:var(--panel); padding:13px 14px; }
   .stat .k { font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:var(--ink-3); font-weight:600; }
@@ -126,7 +126,7 @@
   td, th { overflow-wrap:anywhere; word-break:break-word; }
   header .wrap { min-width:0; }
   nav { min-width:0; flex-wrap:wrap; }
-  .card, .card > .body, section { min-width:0; }
+  .card, .card > .body, section, .stats > *, .how > * { min-width:0; }
 
   .empty { color:var(--ink-3); font-size:13.5px; text-align:center; padding:34px 16px; }
   .secttl { font-size:12px; text-transform:uppercase; letter-spacing:.07em; color:var(--ink-3);
@@ -140,7 +140,7 @@
   details[open] summary::before { content:"− "; }
   details > div { padding:0 13px 13px; }
 
-  .how { display:grid; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); gap:16px; }
+  .how { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(250px,100%),1fr)); gap:16px; }
   .how section { background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:20px; }
   .how h3 { font-size:15px; margin:0 0 7px; letter-spacing:-.01em; }
   .how p { font-size:14px; color:var(--ink-2); margin:0 0 10px; }
