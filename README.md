@@ -14,6 +14,16 @@ no network, no API key, no dependencies. Same input, same output, microseconds.
 pip install contextgc
 ```
 
+> **Not on PyPI yet.** This line was here before the project had ever been
+> published, which made it a lie in the most load-bearing spot in the README.
+> Publishing is wired up (`.github/workflows/release.yml`, tag `v0.4.0`) and
+> verifies the artifacts before uploading, but until a tag is pushed the
+> install has to come from the repository:
+>
+> ```bash
+> pip install git+https://github.com/j4yop/context-hackdevengers
+> ```
+
 ```python
 from contextgc import compile_messages
 
@@ -153,7 +163,7 @@ repositories and every number below inherits that narrowness.
 ```bash
 pip install 'contextgc[bench]'
 python -m benchmarks fetch          # 85 MB parquet shard
-python -m benchmarks run --limit 40 --schema benchmarks/schemas/coding.json
+python -m benchmarks run --limit 40 --schema contextgc/schemas/coding.json
 ```
 
 ```
@@ -241,7 +251,7 @@ destination_address = "a placeholder dictionary"
 The patterns were written to match a fixture, and a coding transcript is full of
 the words they look for. **`ENTITY_PATTERNS` is now empty**, and a schema is
 opt-in per domain. The old patterns are kept in
-`benchmarks/schemas/logistics.json` with the measurement that condemns them.
+`contextgc/schemas/logistics.json` with the measurement that condemns them.
 
 **2. The sanitizer never fired on real data.** It keyed on a `TOOL_OUTPUT` marker
 and on `role in (tool, function)`. In the corpus, **0% of messages carry that
@@ -301,7 +311,7 @@ with the agent moving between them and correcting itself:
 > `memset.py` file instead of the `reproduce.py` file."*
 
 That is precisely the last-write-wins case the library exists for, and 187 key
-re-assertions fired across the 40 transcripts. `benchmarks/schemas/coding.json`
+re-assertions fired across the 40 transcripts. `contextgc/schemas/coding.json`
 is derived from that observation, not from what would have been convenient.
 
 The logistics scenario in the demo is not representative of coding work. This is
@@ -317,7 +327,7 @@ correction.
 
 ```bash
 python -m benchmarks shadow --captures captures/run1.json --limit 50 \
-    --schema benchmarks/schemas/coding.json
+    --schema contextgc/schemas/coding.json
 ```
 
 It needs a capture file: declarations recorded from a real run with a real model.

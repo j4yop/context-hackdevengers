@@ -716,7 +716,7 @@ def test_a_whole_schema_file_can_be_passed_straight_in():
     import os
 
     here = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    with open(os.path.join(here, "benchmarks", "schemas", "coding.json")) as handle:
+    with open(os.path.join(here, "contextgc", "schemas", "coding.json")) as handle:
         schema = json.load(handle)
     assert "_comment" in schema, "fixture no longer has the documentation key"
 

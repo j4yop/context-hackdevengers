@@ -48,7 +48,7 @@ jobs:
           python -m benchmarks run \
             --corpus-path ~/.cache/contextgc/swe-agent-trajectories-00000.parquet \
             --limit 40 --per-repo 2 \
-            --schema benchmarks/schemas/coding.json \
+            --schema contextgc/schemas/coding.json \
             --check
 
       - name: The labelled sample must still match the corpus
@@ -58,7 +58,7 @@ jobs:
           python -m benchmarks run \
             --corpus-path ~/.cache/contextgc/swe-agent-trajectories-00000.parquet \
             --limit 40 --per-repo 2 \
-            --schema benchmarks/schemas/coding.json \
+            --schema contextgc/schemas/coding.json \
             --json /tmp/real.json
           python - <<'PY'
           import json, sys

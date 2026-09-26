@@ -62,7 +62,7 @@ def _normalise_schema(schema: Optional[Dict[str, Any]]) -> Dict[str, Any]:
     """
     Accept either a bare slot mapping or a whole schema file.
 
-    ``benchmarks/schemas/*.json`` wrap their patterns in ``{"entities": ...}``
+    The shipped schema files wrap their patterns in ``{"entities": ...}``
     and carry a ``_comment`` explaining how the patterns were arrived at. The
     benchmark CLI and the HTTP server both unwrapped that; the Python SDK did
     not, so ``compile_messages(schema=json.load(open(path)))`` -- the obvious
@@ -125,7 +125,7 @@ class ContextGCEngine:
                 :attr:`StateDAG.ENTITY_PATTERNS`.
 
                 A whole schema *file* may also be passed, i.e. the
-                ``{"entities": {...}}`` shape used by ``benchmarks/schemas/``.
+                ``{"entities": {...}}`` shape of a schema file.
                 Documentation keys such as ``_comment`` are ignored rather than
                 compiled as patterns -- a schema's own prose is not a regex, and
                 feeding it to ``re`` raises an opaque ``re.PatternError`` about

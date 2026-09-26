@@ -6,7 +6,7 @@
   "per_repo": 2,
   "min_turns": 8,
   "max_turns": 200,
-  "schema": "benchmarks/schemas/coding.json",
+  "schema": "contextgc/schemas/coding.json",
   "sampling": "2 extractions per repository, 20 repositories",
   "why": "the shard is repo-ordered; without per_repo the first 40 transcripts come from 3 repos and the sample inherits that narrowness"
 }

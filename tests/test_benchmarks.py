@@ -316,7 +316,7 @@ def test_a_bare_in_does_not_constitute_a_file_under_edit():
     import os
     import re
 
-    path = os.path.join(os.path.dirname(__file__), "..", "benchmarks", "schemas", "coding.json")
+    path = os.path.join(os.path.dirname(__file__), "..", "contextgc", "schemas", "coding.json")
     with open(path, encoding="utf-8") as handle:
         patterns = json.load(handle)["entities"]["current_file"]
 
@@ -334,7 +334,7 @@ def test_an_explicit_edit_verb_does_match():
     import os
     import re
 
-    path = os.path.join(os.path.dirname(__file__), "..", "benchmarks", "schemas", "coding.json")
+    path = os.path.join(os.path.dirname(__file__), "..", "contextgc", "schemas", "coding.json")
     with open(path, encoding="utf-8") as handle:
         patterns = json.load(handle)["entities"]["current_file"]
 
@@ -355,7 +355,7 @@ def test_a_domain_name_is_not_a_path():
     import os
     import re
 
-    path = os.path.join(os.path.dirname(__file__), "..", "benchmarks", "schemas", "coding.json")
+    path = os.path.join(os.path.dirname(__file__), "..", "contextgc", "schemas", "coding.json")
     with open(path, encoding="utf-8") as handle:
         patterns = json.load(handle)["entities"]["current_file"]
 
@@ -503,7 +503,7 @@ def _coding_schema():
     import os as _os
 
     here = _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__)))
-    with open(_os.path.join(here, "benchmarks", "schemas", "coding.json")) as handle:
+    with open(_os.path.join(here, "contextgc", "schemas", "coding.json")) as handle:
         return json.load(handle)["entities"]
 
 
@@ -629,7 +629,7 @@ def test_check_passes_on_the_vendored_corpus():
         limit = 100
         schema = os.path.join(
             os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-            "benchmarks", "schemas", "coding.json",
+            "contextgc", "schemas", "coding.json",
         )
         show_extractions = 0
         json = None
@@ -663,7 +663,7 @@ def test_precision_is_in_the_machine_readable_output(tmp_path):
         limit = 100
         schema = os.path.join(
             os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-            "benchmarks", "schemas", "coding.json",
+            "contextgc", "schemas", "coding.json",
         )
         show_extractions = 0
         check = False
@@ -706,7 +706,7 @@ def test_a_drifted_label_file_is_visible_in_the_json(tmp_path):
         limit = 100
         schema = os.path.join(
             os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-            "benchmarks", "schemas", "coding.json",
+            "contextgc", "schemas", "coding.json",
         )
         show_extractions = 0
         check = False

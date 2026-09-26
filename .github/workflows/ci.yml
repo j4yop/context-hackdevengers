@@ -45,7 +45,7 @@ jobs:
           python -m benchmarks run \
             --corpus synthetic \
             --corpus-path benchmarks/corpus/sample.txt \
-            --schema benchmarks/schemas/coding.json \
+            --schema contextgc/schemas/coding.json \
             --check \
             --json /tmp/bench.json
       - name: Report

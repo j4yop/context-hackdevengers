@@ -5,7 +5,7 @@
     python -m benchmarks run --limit 200
 
     # same, but against a custom entity schema
-    python -m benchmarks run --limit 50 --schema benchmarks/schemas/logistics.json
+    python -m benchmarks run --limit 50 --schema contextgc/schemas/logistics.json
 
     # compare the read path against replayed declarations
     python -m benchmarks shadow --captures captures/run1.json --limit 50

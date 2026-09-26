@@ -34,8 +34,17 @@ def _load(args):
 
 
 def _schema(path):
+    """Resolve ``--schema`` to a pattern mapping.
+
+    A bare name resolves against the schemas the library ships, so the harness
+    measures the same patterns a user would get from ``load_schema`` rather than
+    a private copy that can drift away from them.
+    """
     if not path:
         return None
+    if not path.endswith(".json") and not os.path.exists(path):
+        from contextgc.schemas import load_schema
+        return load_schema(path)
     with open(path, encoding="utf-8") as handle:
         raw = json.load(handle)
     if "entities" in raw:
@@ -164,7 +173,7 @@ def main(argv=None):
 
     run_parser = sub.add_parser("run", help="measure the compiler over a corpus")
     common(run_parser)
-    run_parser.add_argument("--schema", help="JSON file of entity patterns to use")
+    run_parser.add_argument("--schema", help="schema name (e.g. coding) or path to a JSON file")
     run_parser.add_argument("--show-extractions", type=int, default=0, metavar="N")
     run_parser.add_argument(
         "--check",

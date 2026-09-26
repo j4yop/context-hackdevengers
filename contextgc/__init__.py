@@ -26,6 +26,7 @@ from .client import (
     patch_openai,
 )
 from .sanitizer import ToolSanitizer
+from .schemas import list_schemas, load_schema, schema_summary
 from .state_dag import SOURCE_DECLARED, SOURCE_INFERRED, FactNode, StateDAG
 from .state_protocol import (
     DECLARING_ROLES,
@@ -54,6 +55,9 @@ __all__ = [
     "PolicyInvariantAnchor",
     "InvariantAuditor",
     "parse_transcript",
+    "list_schemas",
+    "load_schema",
+    "schema_summary",
     "StateDeclaration",
     "DECLARING_ROLES",
     "parse_declaration",

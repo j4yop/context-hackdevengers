@@ -41,10 +41,16 @@ Repository = "https://github.com/j4yop/context-hackdevengers"
 Issues = "https://github.com/j4yop/context-hackdevengers/issues"
 
 [tool.setuptools]
-packages = ["contextgc", "benchmarks"]
+# Only the library ships. `benchmarks` is a measurement harness tied to a
+# 200 MB corpus and a set of hand-placed labels; it is not something an
+# installed user needs, and shipping it without its JSON data produced a wheel
+# containing a `benchmarks` package that could not load a single schema.
+packages = ["contextgc"]
 
 [tool.setuptools.package-data]
-contextgc = ["py.typed"]
+# The shipped schemas are the only way an installed caller can turn state
+# tracking on, so they have to be in the wheel.
+contextgc = ["py.typed", "schemas/*.json"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

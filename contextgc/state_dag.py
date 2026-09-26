@@ -72,7 +72,8 @@ class StateDAG:
     #:     dag.register_entity_schema("target_port", [r"port (?:to|is) (\d{2,5})"])
     #:
     #: or pass a schema mapping to the benchmark harness. The shipped schemas in
-    #: ``benchmarks/schemas/`` are the ones that were actually measured.
+    #: See :func:`contextgc.load_schema` -- those are the ones that were
+    #: actually measured against real transcripts.
     ENTITY_PATTERNS: Dict[str, List[str]] = {}
 
     #: Slots protected from being overwritten. Kept even though the default

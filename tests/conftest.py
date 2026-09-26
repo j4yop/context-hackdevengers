@@ -8,17 +8,14 @@ want fact extraction therefore have to say which domain they are testing, which
 is also what a real caller must do.
 """
 
-import json
-import os
 
 import pytest
 
 #: The logistics schema, formerly the library default. Used by tests that were
 #: written against the shipping fixture, so they keep testing the same patterns.
-LOGISTICS = json.load(open(
-    os.path.join(os.path.dirname(__file__), "..", "benchmarks", "schemas", "logistics.json"),
-    encoding="utf-8",
-))["entities"]
+from contextgc.schemas import load_schema  # noqa: E402  (after sys.path setup)
+
+LOGISTICS = load_schema("logistics")
 
 #: A minimal schema for the write-path tests, which only need *some* key to be
 #: declared, inferred, pinned, or revoked.

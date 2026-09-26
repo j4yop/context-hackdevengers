@@ -8,7 +8,7 @@
     "note": "agent opens/edits/creates this exact file in the registering turn",
     "labelled_by": "human, reading the registering turn in full",
     "corpus": "nebius/SWE-agent-trajectories shard 0",
-    "schema": "benchmarks/schemas/coding.json"
+    "schema": "contextgc/schemas/coding.json"
   },
   {
     "transcript": "AnalogJ__lexicon-336#1",
@@ -19,7 +19,7 @@
     "note": "agent opens/edits/creates this exact file in the registering turn",
     "labelled_by": "human, reading the registering turn in full",
     "corpus": "nebius/SWE-agent-trajectories shard 0",
-    "schema": "benchmarks/schemas/coding.json"
+    "schema": "contextgc/schemas/coding.json"
   },
   {
     "transcript": "Azure__azure-functions-python-worker-890#11",
@@ -30,7 +30,7 @@
     "note": "agent opens/edits/creates this exact file in the registering turn",
     "labelled_by": "human, reading the registering turn in full",
     "corpus": "nebius/SWE-agent-trajectories shard 0",
-    "schema": "benchmarks/schemas/coding.json"
+    "schema": "contextgc/schemas/coding.json"
   },
   {
     "transcript": "Azure__azure-functions-python-worker-890#12",
@@ -41,7 +41,7 @@
     "note": "agent opens/edits/creates this exact file in the registering turn",
     "labelled_by": "human, reading the registering turn in full",
     "corpus": "nebius/SWE-agent-trajectories shard 0",
-    "schema": "benchmarks/schemas/coding.json"
+    "schema": "contextgc/schemas/coding.json"
   },
   {
     "transcript": "Melevir__cognitive_complexity-15#26",
@@ -52,7 +52,7 @@
     "note": "agent opens/edits/creates this exact file in the registering turn",
     "labelled_by": "human, reading the registering turn in full",
     "corpus": "nebius/SWE-agent-trajectories shard 0",
-    "schema": "benchmarks/schemas/coding.json"
+    "schema": "contextgc/schemas/coding.json"
   },
   {
     "transcript": "Melevir__cognitive_complexity-15#27",
@@ -63,7 +63,7 @@
     "note": "agent opens/edits/creates this exact file in the registering turn",
     "labelled_by": "human, reading the registering turn in full",
     "corpus": "nebius/SWE-agent-trajectories shard 0",
-    "schema": "benchmarks/schemas/coding.json"
+    "schema": "contextgc/schemas/coding.json"
   },
   {
     "transcript": "PyCQA__pyflakes-761#71",
@@ -74,7 +74,7 @@
     "note": "agent opens/edits/creates this exact file in the registering turn",
     "labelled_by": "human, reading the registering turn in full",
     "corpus": "nebius/SWE-agent-trajectories shard 0",
-    "schema": "benchmarks/schemas/coding.json"
+    "schema": "contextgc/schemas/coding.json"
   },
   {
     "transcript": "PyCQA__pyflakes-761#72",
@@ -85,7 +85,7 @@
     "note": "agent opens/edits/creates this exact file in the registering turn",
     "labelled_by": "human, reading the registering turn in full",
     "corpus": "nebius/SWE-agent-trajectories shard 0",
-    "schema": "benchmarks/schemas/coding.json"
+    "schema": "contextgc/schemas/coding.json"
   },
   {
     "transcript": "RDFLib__rdflib-1130#83",
@@ -96,7 +96,7 @@
     "note": "agent opens/edits/creates this exact file in the registering turn",
     "labelled_by": "human, reading the registering turn in full",
     "corpus": "nebius/SWE-agent-trajectories shard 0",
-    "schema": "benchmarks/schemas/coding.json"
+    "schema": "contextgc/schemas/coding.json"
   },
   {
     "transcript": "ReproNim__reproman-518#89",
@@ -107,7 +107,7 @@
     "note": "agent opens/edits/creates this exact file in the registering turn",
     "labelled_by": "human, reading the registering turn in full",
     "corpus": "nebius/SWE-agent-trajectories shard 0",
-    "schema": "benchmarks/schemas/coding.json"
+    "schema": "contextgc/schemas/coding.json"
   },
   {
     "transcript": "ShawHahnLab__igseq-2#95",
@@ -118,7 +118,7 @@
     "note": "agent opens/edits/creates this exact file in the registering turn",
     "labelled_by": "human, reading the registering turn in full",
     "corpus": "nebius/SWE-agent-trajectories shard 0",
-    "schema": "benchmarks/schemas/coding.json"
+    "schema": "contextgc/schemas/coding.json"
   },
   {
     "transcript": "TACC__agavepy-62#107",
@@ -129,7 +129,7 @@
     "note": "agent opens/edits/creates this exact file in the registering turn",
     "labelled_by": "human, reading the registering turn in full",
     "corpus": "nebius/SWE-agent-trajectories shard 0",
-    "schema": "benchmarks/schemas/coding.json"
+    "schema": "contextgc/schemas/coding.json"
   },
   {
     "transcript": "TACC__agavepy-62#108",
@@ -140,7 +140,7 @@
     "note": "agent opens/edits/creates this exact file in the registering turn",
     "labelled_by": "human, reading the registering turn in full",
     "corpus": "nebius/SWE-agent-trajectories shard 0",
-    "schema": "benchmarks/schemas/coding.json"
+    "schema": "contextgc/schemas/coding.json"
   },
   {
     "transcript": "TheFriendlyCoder__pyjen-113#120",
@@ -151,7 +151,7 @@
     "note": "agent opens/edits/creates this exact file in the registering turn",
     "labelled_by": "human, reading the registering turn in full",
     "corpus": "nebius/SWE-agent-trajectories shard 0",
-    "schema": "benchmarks/schemas/coding.json"
+    "schema": "contextgc/schemas/coding.json"
   },
   {
     "transcript": "TheFriendlyCoder__pyjen-113#121",
@@ -162,7 +162,7 @@
     "note": "agent opens/edits/creates this exact file in the registering turn",
     "labelled_by": "human, reading the registering turn in full",
     "corpus": "nebius/SWE-agent-trajectories shard 0",
-    "schema": "benchmarks/schemas/coding.json"
+    "schema": "contextgc/schemas/coding.json"
   },
   {
     "transcript": "absent1706__sqlalchemy-mixins-108#123",
@@ -173,7 +173,7 @@
     "note": "agent opens/edits/creates this exact file in the registering turn",
     "labelled_by": "human, reading the registering turn in full",
     "corpus": "nebius/SWE-agent-trajectories shard 0",
-    "schema": "benchmarks/schemas/coding.json"
+    "schema": "contextgc/schemas/coding.json"
   },
   {
     "transcript": "absent1706__sqlalchemy-mixins-108#124",
@@ -184,7 +184,7 @@
     "note": "agent opens/edits/creates this exact file in the registering turn",
     "labelled_by": "human, reading the registering turn in full",
     "corpus": "nebius/SWE-agent-trajectories shard 0",
-    "schema": "benchmarks/schemas/coding.json"
+    "schema": "contextgc/schemas/coding.json"
   },
   {
     "transcript": "ahawker__ulid-59#135",
@@ -195,7 +195,7 @@
     "note": "agent opens/edits/creates this exact file in the registering turn",
     "labelled_by": "human, reading the registering turn in full",
     "corpus": "nebius/SWE-agent-trajectories shard 0",
-    "schema": "benchmarks/schemas/coding.json"
+    "schema": "contextgc/schemas/coding.json"
   },
   {
     "transcript": "ahawker__ulid-59#136",
@@ -206,7 +206,7 @@
     "note": "agent opens/edits/creates this exact file in the registering turn",
     "labelled_by": "human, reading the registering turn in full",
     "corpus": "nebius/SWE-agent-trajectories shard 0",
-    "schema": "benchmarks/schemas/coding.json"
+    "schema": "contextgc/schemas/coding.json"
   },
   {
     "transcript": "airspeed-velocity__asv-702#153",
@@ -217,7 +217,7 @@
     "note": "agent opens/edits/creates this exact file in the registering turn",
     "labelled_by": "human, reading the registering turn in full",
     "corpus": "nebius/SWE-agent-trajectories shard 0",
-    "schema": "benchmarks/schemas/coding.json"
+    "schema": "contextgc/schemas/coding.json"
   },
   {
     "transcript": "airspeed-velocity__asv-702#154",
@@ -228,7 +228,7 @@
     "note": "agent opens/edits/creates this exact file in the registering turn",
     "labelled_by": "human, reading the registering turn in full",
     "corpus": "nebius/SWE-agent-trajectories shard 0",
-    "schema": "benchmarks/schemas/coding.json"
+    "schema": "contextgc/schemas/coding.json"
   },
   {
     "transcript": "asottile__pyupgrade-142#169",
@@ -239,7 +239,7 @@
     "note": "agent opens/edits/creates this exact file in the registering turn",
     "labelled_by": "human, reading the registering turn in full",
     "corpus": "nebius/SWE-agent-trajectories shard 0",
-    "schema": "benchmarks/schemas/coding.json"
+    "schema": "contextgc/schemas/coding.json"
   },
   {
     "transcript": "asottile__pyupgrade-142#170",
@@ -250,7 +250,7 @@
     "note": "agent opens/edits/creates this exact file in the registering turn",
     "labelled_by": "human, reading the registering turn in full",
     "corpus": "nebius/SWE-agent-trajectories shard 0",
-    "schema": "benchmarks/schemas/coding.json"
+    "schema": "contextgc/schemas/coding.json"
   },
   {
     "transcript": "asottile__pyupgrade-147#234",
@@ -261,7 +261,7 @@
     "note": "agent opens/edits/creates this exact file in the registering turn",
     "labelled_by": "human, reading the registering turn in full",
     "corpus": "nebius/SWE-agent-trajectories shard 0",
-    "schema": "benchmarks/schemas/coding.json"
+    "schema": "contextgc/schemas/coding.json"
   },
   {
     "transcript": "asottile__pyupgrade-147#235",
@@ -272,7 +272,7 @@
     "note": "agent opens/edits/creates this exact file in the registering turn",
     "labelled_by": "human, reading the registering turn in full",
     "corpus": "nebius/SWE-agent-trajectories shard 0",
-    "schema": "benchmarks/schemas/coding.json"
+    "schema": "contextgc/schemas/coding.json"
   },
   {
     "transcript": "asottile__pyupgrade-347#252",
@@ -283,7 +283,7 @@
     "note": "agent opens/edits/creates this exact file in the registering turn",
     "labelled_by": "human, reading the registering turn in full",
     "corpus": "nebius/SWE-agent-trajectories shard 0",
-    "schema": "benchmarks/schemas/coding.json"
+    "schema": "contextgc/schemas/coding.json"
   },
   {
     "transcript": "asottile__pyupgrade-347#253",
@@ -294,7 +294,7 @@
     "note": "agent opens/edits/creates this exact file in the registering turn",
     "labelled_by": "human, reading the registering turn in full",
     "corpus": "nebius/SWE-agent-trajectories shard 0",
-    "schema": "benchmarks/schemas/coding.json"
+    "schema": "contextgc/schemas/coding.json"
   },
   {
     "transcript": "asottile__pyupgrade-545#269",
@@ -305,7 +305,7 @@
     "note": "agent opens/edits/creates this exact file in the registering turn",
     "labelled_by": "human, reading the registering turn in full",
     "corpus": "nebius/SWE-agent-trajectories shard 0",
-    "schema": "benchmarks/schemas/coding.json"
+    "schema": "contextgc/schemas/coding.json"
   },
   {
     "transcript": "asottile__pyupgrade-545#270",
@@ -316,7 +316,7 @@
     "note": "agent opens/edits/creates this exact file in the registering turn",
     "labelled_by": "human, reading the registering turn in full",
     "corpus": "nebius/SWE-agent-trajectories shard 0",
-    "schema": "benchmarks/schemas/coding.json"
+    "schema": "contextgc/schemas/coding.json"
   },
   {
     "transcript": "asottile__pyupgrade-890#281",
@@ -327,7 +327,7 @@
     "note": "agent opens/edits/creates this exact file in the registering turn",
     "labelled_by": "human, reading the registering turn in full",
     "corpus": "nebius/SWE-agent-trajectories shard 0",
-    "schema": "benchmarks/schemas/coding.json"
+    "schema": "contextgc/schemas/coding.json"
   },
   {
     "transcript": "asottile__pyupgrade-890#282",
@@ -338,7 +338,7 @@
     "note": "agent opens/edits/creates this exact file in the registering turn",
     "labelled_by": "human, reading the registering turn in full",
     "corpus": "nebius/SWE-agent-trajectories shard 0",
-    "schema": "benchmarks/schemas/coding.json"
+    "schema": "contextgc/schemas/coding.json"
   },
   {
     "transcript": "auth0__auth0-python-477#288",
@@ -349,7 +349,7 @@
     "note": "agent opens/edits/creates this exact file in the registering turn",
     "labelled_by": "human, reading the registering turn in full",
     "corpus": "nebius/SWE-agent-trajectories shard 0",
-    "schema": "benchmarks/schemas/coding.json"
+    "schema": "contextgc/schemas/coding.json"
   },
   {
     "transcript": "auth0__auth0-python-477#289",
@@ -360,7 +360,7 @@
     "note": "turn's action is `ls -F` on a tests directory; branding.py is only referenced as already edited, so the slot is genuinely ambiguous",
     "labelled_by": "human, reading the registering turn in full",
     "corpus": "nebius/SWE-agent-trajectories shard 0",
-    "schema": "benchmarks/schemas/coding.json"
+    "schema": "contextgc/schemas/coding.json"
   },
   {
     "transcript": "aws-cloudformation__cloudformation-cli-python-plugin-236#294",
@@ -371,7 +371,7 @@
     "note": "agent opens/edits/creates this exact file in the registering turn",
     "labelled_by": "human, reading the registering turn in full",
     "corpus": "nebius/SWE-agent-trajectories shard 0",
-    "schema": "benchmarks/schemas/coding.json"
+    "schema": "contextgc/schemas/coding.json"
   },
   {
     "transcript": "benjamincorcoran__sasdocs-41#303",
@@ -382,7 +382,7 @@
     "note": "agent opens/edits/creates this exact file in the registering turn",
     "labelled_by": "human, reading the registering turn in full",
     "corpus": "nebius/SWE-agent-trajectories shard 0",
-    "schema": "benchmarks/schemas/coding.json"
+    "schema": "contextgc/schemas/coding.json"
   },
   {
     "transcript": "benjamincorcoran__sasdocs-41#304",
@@ -393,6 +393,6 @@
     "note": "agent opens/edits/creates this exact file in the registering turn",
     "labelled_by": "human, reading the registering turn in full",
     "corpus": "nebius/SWE-agent-trajectories shard 0",
-    "schema": "benchmarks/schemas/coding.json"
+    "schema": "contextgc/schemas/coding.json"
   }
 ]

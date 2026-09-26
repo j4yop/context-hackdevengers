@@ -130,35 +130,26 @@ class MessagesRequest(BaseModel):
 # --------------------------------------------------------------------------
 
 
-#: Shipped entity schemas, loaded from benchmarks/schemas at import time.
+#: Shipped entity schemas, loaded from the installed package at import time.
 #:
 #: The library's default schema is empty, so a caller who wants state tracking
 #: must pick a domain. Exposing the list here is what lets the website offer the
 #: choice instead of silently showing an empty state DAG.
-SCHEMA_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "benchmarks", "schemas")
-
-
 def _load_schemas() -> Dict[str, Dict[str, Any]]:
-    import json as _json
+    """Read the schemas out of the installed package.
+
+    This used to reach into ``../benchmarks/schemas``, which meant the deployed
+    site depended on the repository layout rather than on its own dependency, and
+    an installed wheel had no schemas at all. The library owns them now.
+    """
+    from contextgc.schemas import list_schemas, schema_summary
 
     out: Dict[str, Dict[str, Any]] = {}
-    if not os.path.isdir(SCHEMA_DIR):
-        return out
-    for name in sorted(os.listdir(SCHEMA_DIR)):
-        if not name.endswith(".json"):
-            continue
+    for name in list_schemas():
         try:
-            with open(os.path.join(SCHEMA_DIR, name), encoding="utf-8") as handle:
-                raw = _json.load(handle)
-        except (OSError, ValueError):
+            out[name] = schema_summary(name)
+        except (OSError, ValueError):  # pragma: no cover - broken install
             continue
-        entities = raw.get("entities", {})
-        out[name[:-5]] = {
-            "name": name[:-5],
-            "entities": sorted(entities),
-            "summary": raw.get("_comment", "").strip().split("\n")[0],
-            "detail": raw.get("_comment", ""),
-        }
     return out
 
 
@@ -172,7 +163,9 @@ def _entities_for(name: Optional[str]) -> Optional[Dict[str, Any]]:
     entry = SCHEMAS.get(name)
     if entry is None:
         raise HTTPException(status_code=404, detail=f"unknown schema {name!r}; have {sorted(SCHEMAS)}")
-    path = os.path.join(SCHEMA_DIR, f"{name}.json")
+    from contextgc.schemas import schema_path
+
+    path = schema_path(name)
     with open(path, encoding="utf-8") as handle:
         raw = json.load(handle)
     entities = dict(raw.get("entities", {}))
