@@ -15,7 +15,6 @@ from contextgc import (
     StateDAG,
     compile_messages,
     compile_transcript,
-    confidence_from_logprobs,
     parse_declaration,
     render_instruction,
     strip_blocks,
@@ -72,10 +71,16 @@ def test_unknown_keys_are_ignored():
     assert not d.nonsense if hasattr(d, "nonsense") else True
 
 
-def test_accepts_value_confidence_object_form():
-    """The shape a calibrated extractor emits."""
+def test_value_confidence_object_is_rejected_not_flattened():
+    """
+    The `{value, confidence}` shape used to parse and then discard the number.
+
+    Nothing downstream could read a confidence, so accepting the shape implied a
+    capability that did not exist. It is now reported as malformed.
+    """
     d = parse_declaration(block({"unsure":{"rider": {"value": "west gate", "confidence": 0.42}}}))
-    assert d.unsure == {"rider": "west gate"}
+    assert d.malformed is True
+    assert d.unsure == {}
 
 
 def test_multiple_blocks_in_one_turn_are_merged():
@@ -171,13 +176,26 @@ def test_inferred_cannot_overwrite_a_pinned_schema_entity():
     assert dag.active_state["dietary_allergy"].is_immutable is True
 
 
-def test_declared_reassertion_may_lift_a_pin():
-    """Only the agent knows a constraint was deliberately lifted."""
+def test_a_bare_assert_does_not_lift_a_pin():
+    """
+    A pin is a declared constraint. Honouring "later turns cannot overwrite it"
+    is the entire point of pinning it, so a plain assert must be refused.
+    """
     dag = StateDAG()
     dag.register_declaration(0, {}, pins={"spend_cap": "500"})
-    dag.register_declaration(1, {"spend_cap": "5000"})
+    result = dag.register_declaration(1, {"spend_cap": "5000"})
+    assert dag.active_state["spend_cap"].value == "500"
+    assert dag.active_state["spend_cap"].is_immutable is True
+    assert result["rejected"], "the blocked write was not reported"
+
+
+def test_an_explicit_repin_may_lift_a_pin():
+    """Lifting a pin is possible, but it must be asked for by name."""
+    dag = StateDAG()
+    dag.register_declaration(0, {}, pins={"spend_cap": "500"})
+    dag.register_declaration(1, {}, pins={"spend_cap": "5000"})
     assert dag.active_state["spend_cap"].value == "5000"
-    assert dag.active_state["spend_cap"].is_immutable is False
+    assert dag.active_state["spend_cap"].is_immutable is True
 
 
 def test_rejections_are_reported_not_hidden():
@@ -187,7 +205,7 @@ def test_rejections_are_reported_not_hidden():
     result = dag.register_turn(1, "user", "my dietary allergy is now dairy")
     assert result["rejected"], "an override attempt was silently dropped"
     assert result["rejected"][0]["entity"] == "dietary_allergy"
-    assert "IMMUTABLE" in result["rejected"][0]["reason"]
+    assert "pinned" in result["rejected"][0]["reason"]
 
 
 # ---------------------------------------------------------------------------
@@ -267,25 +285,25 @@ def test_protocol_resolves_what_regex_cannot():
     assert telemetry["active_state_slots"]["destination_address"] == "Gate 2"
 
 
-def test_authority_ratio_is_one_when_every_fact_is_declared():
+def test_declared_share_is_one_when_every_fact_is_declared():
     _, telemetry = compile_messages(COMPLIANT)
-    assert telemetry["declarations"]["authority_ratio"] == 1.0
+    assert telemetry["declarations"]["declared_share"] == 1.0
     assert telemetry["state"]["inferred"] == 0
 
 
-def test_authority_ratio_is_none_when_nothing_is_tracked():
+def test_declared_share_is_none_when_nothing_is_tracked():
     """An undefined ratio is more honest than 0.0 for 'no facts exist'."""
     _, telemetry = compile_messages([{"role": "user", "content": "hello there"}])
-    assert telemetry["declarations"]["authority_ratio"] is None
+    assert telemetry["declarations"]["declared_share"] is None
 
 
-def test_authority_ratio_is_zero_for_a_pure_regex_transcript():
+def test_declared_share_is_zero_for_a_pure_regex_transcript():
     _, telemetry = compile_messages([
         {"role": "user", "content": "deliver to Tower B"},
         {"role": "user", "content": "change the address to Gate 2"},
         {"role": "user", "content": "thanks"},
     ])
-    assert telemetry["declarations"]["authority_ratio"] == 0.0
+    assert telemetry["declarations"]["declared_share"] == 0.0
 
 
 def test_revocation_survives_into_telemetry():
@@ -302,7 +320,7 @@ def test_unsettled_assertions_are_marked():
     compiled, telemetry = compile_messages(messages)
     assert telemetry["state"]["unsettled"] == 1
     rendered = "\n".join(m["content"] for m in compiled)
-    assert "UNSETTLED" in rendered
+    assert "unsure" in rendered
 
 
 def test_pinned_declarations_are_marked_in_the_state_register():
@@ -311,7 +329,7 @@ def test_pinned_declarations_are_marked_in_the_state_register():
         {"role": "user", "content": "ok"},
     ]
     compiled, _ = compile_messages(messages)
-    assert "PINNED" in "\n".join(m["content"] for m in compiled)
+    assert "pinned" in "\n".join(m["content"] for m in compiled)
 
 
 def test_protocol_markup_is_stripped_before_reaching_a_model():
@@ -404,9 +422,9 @@ def test_malformed_declarations_are_counted():
     assert telemetry["declarations"]["malformed"] == 1
 
 
-def test_orphaned_fact_invariant_holds_with_declarations():
+def test_retirement_invariant_holds_with_declarations():
     _, telemetry = compile_messages(COMPLIANT)
-    assert telemetry["orphaned_facts"] == []
+    assert telemetry["retirement_violations"] == []
 
 
 def test_compile_transcript_accepts_blocks_in_pasted_text():
@@ -464,33 +482,6 @@ def test_no_network_access_on_the_write_path(monkeypatch):
     monkeypatch.setattr(socket, "socket", forbidden)
     compile_messages(COMPLIANT, teach_protocol=True)
     render_instruction(["a", "b"])
-
-
-# ---------------------------------------------------------------------------
-# Calibrated confidence seam
-# ---------------------------------------------------------------------------
-
-def test_confidence_from_logprobs_is_a_probability():
-    # One candidate far more likely than the other.
-    c = confidence_from_logprobs([0.0, -6.0])
-    assert 0.0 < c < 1.0
-    assert c > 0.99
-
-
-def test_confidence_from_uniform_logprobs_is_a_tie():
-    c = confidence_from_logprobs([0.0, 0.0, 0.0, 0.0])
-    assert c == 0.25
-
-
-def test_confidence_is_shift_invariant():
-    """Log-probs are relative; adding a constant must not change the answer."""
-    assert confidence_from_logprobs([0.0, -2.0]) == confidence_from_logprobs([50.0, 48.0])
-
-
-def test_confidence_rejects_unusable_input():
-    assert confidence_from_logprobs(None) is None
-    assert confidence_from_logprobs([]) is None
-    assert confidence_from_logprobs(["a", "b"]) is None
 
 
 # ---------------------------------------------------------------------------

@@ -28,8 +28,10 @@ from .client import (
 from .sanitizer import ToolSanitizer
 from .state_dag import SOURCE_DECLARED, SOURCE_INFERRED, FactNode, StateDAG
 from .state_protocol import (
+    DECLARING_ROLES,
     StateDeclaration,
-    confidence_from_logprobs,
+    escape_value,
+    normalise_key,
     parse_declaration,
     render_instruction,
     strip_blocks,
@@ -53,10 +55,12 @@ __all__ = [
     "InvariantAuditor",
     "parse_transcript",
     "StateDeclaration",
+    "DECLARING_ROLES",
     "parse_declaration",
     "render_instruction",
     "strip_blocks",
-    "confidence_from_logprobs",
+    "normalise_key",
+    "escape_value",
     "RetiredTurnArchive",
     "VectorMemoryTier",
     "__version__",

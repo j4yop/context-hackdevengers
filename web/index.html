@@ -414,6 +414,28 @@ function render(data){
     banner += `<div class="note warn"><div><b>Parser note.</b> ${esc(w)}</div></div>`;
   });
 
+  // Conflicts are the signal that actually correlates with a wrong state.
+  (t.conflicts || []).forEach(c => {
+    banner += `<div class="note bad"><div><b>Conflict on <code>${esc(c.entity)}</code>.</b>
+      The agent declared <code>${esc(c.declared)}</code> at turn ${c.declared_turn},
+      but the text still says <code>${esc(c.inferred)}</code> at turn ${c.inferred_turn}.
+      The declaration wins, because the agent had the whole conversation when it
+      answered. Check which one is right.</div></div>`;
+  });
+
+  const rejected = t.rejected_writes || [];
+  if (rejected.length){
+    banner += `<div class="note warn"><div><b>${rejected.length} write(s) refused.</b>
+      <ul style="margin:5px 0 0;padding-left:18px">${rejected.slice(0, 6).map(r =>
+        `<li>turn ${r.turn}: ${esc(r.reason || r.kind)}</li>`).join('')}</ul></div></div>`;
+  }
+
+  if (t.context_grew){
+    banner += `<div class="note warn"><div><b>The compiled context is ${t.token_growth}
+      tokens larger than the input.</b> The state register costs more than it saves on a
+      transcript this short. That is real, and it is why the reduction figure reads 0%.</div></div>`;
+  }
+
   /* ---- headline stats ---- */
   const stats = `
     <div class="stats">
@@ -421,7 +443,7 @@ function render(data){
       <div class="stat"><div class="k">Tokens after</div><div class="v num accent">${t.compiled_token_count.toLocaleString()}</div><div class="n">estimated</div></div>
       <div class="stat"><div class="k">Reduction</div><div class="v num ${savedTone}">${pct}%</div><div class="n">${t.tokens_saved.toLocaleString()} saved</div></div>
       <div class="stat"><div class="k">Compile time</div><div class="v num">${t.compile_time_ms}<span style="font-size:13px">ms</span></div><div class="n">measured</div></div>
-      <div class="stat"><div class="k">Declared</div><div class="v num ${t.declarations.authority_ratio === 1 ? 'good' : ''}">${
+      <div class="stat"><div class="k">Declared</div><div class="v num ${t.declarations.declared_share === 1 ? 'good' : ''}">${
         t.declarations.authority_ratio === null ? '—' : Math.round(t.declarations.authority_ratio * 100) + '%'
       }</div><div class="n">${t.declarations.turns_with_block || 0} turn(s) declared</div></div>
     </div>`;
@@ -435,13 +457,15 @@ function render(data){
         <tr>
           <td class="mono">${esc(n.entity)}</td>
           <td class="mono">${esc(n.value)}</td>
-          <td>${n.is_immutable
-              ? '<span class="tag imm">declared / pinned</span>'
-              : n.source === 'declared'
-                ? (n.confidence === 'unsettled'
-                    ? '<span class="tag warn">declared / unsure</span>'
-                    : '<span class="tag decl">declared</span>')
-                : `<span class="tag guess" title="matched by a regex, not declared">inferred</span>`}</td>
+          <td>${n.source === 'declared'
+              ? (n.confidence === 'unsettled'
+                  ? '<span class="tag warn">declared / unsure</span>'
+                  : (n.is_immutable
+                      ? '<span class="tag imm">declared / pinned</span>'
+                      : '<span class="tag decl">declared</span>'))
+              : (n.is_immutable
+                  ? '<span class="tag imm">inferred / pinned</span>'
+                  : '<span class="tag guess" title="matched by a pattern, not declared by the agent">inferred</span>')}</td>
         </tr>`).join('')}</tbody>
     </table>` : '<div class="empty" style="padding:18px">No tracked facts found in this transcript.</div>';
 
@@ -530,12 +554,20 @@ function render(data){
 async function showProtocol(){
   const details = $('proto-details');
   if (!details.open){
+    // Ask the server for the instruction it would build from *this* transcript,
+    // rather than a hardcoded sample. Previously this fetched a fixed string
+    // that diverged from the real one -- the same defect the audit found in the
+    // metrics.
     try{
-      const r = await fetch('/api/example');
-      const d = await r.json();
-      $('proto-text').textContent = d.protocol_help || '(unavailable)';
+      const res = await fetch('/api/protocol-instruction', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ transcript: $('src').value, mode: MODE })
+      });
+      const d = await res.json();
+      $('proto-text').textContent = d.instruction || '(no instruction -- untrusted roles only)';
     }catch(e){
-      $('proto-text').textContent = '(could not load)';
+      $('proto-text').textContent = '(could not reach the server)';
     }
   }
   details.hidden = false;

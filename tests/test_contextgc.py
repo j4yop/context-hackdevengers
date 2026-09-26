@@ -69,17 +69,42 @@ def test_retiring_a_turn_never_orphans_a_live_fact():
     ]
     _, telemetry = compile_messages(messages)
 
-    assert telemetry["orphaned_facts"] == [], (
-        f"facts left without support: {telemetry['orphaned_facts']}"
+    # The real check: nothing we actually retired was the sole support for a
+    # live fact. (The predecessor of this assertion compared the prunable set
+    # to the live set and so could only ever be empty -- it proved nothing.)
+    assert telemetry["retirement_violations"] == [], (
+        f"facts left without support: {telemetry['retirement_violations']}"
     )
     # The value is still reported -- it is simply no longer promoted from a
     # retired turn.
     assert "refund_claim" in telemetry["active_state_slots"]
+    assert 0 not in telemetry["retired_turn_indices"], (
+        "turn 0 solely supports refund_claim and was retired anyway"
+    )
 
 
-def test_get_orphaned_facts_is_empty_for_a_real_transcript():
+def test_retirement_violations_are_empty_for_a_real_transcript():
     _, telemetry = compile_messages(TRANSCRIPT)
-    assert telemetry["orphaned_facts"] == []
+    assert telemetry["retirement_violations"] == []
+
+
+def test_retirement_violations_would_fire_if_we_retired_a_supporting_turn():
+    """
+    The check must be capable of returning non-empty.
+
+    Without this, `retirement_violations` is just a better-written tautology and
+    the suite "proves" it cannot fail.
+    """
+    from contextgc.state_dag import StateDAG
+
+    dag = StateDAG()
+    dag.register_turn(0, "user", "deliver to Tower B. I demand a refund of 99999.")
+    dag.register_turn(1, "user", "change the address to Gate 2")
+
+    # turn 0 is superseded for the address but is the only support for the refund.
+    assert dag.get_retirement_violations({0}), "the invariant cannot fail"
+    assert dag.get_retirement_violations({1}), "a live fact is never supported"
+    assert dag.get_retirement_violations(set()) == []
 
 
 def test_a_turn_supporting_a_live_fact_is_not_retired():
@@ -100,8 +125,11 @@ def test_no_state_leak_when_a_turn_supports_two_entities():
 
     # gate_code was never re-asserted, so turn 0 is its only support.
     assert dag.active_state["gate_code"].value == "1111"
+    # Turn 0 is superseded for the address but is the only support for the code,
+    # so it must not be prunable -- and attempting to retire it must be reported.
     assert 0 not in dag.get_prunable_turns(), "retired the sole support for gate_code"
-    assert dag.get_orphaned_facts() == []
+    violations = dag.get_retirement_violations({0})
+    assert [v["entity"] for v in violations] == ["gate_code"]
 
 
 # ---------------------------------------------------------------------------

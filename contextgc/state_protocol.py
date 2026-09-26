@@ -57,7 +57,7 @@ prompt as if it were prose.
 
 import json
 import re
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 #: Opening and closing fences. Deliberately unlikely to occur in prose.
 OPEN_TAG = "<contextgc-state>"
@@ -70,6 +70,22 @@ _BLOCK_RE = re.compile(
 
 #: Keys the protocol understands. Anything else is ignored rather than guessed at.
 _ASSERT_KEYS = ("assert", "pin", "revoke", "unsure")
+
+#: Only the assistant may declare state.
+#:
+#: This is the load-bearing security boundary of the whole feature. A `tool`
+#: message is a fetched web page, a file read, or an MCP result -- all of it
+#: attacker-influenced. A `user` message is a human quoting documentation, or a
+#: prompt-injection payload someone pasted. A `system` message is a summarised
+#: transcript, which inherits whatever the turns it summarised contained. If any
+#: of those can emit a declaration, then anything the agent reads can rewrite its
+#: authoritative state, and provenance "declared" becomes a mark of forgery
+#: rather than of authority.
+#:
+#: `user` is excluded too, and that costs us: a human cannot directly correct the
+#: agent's state. They do not need to -- the agent reads their correction and
+#: re-declares on its next turn, which is the whole point of the write path.
+DECLARING_ROLES = frozenset({"assistant"})
 
 
 class StateDeclaration:
@@ -107,30 +123,127 @@ class StateDeclaration:
         )
 
 
+def normalise_key(raw: Any) -> str:
+    """
+    Canonicalise a declared key so casing and separator variants cannot fork state.
+
+    Without this, ``destination_address``, ``destinationAddress`` and
+    ``destination-address`` become three independent live keys for one field, and
+    the register asserts three different current values. A model that varies its
+    capitalisation between turns is normal, not adversarial.
+    """
+    text = str(raw or "").strip()
+    if not text:
+        return ""
+    # Split camelCase / PascalCase before lowering, so the boundary survives.
+    text = re.sub(r"(?<=[a-z0-9])(?=[A-Z])", "_", text)
+    text = re.sub(r"[^A-Za-z0-9]+", "_", text)
+    text = re.sub(r"_+", "_", text).strip("_").lower()
+    return text[:64]
+
+
+def escape_value(value: Any) -> str:
+    """
+    Make a value safe to embed in the state register.
+
+    Escapes the two delimiter families that matter: brackets, which could close
+    our block and forge a new one, and angle brackets, which could open a
+    protocol tag and re-enter the parser on the next compile. Brackets alone are
+    not enough -- the state register is re-parsed every turn, so an unescaped
+    ``<contextgc-state>`` in a declared value is a round-trip injection.
+    """
+    text = str(value)
+    for char in ("\\", "\n", "\r", "[", "]", "<", ">"):
+        text = text.replace(char, {"\\": "\\\\", "\n": " ", "\r": " ",
+                                   "[": "(", "]": ")", "<": "&lt;", ">": "&gt;"}[char])
+    return text[:512]
+
+
+def _spans(text: str) -> List[tuple]:
+    """
+    Locate innermost-first protocol blocks by scanning, not by regex.
+
+    Regex with ``.*?`` across an unbalanced tag pairs the *outer* open with the
+    *first* close, so a nested block swallows everything between them and the
+    JSON parse fails. Scanning with a depth counter and emitting on the way down
+    removes the inner block first and leaves the outer one intact, which is the
+    only ordering that can be correct.
+
+    Unterminated blocks are not treated as blocks at all (see
+    :func:`has_block`): a dangling tag is prose someone typed, and silently
+    deleting the rest of their message is worse than ignoring it.
+    """
+    closed = []
+    stack = []
+    i = 0
+    n = len(text)
+    while i < n:
+        nxt_open = text.find(OPEN_TAG, i)
+        nxt_close = text.find(CLOSE_TAG, i)
+        if nxt_open != -1 and nxt_open <= nxt_close:
+            stack.append(nxt_open)
+            i = nxt_open + len(OPEN_TAG)
+        elif nxt_close != -1:
+            if stack:
+                # Record *every* balanced pair, then keep only the innermost.
+                closed.append((stack.pop(), nxt_close + len(CLOSE_TAG)))
+            i = nxt_close + len(CLOSE_TAG)
+        else:
+            break
+
+    # A span that strictly contains another is an outer wrapper, not a block.
+    # Only the innermost pairs are real blocks; their parents are containers
+    # whose own JSON is malformed anyway.
+    return [
+        (a, b) for a, b in closed
+        if not any(a2 < a and b < b2 for a2, b2 in closed)
+    ]
+
+
 def find_blocks(text: Optional[str]) -> List[str]:
-    """Return the raw JSON bodies of every protocol block in ``text``."""
+    """Return the JSON body of every innermost protocol block in ``text``."""
     if not text:
         return []
-    return [m.group("body") for m in _BLOCK_RE.finditer(text)]
+    return [text[a + len(OPEN_TAG):b - len(CLOSE_TAG)].strip() for a, b in _spans(text)]
 
 
 def has_block(text: Optional[str]) -> bool:
-    """True when ``text`` contains at least one protocol block."""
-    return bool(text) and OPEN_TAG in text
+    """True when ``text`` contains a *complete* protocol block.
+
+    A lone opening tag is not a block. Treating it as one would delete the rest
+    of a human's message on the assumption that a close tag was coming.
+    """
+    return bool(text) and bool(_spans(text))
 
 
 def strip_blocks(text: Optional[str]) -> str:
     """
-    Remove every protocol block, leaving the human-readable remainder.
+    Remove every innermost protocol block, leaving the human-readable remainder.
 
     Called before content is sent to a model. Without this, a compliant agent's
     output would feed its own markup back into the next turn's context and the
     transcript would accumulate protocol noise forever.
+
+    A markdown code fence that wrapped the block is closed too, so the model is
+    not left with a dangling ``` . A turn that was *only* a block becomes a
+    single space rather than an empty string, because several providers reject
+    empty assistant content outright.
     """
     if not text:
         return text or ""
-    cleaned = _BLOCK_RE.sub("", text)
-    return re.sub(r"\n{3,}", "\n\n", cleaned).strip()
+
+    cleaned = text
+    for start, end in reversed(_spans(text)):
+        cleaned = cleaned[:start] + "\u0000" + cleaned[end:]
+
+    # Close a fence the block was sitting inside.
+    cleaned = re.sub(r"```[a-zA-Z0-9_+-]*[ \t]*\n?[ \t]*\u0000", "```", cleaned)
+    cleaned = cleaned.replace("\u0000", " ")
+
+    # An emptied turn still needs a body; "" is rejected by some providers.
+    cleaned = re.sub(r"[ \t]+\n", "\n", cleaned)
+    cleaned = re.sub(r"\n{3,}", "\n\n", cleaned).strip()
+    return cleaned if cleaned.strip() else " "
 
 
 def parse_declaration(text: Optional[str]) -> StateDeclaration:
@@ -173,15 +286,17 @@ def parse_declaration(text: Optional[str]) -> StateDeclaration:
                 continue
             target = {"assert": merged.asserts, "pin": merged.pins, "unsure": merged.unsure}[key]
             for entity, val in value.items():
-                name = str(entity).strip()
+                name = normalise_key(entity)
                 if not name:
                     merged.malformed = True
                     continue
-                # Accept both a bare scalar and a {value, confidence} object.
-                if isinstance(val, dict) and "value" in val:
-                    target[name] = str(val["value"])
-                else:
-                    target[name] = str(val)
+                # A `{value, confidence}` object is rejected rather than
+                # silently flattened. It used to parse and then throw the number
+                # away, which made a "calibrated" claim that reached nothing.
+                if isinstance(val, dict):
+                    merged.malformed = True
+                    continue
+                target[name] = str(val)
 
     return merged
 
@@ -215,43 +330,6 @@ def render_instruction(entities: Optional[List[str]] = None) -> str:
         "Emit only keys this turn actually changed. Omit the block entirely if nothing\n"
         "changed. Do not restate unchanged keys." + hint
     )
-
-
-def confidence_from_logprobs(logprobs: Optional[List[float]]) -> Optional[float]:
-    """
-    Turn token log-probabilities into a calibrated confidence in [0, 1].
-
-    The seam for probabilistic extraction. If a model can be asked to choose
-    between a fixed set of candidate values and report log-probabilities for
-    each, this converts that into the number :func:`render_instruction` asks for
-    under ``unsure`` — and, more importantly, into a *threshold* an agent loop
-    can gate on ("re-ask the human below 0.7") instead of a vibe.
-
-    Args:
-        logprobs: log-probability of each candidate, as returned by an OpenAI-
-            compatible ``logprobs`` response. Higher is more likely.
-
-    Returns:
-        Normalised confidence, or None if the input is unusable. Confidence is
-        the probability mass on the best candidate after a softmax over
-        ``exp(logprob)``, which is the correct reading of "these were the
-        alternatives and here is how likely each was".
-    """
-    if not logprobs:
-        return None
-    try:
-        values = [float(x) for x in logprobs]
-    except (TypeError, ValueError):
-        return None
-    if not values:
-        return None
-
-    peak = max(values)
-    weights = [pow(2.718281828459045, v - peak) for v in values]
-    total = sum(weights)
-    if total <= 0:
-        return None
-    return round(max(weights) / total, 4)
 
 
 def declaration_counts(declarations: List[StateDeclaration]) -> Dict[str, int]:

@@ -31,7 +31,9 @@ from pydantic import BaseModel, Field
 
 from contextgc import __version__
 from contextgc.client import compile_messages, compile_transcript
+from contextgc.gc_engine import ContextGCEngine
 from contextgc.state_protocol import render_instruction
+from contextgc.transcript import parse_transcript
 
 # --------------------------------------------------------------------------
 # Configuration
@@ -189,6 +191,29 @@ async def api_compile_messages(req: MessagesRequest, request: Request) -> JSONRe
         content={"compiled_messages": compiled, "telemetry": telemetry},
         headers={"Cache-Control": "no-store"},
     )
+
+
+class InstructionRequest(BaseModel):
+    transcript: str
+    mode: str = "compact"
+
+
+@app.post("/api/protocol-instruction")
+async def api_protocol_instruction(req: InstructionRequest) -> Dict[str, Any]:
+    """
+    The exact state-protocol instruction the engine would inject for this input.
+
+    The website links here rather than showing a hardcoded sample, which used to
+    diverge from the real string -- the same "hardcoded number that does not
+    match reality" defect the audit found in the benchmarks.
+    """
+    messages, _ = parse_transcript(req.transcript)
+    if not messages:
+        return {"instruction": "", "keys": []}
+    engine = ContextGCEngine()
+    engine.process_session(messages, mode=req.mode)
+    keys = sorted(engine.dag.active_state)[:12]
+    return {"instruction": render_instruction(keys), "keys": keys}
 
 
 @app.get("/api/example")
