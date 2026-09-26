@@ -31,11 +31,17 @@ jobs:
           pip install -e ".[dev,bench]"
 
       - name: Fetch the shard
+        # The URL comes from the loader, not from a copy pasted here. An earlier
+        # version of this file hardcoded .../train-00000-of-00100.parquet, which
+        # is a 404 -- the shard is 00012. Nothing would have run until 04:17 UTC.
         run: |
           mkdir -p ~/.cache/contextgc
-          curl -sSfL --retry 3 -o ~/.cache/contextgc/swe-agent-trajectories-00000.parquet \
-            "https://huggingface.co/datasets/nebius/SWE-agent-trajectories/resolve/main/data/train-00000-of-00100.parquet"
+          url="$(python -c 'from benchmarks.corpus import SWE_AGENT_HF_URL; print(SWE_AGENT_HF_URL)')"
+          echo "fetching $url"
+          curl -sSfL --retry 3 --retry-delay 5 \
+            -o ~/.cache/contextgc/swe-agent-trajectories-00000.parquet "$url"
           ls -lh ~/.cache/contextgc/
+          test -s ~/.cache/contextgc/swe-agent-trajectories-00000.parquet
 
       - name: Retirement must not orphan a fact, and context must not grow
         run: |
