@@ -1,20 +1,12 @@
 {
-  "_comment": "The logistics schema that used to be the library default. Measured against real SWE-agent trajectories it produced 75 facts of which every sampled one was prose matched by accident. Kept here as an opt-in example, with the measurement that condemns it.",
+  "_comment": "Derived by measuring 400 APIGen-MT retail conversations, and the result is mostly negative, which is the point of writing it down.\n\nThe premise of this library is that a domain has a high-frequency mutable entity that is genuinely last-write-wins. Measured on retail customer service, that is close to false:\n\n  entity            spoken   machine   machine share   supersedes\n  delivery_address     51      1048            95%          15%  (26 of 400 convs)\n  payment_method      141      3701            86%           1%  (109 convs)\n  order_id            625      2340            79%           5%  (309 convs)\n  refund_amount      2280         -             -           93%  (388 convs)\n\nThree findings, and the first two are negative:\n\n1. 79-95% of every entity's mentions live in tool output, which the read path may\n   not read. This is the same structural limit found in the airline domain, and it\n   is a property of tool-heavy support traffic rather than of this tracker.\n\n2. Supersession is rare. Payment method changes in 1% of conversations, the order\n   in 5%. A last-write-wins tracker has almost nothing to overwrite here. This is\n   the honest headline: retail is a poor fit, and no amount of pattern tuning\n   changes that.\n\n3. refund_amount is deliberately absent despite being the most-mentioned quantity\n   in the data, at 2,280 spoken mentions. It 'changes' in 93% of conversations\n   because a retail conversation contains many different dollar amounts -- item\n   prices, totals, price differences -- not because one of them is being\n   corrected. Putting them in one last-write-wins slot would be the same mistake\n   as modelling origin and destination as a single airport code, and the same\n   mistake as the schema this file replaces. A slot that changes constantly\n   because it means several things at once tracks nothing.\n\nSo this schema tracks the two entities that survive the measurement. delivery_address\nis the one genuine last-write-wins slot: a delivery has one address and the user can\nchange it, which is what modify_pending_order_address exists for. It is required to\nlook like a street address, because that is the only shape that distinguishes an\naddress from the payment methods and prose that broke the previous version.\n\npayment_method is included because it is spoken (141 mentions) and is a real piece\nof current state even though it rarely changes. It is matched only with a\npossessive or a payment verb, so 'use my gift card' records a payment method\nrather than a destination.",
   "entities": {
-    "destination_address": [
-      "(?:deliver to|bring it to|change (?:the )?(?:address|destination) to|my address is|come to|new address:?|confirmed as|destination is|actually (?:use|send (?:it|them) to)|reroute (?:the rider )?to|use)\\s+([A-Za-z0-9\\s,\u2013#-]{4,40}?)(?:\\.|\\,|$|\\bwith\\b|\\band\\b|\\bplease\\b|\\bfor\\b)",
-      "(?:at|in|to)\\s+(Tower\\s+[A-Za-z0-9]+(?:\\s*,\\s*Flat\\s+[0-9]+)?|Clubhouse(?:\\s+[A-Za-z0-9\\s]+)?|Gate\\s+[0-9]+(?:\\s+Security\\s+Entrance)?|Flat\\s+[0-9]+|Apartment\\s+[0-9]+|Security\\s+Desk)"
+    "delivery_address": [
+      "\\b(\\d{1,5}\\s+[A-Z][A-Za-z.'-]+(?:\\s+[A-Z][A-Za-z.'-]+)?\\s+(?:Street|St|Avenue|Ave|Road|Rd|Drive|Dr|Lane|Ln|Boulevard|Blvd|Way|Court|Ct|Place|Pl|Terrace|Ter|Circle|Cir|Parkway|Pkwy)\\b(?:\\s*,\\s*(?:Apt|Apartment|Suite|Ste|Unit|Rm)\\s*[\\w-]+)?(?:\\s*,\\s*[A-Z][A-Za-z]+(?:\\s+[A-Z][A-Za-z]+)?)?(?:\\s*,\\s*[A-Z]{2})?(?:\\s*,?\\s*\\d{5}(?:-\\d{4})?)?)"
     ],
-    "gate_code": [
-      "(?:gate code|passcode|entry code|security pin|security code|otp is)\\s*(?:is|to|=|:)?\\s*([0-9]{4,6})"
-    ],
-    "refund_claim": [
-      "(?:refund|credit back|give my money back|chargeback)\\s*(?:of|for)?\\s*(?:\u20b9|rs\\.?|inr)?\\s*([0-9]+)"
-    ],
-    "dietary_allergy": [
-      "\\b(?:no\\s+(?:peanuts?|dairy|gluten|soy|eggs?|nuts?|shellfish))\\b",
-      "\\b([A-Za-z]{3,20}?)\\s+allergy\\b"
+    "payment_method": [
+      "\\b(?:my|the|our)\\s+(?:existing\\s+|saved\\s+|current\\s+)?(gift card|gift card balance|credit card|paypal|paypal account|debit card)\\b",
+      "\\b(?:pay|refund|charge|settle|use|using|process)\\w*\\s+(?:using|via|with|to|from)\\s+(?:my\\s+|the\\s+)?(gift card|credit card|paypal)\\b"
     ]
-  },
-  "__immutable__": ["dietary_allergy"]
+  }
 }

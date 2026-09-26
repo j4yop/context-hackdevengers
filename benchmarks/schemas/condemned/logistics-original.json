@@ -1,0 +1,22 @@
+{
+  "_comment": "CONDEMNED. Kept as evidence, not as a schema.\n\nThis was the library's default before the rewrite, and the reason the default was emptied. Measured on 80 real APIGen-MT retail conversations -- real customer-service traffic with real tool calls -- it extracted 46 facts, and every one read in context was wrong. Fourteen of fourteen, judged by reading the registering turn:\n\n  destination_address = \"perfectly suit my needs\"\n  destination_address = \"for any price difference\"\n  destination_address = \"my existing PayPal account\"\n  destination_address = \"the Visa card ending in 2364\"\n\nThe `use` trigger is the culprit: in a retail conversation \"use\" is almost always about money. The original 60-transcript coding sample produced three examples of the same failure; this is the same defect at scale, on data that is actually the domain the schema was written for.\n\nDo not copy these patterns. The measured replacement is contextgc/schemas/logistics.json.",
+  "entities": {
+    "destination_address": [
+      "(?:deliver to|bring it to|change (?:the )?(?:address|destination) to|my address is|come to|new address:?|confirmed as|destination is|actually (?:use|send (?:it|them) to)|reroute (?:the rider )?to|use)\\s+([A-Za-z0-9\\s,\u2013#-]{4,40}?)(?:\\.|\\,|$|\\bwith\\b|\\band\\b|\\bplease\\b|\\bfor\\b)",
+      "(?:at|in|to)\\s+(Tower\\s+[A-Za-z0-9]+(?:\\s*,\\s*Flat\\s+[0-9]+)?|Clubhouse(?:\\s+[A-Za-z0-9\\s]+)?|Gate\\s+[0-9]+(?:\\s+Security\\s+Entrance)?|Flat\\s+[0-9]+|Apartment\\s+[0-9]+|Security\\s+Desk)"
+    ],
+    "gate_code": [
+      "(?:gate code|passcode|entry code|security pin|security code|otp is)\\s*(?:is|to|=|:)?\\s*([0-9]{4,6})"
+    ],
+    "refund_claim": [
+      "(?:refund|credit back|give my money back|chargeback)\\s*(?:of|for)?\\s*(?:\u20b9|rs\\.?|inr)?\\s*([0-9]+)"
+    ],
+    "dietary_allergy": [
+      "\\b(?:no\\s+(?:peanuts?|dairy|gluten|soy|eggs?|nuts?|shellfish))\\b",
+      "\\b([A-Za-z]{3,20}?)\\s+allergy\\b"
+    ]
+  },
+  "__immutable__": [
+    "dietary_allergy"
+  ]
+}

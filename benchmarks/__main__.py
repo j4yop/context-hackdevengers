@@ -27,7 +27,10 @@ def _load(args):
         return load_synthetic(args.corpus_path)
     if args.corpus == "apigen":
         from .corpus import load_apigen_mt
-        return load_apigen_mt(limit=args.limit, path=args.corpus_path)
+        return load_apigen_mt(
+            limit=args.limit, path=args.corpus_path,
+            domain=getattr(args, "domain", None),
+        )
     return load_swe_agent(
         limit=args.limit,
         min_turns=args.min_turns,
@@ -93,8 +96,13 @@ def cmd_run(args):
     result = run_harness(transcripts, schema=_schema(args.schema))
     from .gold import labels_path_for
 
+    # The schema name is the better key: a label judges one schema's extractions,
+    # and APIGen-MT is sliced two ways.
     precision = score_precision(
-        result.extractions, labels_path=labels_path_for((result.corpus or {}).get("corpus_source"))
+        result.extractions,
+        labels_path=labels_path_for(
+            (result.corpus or {}).get("corpus_source"), args.schema
+        ),
     )
     print(render(result))
     print()
@@ -231,6 +239,11 @@ def main(argv=None):
         )
         p.add_argument("--corpus-path", help="local parquet shard or synthetic transcript file")
         p.add_argument("--min-turns", type=int, default=8)
+        p.add_argument(
+            "--domain",
+            help="for --corpus apigen: keep one policy domain, e.g. retail or "
+                 "airline. The file interleaves both.",
+        )
         p.add_argument(
             "--per-repo",
             type=int,
