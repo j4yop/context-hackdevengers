@@ -1045,3 +1045,56 @@ def test_a_negator_in_an_earlier_sentence_does_not_reject_the_next_claim():
         "Let's modify the `reproduce.py` file to reflect this change."
     )
     assert _is_rejected(text, text.index("reproduce.py")) is False
+
+
+# --- deployment ---------------------------------------------------------------
+#
+# The live site returned HTTP 500 on every route for as long as this
+# configuration existed, because the Vercel function could not import fastapi.
+# The build reported "Installing required dependencies from pyproject.toml" --
+# and pyproject declares no runtime dependencies, because the *library* has none
+# by design. The web framework lives in an optional extra, so any deployment that
+# installs from pyproject gets a server with no server.
+
+def test_the_server_requirements_match_the_declared_server_extra():
+    """
+    `server/requirements.txt` is what the Vercel Python builder installs from,
+    because the build entry is `server/main.py` and the builder resolves the
+    requirements file next to its entrypoint. It has to stay in step with the
+    `server` extra in pyproject.toml, or the site breaks in a way no unit test
+    notices: the build succeeds, the status check is green, and every route
+    returns 500.
+    """
+    import os
+    import re
+
+    here = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+    with open(os.path.join(here, "pyproject.toml"), encoding="utf-8") as handle:
+        pyproject = handle.read()
+    def names(specs):
+        # "fastapi>=0.110" and "fastapi" are the same requirement here; this guard
+        # is about a package going missing, not about a version moving.
+        return {re.split(r"[<>=!~\[]", spec, 1)[0].strip() for spec in specs}
+
+    match = re.search(r'^server = \[(.*?)\]', pyproject, re.M | re.S)
+    assert match, "pyproject.toml no longer declares a `server` extra"
+    declared = names(re.findall(r'"([^"]+)"', match.group(1)))
+
+    requirements = os.path.join(here, "server", "requirements.txt")
+    assert os.path.exists(requirements), (
+        "server/requirements.txt is missing. The Vercel builder resolves "
+        "requirements.txt next to its entrypoint (server/main.py), so without "
+        "this file the function imports no web framework and every route "
+        "returns 500 with FUNCTION_INVOCATION_FAILED."
+    )
+    with open(requirements, encoding="utf-8") as handle:
+        pinned = names([
+            line for line in handle
+            if line.strip() and not line.strip().startswith("#")
+        ])
+
+    assert pinned == declared, (
+        f"server/requirements.txt {sorted(pinned)} does not match the pyproject "
+        f"`server` extra {sorted(declared)}"
+    )
