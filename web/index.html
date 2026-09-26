@@ -362,7 +362,12 @@ async function loadExample(kind){
     const d = await r.json();
     $('src').value = (kind === 'write' && d.write_path_example) ? d.write_path_example : d.transcript;
     if (kind === 'write') setTeach(true);
-    const g = guessSchemaFor($('src').value);
+    // The example says which schema it was written against. Guessing from the
+    // text is how a stale example kept looking plausible: it inferred a schema
+    // whose patterns no longer matched anything, and the page showed an empty
+    // register without saying why.
+    const declared = d.entity_schema;
+    const g = (declared && SCHEMAS[declared]) ? declared : guessSchemaFor($('src').value);
     if (g && SCHEMAS[g]) { SCHEMA = g; $('schem').value = g; }
     syncSchemaNote();
   }catch(e){

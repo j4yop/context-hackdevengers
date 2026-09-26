@@ -1098,3 +1098,84 @@ def test_the_server_requirements_match_the_declared_server_extra():
         f"server/requirements.txt {sorted(pinned)} does not match the pyproject "
         f"`server` extra {sorted(declared)}"
     )
+
+
+def test_the_shipped_example_exercises_a_measured_schema():
+    """
+    The website's example transcript was written for the logistics patterns that
+    measurement later replaced, so it still loaded, still compiled, and produced
+    an empty state register. Nothing failed: the endpoint returned 200 and the
+    page rendered. It just demonstrated nothing.
+
+    This asserts the example produces real state, a real supersession, and no
+    retirement violations, using a schema that exists.
+    """
+    from contextgc import compile_transcript, list_schemas, load_schema
+    from server.example import example
+
+    payload = example()
+    schema_name = payload["entity_schema"]
+    assert schema_name in list_schemas(), (
+        f"the example names a schema that does not ship: {schema_name!r}"
+    )
+    schema = load_schema(schema_name)
+    assert schema, f"{schema_name} has no patterns, so the example cannot track anything"
+
+    _, telemetry, _ = compile_transcript(
+        payload["transcript"], schema=schema, mode="compact"
+    )
+    assert telemetry["active_state_slots"], (
+        "the shipped example compiles to an empty state register, so the site "
+        "demonstrates nothing"
+    )
+    assert telemetry["retired_turn_count"] >= 1, (
+        "the example is meant to exercise supersession and does not"
+    )
+    assert telemetry["retirement_violations"] == []
+
+    # And the write-path variant must actually declare, not merely mention.
+    _, declared_telemetry, _ = compile_transcript(
+        payload["write_path_example"], schema=schema, mode="compact"
+    )
+    assert declared_telemetry["declarations"]["turns_with_block"] >= 1, (
+        "the write-path example contains no state block"
+    )
+    assert declared_telemetry["active_state_slots"], (
+        "the write-path example tracks nothing"
+    )
+
+
+def test_the_example_tool_payloads_are_shaped_like_real_ones():
+    """
+    A tool result is the bare JSON payload filed under `user`, which is what both
+    measured corpora contain. An example that writes `tool [name]: {...}`
+    instead looks like it exercises compaction while the detector correctly
+    ignores it.
+    """
+    from contextgc import ToolSanitizer, parse_transcript
+    from server.example import example
+
+    messages, _ = parse_transcript(example()["transcript"])
+    machine = [
+        m for m in messages
+        if ToolSanitizer.looks_like_tool_output(m["content"], m["role"])
+    ]
+    assert machine, "the example has no recognisable tool output"
+
+
+def test_example_declaration_blocks_survive_text_parsing():
+    """
+    A newline inside a text transcript starts the next turn, so a block on its
+    own line loses its role and is then read as something the user said -- which
+    the protocol correctly refuses to believe. Inline is the only form that
+    works in a text transcript.
+    """
+    from contextgc import parse_transcript
+    from server.example import example
+
+    messages, _ = parse_transcript(example()["write_path_example"])
+    assistants = [m for m in messages if m["role"] == "assistant"]
+    assert assistants, "no assistant turns survived parsing"
+    assert all("<contextgc-state>" in m["content"] for m in assistants), (
+        "a declaration block ended up on a non-assistant turn"
+    )

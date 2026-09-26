@@ -283,35 +283,19 @@ async def api_protocol_instruction(req: InstructionRequest) -> Dict[str, Any]:
 
 @app.get("/api/example")
 def example() -> Dict[str, Any]:
-    """A short transcript that actually exercises supersession."""
-    return {
-        "transcript": "\n".join([
-            "system: You are a delivery support agent.",
-            "user: Please deliver order ORD-9941 to Tower B, Flat 402. I have a severe peanut allergy.",
-            'tool [inventory]: {"items": [{"name": "Toned Milk 500ml", "price": 28}, {"name": "Whole Milk 1L", "price": 34}, {"name": "Paneer 200g", "price": 95}, {"name": "Biscuits", "price": 40}, {"name": "Tea 250g", "price": 120}, {"name": "Coffee 100g", "price": 250}, {"name": "Peanut Butter 500g", "price": 199, "warning": "PEANUT_ALLERGEN"}, {"name": "Rice 1kg", "price": 60}, {"name": "Dal 1kg", "price": 140}, {"name": "Sugar 1kg", "price": 45}, {"name": "Salt 1kg", "price": 28}, {"name": "Oil 1L", "price": 130}, {"name": "Soap", "price": 55}, {"name": "Shampoo", "price": 210}, {"name": "Toothpaste", "price": 95}]}',
-            "assistant: Confirmed order ORD-9941, routing to Tower B, Flat 402. Peanut allergy noted.",
-            "user: Actually the elevator in Tower B is broken. Deliver to the Clubhouse security desk instead.",
-            "assistant: Updated. Delivery is now routed to the Clubhouse security desk.",
-            "user: Wait, my friend is at Gate 2 security entrance right now. Reroute there. Entry code 4921.",
-            "assistant: Rerouted to Gate 2 security entrance, code 4921.",
-            "user: Thanks.",
-        ]),
-        "write_path_example": "\n".join([
-            "system: You are a delivery support agent.",
-            "user: Deliver ORD-9941 to Tower B, Flat 402. Severe peanut allergy.",
-            "assistant: Confirmed, routing to Tower B.\n<contextgc-state>{\"assert\":{\"order_id\":\"ORD-9941\",\"destination_address\":\"Tower B, Flat 402\"},\"pin\":{\"dietary_allergy\":\"peanut\"}}</contextgc-state>",
-            "user: The elevator is broken. Send it to the new place instead.",
-            "assistant: Moved to the Clubhouse security desk.\n<contextgc-state>{\"assert\":{\"destination_address\":\"Clubhouse security desk\"}}</contextgc-state>",
-            "user: Actually my friend is at Gate 2. Reroute there, code 4921.",
-            "assistant: Rerouted.\n<contextgc-state>{\"assert\":{\"destination_address\":\"Gate 2\",\"gate_code\":\"4921\"}}</contextgc-state>",
-            "user: Wait, the order was cancelled.",
-            "assistant: Cancelled.\n<contextgc-state>{\"revoke\":[\"gate_code\",\"order_id\"]}</contextgc-state>",
-            "user: OK.",
-        ]),
-        "protocol_help": render_instruction([
-            "destination_address", "gate_code", "order_id", "dietary_allergy",
-        ]),
-    }
+    """
+    A short transcript that actually exercises supersession.
+
+    The content lives in ``server/example.py`` because it is data rather than
+    logic, and because its correctness is easy to break in a way nothing else
+    notices: an example written for schemas that measurement has since replaced
+    still loads, still compiles, and demonstrates nothing at all.
+    """
+    from .example import example as build
+
+    payload = build()
+    payload["protocol_help"] = render_instruction(["active_reservation", "cabin_class"])
+    return payload
 
 
 # --------------------------------------------------------------------------

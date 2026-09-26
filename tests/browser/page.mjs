@@ -145,7 +145,14 @@ await page.waitForTimeout(1200);
 const afterExample = await page.$eval('#schem', el => el.value);
 ok(afterExample !== '', 'example auto-selected a schema', `chose "${afterExample}"`);
 const exText = await page.textContent('#result');
-ok(/Gate 2|Tower B|Reduction/.test(exText), 'example produced a real result');
+ok(/ACTIVE_AGENT_STATE/.test(exText), 'example produced a state register');
+ok(
+  /current_file = "|cabin_class = "|destination_address = "|active_reservation = "/
+    .test(exText),
+  'example actually tracked a value',
+  exText.slice(0, 120).replace(/\s+/g, ' ')
+);
+ok(!/No state tracked/.test(exText), 'example did not fall through to an empty state');
 
 console.log('\n10. responsive: no horizontal overflow at any phone width');
 // Checked in the state the previous steps leave the page in, not on a fresh
