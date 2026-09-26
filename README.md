@@ -1,19 +1,27 @@
 # 🧹 ContextGC: Autonomous Semantic Context Defragmenter for AI Agents
 
-> **Built for *Hack Devengers 2.0* (Open Innovation — AI, Developer Tools & Automation Track)**  
+> 🏆 **Top 50 Winner (Rank #46 out of ~1,500 Submissions)** at [*Hack Devengers 2.0*](https://unstop.com/hackathons/hack-devengers-20-devengers-1749441)  
+> **Track:** Open Innovation (AI, Developer Tools & Automation)  
 > **Author:** Jay Gopal Tripathy ([@j4yop](https://github.com/j4yop))  
 > **Live Deployment:** [https://context-hackdevengers.vercel.app](https://context-hackdevengers.vercel.app)  
 > **Interactive Pitch Deck:** [https://context-hackdevengers.vercel.app/presentation](https://context-hackdevengers.vercel.app/presentation)  
-> **Submission Manifest:** [`SUBMISSION.md`](file:///Users/jaygopal/context-hackdevengers/SUBMISSION.md)
+> **Submission Manifest:** [`SUBMISSION.md`](SUBMISSION.md)
 
+[![Hack Devengers 2.0](https://img.shields.io/badge/Hack%20Devengers%202.0-Top%2050%20(Rank%20%2346)-ffd700.svg?style=flat&logo=target)](https://unstop.com/hackathons/hack-devengers-20-devengers-1749441)
 [![CI Build](https://github.com/j4yop/context-hackdevengers/actions/workflows/ci.yml/badge.svg)](https://github.com/j4yop/context-hackdevengers/actions)
 [![Live Demo](https://img.shields.io/badge/Demo-context--hackdevengers.vercel.app-emerald.svg)](https://context-hackdevengers.vercel.app)
 [![Pitch Deck](https://img.shields.io/badge/Deck-6--Slide%20Presentation-cyan.svg)](https://context-hackdevengers.vercel.app/presentation)
 [![Tests](https://img.shields.io/badge/Tests-27%20Passed-brightgreen.svg)]()
-[![Hackathon](https://img.shields.io/badge/Hackathon-Hack%20Devengers%202.0-yellow.svg)](https://unstop.com/hackathons/hack-devengers-20-devengers-1749441)
 [![Track](https://img.shields.io/badge/Track-Open%20Innovation%20(AI%20%26%20DevTools)-blue.svg)]()
 [![Python](https://img.shields.io/badge/Python-3.11+-brightgreen.svg)]()
 [![License](https://img.shields.io/badge/License-MIT-purple.svg)](LICENSE)
+
+---
+
+> [!NOTE]
+> ### 🏆 Hack Devengers 2.0 Leaderboard Recognition
+> **ContextGC** was awarded **Rank #46 in the Top 50 Leaderboard** out of ~1,500 submissions at [Hack Devengers 2.0](https://unstop.com/hackathons/hack-devengers-20-devengers-1749441).  
+> Recognized for its inline sub-3ms Neuro-Symbolic State DAG, semantic dead-branch garbage collection, and ~70% prompt token reduction for long-horizon AI agents.
 
 
 ---
