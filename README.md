@@ -173,7 +173,8 @@ repositories and every number below inherits that narrowness.
 | tool payloads compacted | 668 | 72 |
 | retirement violations | 0 | 0 |
 | contexts that grew | 0 | 0 |
-| precision, independent units | 100% (n=39, CI 90–100%) | 100% (n=72, CI 95–100%) |
+| precision (rows) | 100% (n=39) | 100% (n=72) |
+| precision (independent units) | 100% (n=36, CI 90–100%) | 100% (n=72, CI 95–100%) |
 
 Run either with `--corpus swe-agent` or `--corpus apigen`.
 
@@ -206,7 +207,8 @@ PRECISION (hand-labelled sample)
     correct              39
     incorrect             0
   PRECISION (rows)       100%   (n=39)
-  PRECISION (clusters)   100%   (n=39, 95% CI 90-100%)
+  n is inflated          39 rows collapse to 36 independent units
+  PRECISION (clusters)   100%   (n=36, 95% CI 90-100%)
   repositories covered  20
 ```
 
@@ -214,7 +216,7 @@ Every count above is deterministic and reproduces exactly. The two `compile_ms`
 figures are wall-clock on one machine and move run to run — treat them as "single
 -digit milliseconds", not as a benchmark.
 
-**The interval is the finding, not the point estimate.** 39 independent judgements
+**The interval is the finding, not the point estimate.** 36 independent judgements
 cannot distinguish 95% from 100%, and one repository contributes a handful of them.
 This still catches gross regression; it is not a claim about unseen transcripts. The
 labels and the loader settings that produced them are committed
@@ -346,13 +348,14 @@ inherited that.
 Both are fixed rather than caveated. The loader takes `--per-repo` (default 2), so
 a run spans as many repositories as the shard allows — **20** for the same 40
 transcripts. The label set was re-read from scratch, one extraction per
-`(repository, turn)`, giving 39 independent judgements across 20 repositories. The
+`(repository, turn)` — 39 rows, which collapse to 36 independent units, across 20
+repositories. The
 report now prints the row count *and* the clustered count, so a reader can see
 when `n` is inflated, plus a 95% Wilson interval so a point estimate is not
 mistaken for a measurement.
 
 This changed the headline: the previous **88% (n=16)** was, on independent units,
-**100% (n=39, 95% CI 90–100%)** from a far wider sample — and a naive re-run of
+**100% (n=36, 95% CI 90–100%)** from a far wider sample — and a naive re-run of
 the old labels against the widened corpus collapsed to **n=2**, which is what
 exposed the problem in the first place. It then had to be re-read a second time,
 because fixing the repeat bug in defect 6 changed what the compiler extracts.
