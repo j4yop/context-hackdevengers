@@ -102,7 +102,7 @@
   tr:last-child td { border-bottom:none; }
   td.mono, th.mono { font-family:var(--mono); font-size:12.5px; }
   .tag { display:inline-block; font-family:var(--mono); font-size:11px; font-weight:600; padding:2px 7px;
-    border-radius:999px; white-space:nowrap; }
+    border-radius:999px; white-space:nowrap; max-width:100%; overflow-wrap:anywhere; }
   .tag.imm { background:var(--good-bg); color:var(--good); border:1px solid var(--good-line); }
   .tag.ret { background:var(--panel-2); color:var(--ink-2); border:1px solid var(--line); }
   .tag.del { background:var(--bad-bg); color:var(--bad); border:1px solid var(--bad-line); }
@@ -123,7 +123,8 @@
   /* Long identifiers, URLs and diffs must wrap rather than widen the page. */
   .mono, .num, td, th, p, li, label, span { overflow-wrap:anywhere; }
   table { table-layout:fixed; width:100%; }
-  td, th { overflow-wrap:anywhere; word-break:break-word; }
+  td, th { overflow-wrap:anywhere; word-break:break-word; min-width:0; }
+  td .tag { white-space:normal; }
   header .wrap { min-width:0; }
   nav { min-width:0; flex-wrap:wrap; }
   .card, .card > .body, section, .stats > *, .how > * { min-width:0; }

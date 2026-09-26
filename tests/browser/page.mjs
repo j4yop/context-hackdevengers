@@ -135,7 +135,7 @@ ok(afterExample !== '', 'example auto-selected a schema', `chose "${afterExample
 const exText = await page.textContent('#result');
 ok(/Gate 2|Tower B|destination_address|Reduction/.test(exText), 'example produced a real result');
 
-console.log('\n10. responsive: no horizontal overflow at 375px');
+console.log('\n10. responsive: no horizontal overflow at any phone width');
 // Checked in the state the previous steps leave the page in, not on a fresh
 // load: a fresh load fit fine locally while the post-interaction state overflowed
 // by 5px in CI. A responsive check that only ever sees one state is decoration.
