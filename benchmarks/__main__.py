@@ -79,9 +79,10 @@ def cmd_run(args):
     if not transcripts:
         sys.exit("no transcripts matched the filters")
     result = run_harness(transcripts, schema=_schema(args.schema))
+    precision = score_precision(result.extractions)
     print(render(result))
     print()
-    print(render_precision(score_precision(result.extractions)))
+    print(render_precision(precision))
     print()
     if args.show_extractions:
         print()
@@ -97,8 +98,14 @@ def cmd_run(args):
         print()
         print("invariants: retirement_violations=0, contexts_that_grew=0")
     if args.json:
+        payload = result.as_dict()
+        # Precision belongs in the machine-readable output. It used to exist only
+        # in the printed report, which meant the one number a reviewer would want
+        # to check could not be checked by anything -- including CI, which is how
+        # a label file was able to drift out of sync with the corpus unnoticed.
+        payload["precision"] = precision
         with open(args.json, "w", encoding="utf-8") as handle:
-            json.dump(result.as_dict(), handle, indent=2)
+            json.dump(payload, handle, indent=2)
         print(f"\nfull results -> {args.json}")
     return 0
 

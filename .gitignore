@@ -9,3 +9,7 @@ dist/
 venv/
 .env
 .vercel/
+
+# Browser test driver (tests/browser/package.json is committed on purpose).
+node_modules/
+package-lock.json

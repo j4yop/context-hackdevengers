@@ -639,3 +639,87 @@ def test_check_passes_on_the_vendored_corpus():
         cli.cmd_run(Args())
     except SystemExit as exc:  # pragma: no cover - would be a real failure
         pytest.fail(f"--check failed on the vendored corpus: exit {exc.code}")
+
+
+def test_precision_is_in_the_machine_readable_output(tmp_path):
+    """
+    It used to exist only in the printed report, so the one number a reviewer
+    would want to verify could not be verified by anything -- including CI.
+    """
+    import json as _json
+
+    from benchmarks import __main__ as cli
+
+    out = tmp_path / "bench.json"
+
+    class Args:
+        corpus = "synthetic"
+        corpus_path = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+            "benchmarks", "corpus", "sample.txt",
+        )
+        min_turns = 8
+        per_repo = 2
+        limit = 100
+        schema = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+            "benchmarks", "schemas", "coding.json",
+        )
+        show_extractions = 0
+        check = False
+        json = str(out)
+
+    cli.cmd_run(Args())
+    payload = _json.loads(out.read_text())
+    assert "precision" in payload, "the JSON has no precision to check"
+    for key in ("n_labelled", "n_unmatched_labels", "n_clusters",
+                "cluster_precision", "ci95", "n_repos"):
+        assert key in payload["precision"], f"precision is missing {key}"
+
+
+def test_a_drifted_label_file_is_visible_in_the_json(tmp_path):
+    """
+    The failure this exists to catch: labels that no longer line up with the
+    corpus produce a precision figure that looks healthy in the JSON while
+    measuring nothing.
+    """
+    import json as _json
+
+    from benchmarks import __main__ as cli
+
+    drifted = tmp_path / "precision.json"
+    original = _json.loads(open(gold.LABELS_PATH, encoding="utf-8").read())
+    for label in original:
+        label["transcript"] = "nowhere-" + label["transcript"]
+    drifted.write_text(_json.dumps(original))
+
+    out = tmp_path / "bench.json"
+
+    class Args:
+        corpus = "synthetic"
+        corpus_path = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+            "benchmarks", "corpus", "sample.txt",
+        )
+        min_turns = 8
+        per_repo = 2
+        limit = 100
+        schema = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+            "benchmarks", "schemas", "coding.json",
+        )
+        show_extractions = 0
+        check = False
+        json = str(out)
+
+    real_labels = gold.LABELS_PATH
+    try:
+        gold.LABELS_PATH = str(drifted)
+        cli.cmd_run(Args())
+    finally:
+        gold.LABELS_PATH = real_labels
+
+    precision = _json.loads(out.read_text())["precision"]
+    assert precision["n_labelled"] == 0
+    assert precision["n_unmatched_labels"] > 0
+    assert precision["precision"] is None

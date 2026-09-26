@@ -1,0 +1,87 @@
+# Nightly, because it needs the network and 85 MB.
+#
+# The pull-request benchmark job runs a 6-transcript vendored sample on purpose:
+# fast, hermetic, no download. The cost is that the 36 hand-placed precision
+# labels, the --per-repo sampling and the known-failure guard are never exercised
+# in CI, so a label file that has drifted out of sync with the corpus looks
+# exactly like a healthy build. It did, until this job existed and immediately
+# reported 20 of 24 labels matching nothing.
+name: real corpus
+
+on:
+  schedule:
+    # 04:17 UTC. Not on the hour, so this does not pile onto the top-of-hour
+    # Actions queue that everyone else's cron lands on.
+    - cron: "17 4 * * *"
+  workflow_dispatch:
+
+jobs:
+  precision:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev,bench]"
+
+      - name: Fetch the shard
+        run: |
+          mkdir -p ~/.cache/contextgc
+          curl -sSfL --retry 3 -o ~/.cache/contextgc/swe-agent-trajectories-00000.parquet \
+            "https://huggingface.co/datasets/nebius/SWE-agent-trajectories/resolve/main/data/train-00000-of-00100.parquet"
+          ls -lh ~/.cache/contextgc/
+
+      - name: Retirement must not orphan a fact, and context must not grow
+        run: |
+          python -m benchmarks run \
+            --corpus-path ~/.cache/contextgc/swe-agent-trajectories-00000.parquet \
+            --limit 40 --per-repo 2 \
+            --schema benchmarks/schemas/coding.json \
+            --check
+
+      - name: The labelled sample must still match the corpus
+        # A label file that no longer lines up is a measurement that has quietly
+        # stopped measuring anything, and the report only warns about it.
+        run: |
+          python -m benchmarks run \
+            --corpus-path ~/.cache/contextgc/swe-agent-trajectories-00000.parquet \
+            --limit 40 --per-repo 2 \
+            --schema benchmarks/schemas/coding.json \
+            --json /tmp/real.json
+          python - <<'PY'
+          import json, sys
+          data = json.load(open("/tmp/real.json"))
+          precision = data.get("precision") or {}
+          matched = precision.get("n_labelled", 0)
+          supplied = matched + precision.get("n_unmatched_labels", 0)
+          print(f"labels matched: {matched}/{supplied}")
+          if not matched:
+              print("FAIL  no label matched any extraction; the label file has "
+                    "drifted from the corpus, so the precision figure is fiction.")
+              sys.exit(1)
+          if precision.get("n_unmatched_labels"):
+              print(f"FAIL  {precision['n_unmatched_labels']} label(s) drifted "
+                    "from the corpus.")
+              sys.exit(1)
+          clusters = precision.get("n_clusters")
+          print(f"independent units: {clusters}, precision: {precision.get('cluster_precision')}")
+          if clusters is not None and clusters < 20:
+              print(f"FAIL  only {clusters} independent units; the sample is too "
+                    "clustered to quote. Re-read the labels.")
+              sys.exit(1)
+          PY
+
+      - name: The known failures must still be known failures
+        # Runs the two confirmed different-sentence errors. If a change fixes
+        # them this fails on purpose: the entry should be deleted deliberately.
+        run: pytest tests/test_benchmarks.py -q -k "known_failures"
+
+      - name: Report
+        if: always()
+        run: cat /tmp/real.json
