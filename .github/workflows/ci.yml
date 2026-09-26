@@ -29,8 +29,10 @@ jobs:
           ruff check .
 
   benchmark:
-    # Fails if the measured numbers regress. Runs on a small vendored corpus so
-    # CI needs no network and no 85 MB download.
+    # Guards the two measurements that are bugs when non-zero. Runs on a small
+    # vendored corpus so CI needs no network and no 200 MB download. The step
+    # used to be named "regress on a precision regression" while only writing a
+    # JSON file, which cannot fail; --check is what makes it able to.
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -38,14 +40,16 @@ jobs:
         with:
           python-version: "3.11"
       - run: pip install -e ".[dev,bench]"
-      - name: Regress on a precision regression
+      - name: Retirement must not orphan a live fact; context must not grow
         run: |
           python -m benchmarks run \
             --corpus synthetic \
             --corpus-path benchmarks/corpus/sample.txt \
             --schema benchmarks/schemas/coding.json \
+            --check \
             --json /tmp/bench.json
-      - name: Show the report
+      - name: Report
+        if: always()
         run: cat /tmp/bench.json
 
   build:

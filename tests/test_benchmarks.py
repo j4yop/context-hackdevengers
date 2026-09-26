@@ -575,3 +575,67 @@ def test_a_corpus_run_reports_precision_with_its_interval():
     )
     text = render(result)
     assert "retirement_violations" in text
+
+
+def test_check_fails_the_build_on_a_retirement_violation():
+    """
+    The CI step was named "regress on a precision regression" while only writing
+    a JSON file, so it could not fail on anything. --check is what makes the
+    benchmark job able to stop a merge, and that only holds if it really exits
+    non-zero.
+    """
+    from benchmarks import __main__ as cli
+    from contextgc.state_dag import StateDAG
+
+    original = StateDAG.get_retirement_violations
+    StateDAG.get_retirement_violations = lambda self, proposed=None: [
+        ("current_file", 2, "orphaned")
+    ]
+
+    class Args:
+        corpus = "synthetic"
+        corpus_path = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+            "benchmarks", "corpus", "sample.txt",
+        )
+        min_turns = 8
+        per_repo = 2
+        limit = 100
+        schema = None
+        show_extractions = 0
+        json = None
+        check = True
+
+    try:
+        with pytest.raises(SystemExit) as excinfo:
+            cli.cmd_run(Args())
+        assert excinfo.value.code == 1
+    finally:
+        StateDAG.get_retirement_violations = original
+
+
+def test_check_passes_on_the_vendored_corpus():
+    """And the guard is not simply always failing."""
+    from benchmarks import __main__ as cli
+
+    class Args:
+        corpus = "synthetic"
+        corpus_path = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+            "benchmarks", "corpus", "sample.txt",
+        )
+        min_turns = 8
+        per_repo = 2
+        limit = 100
+        schema = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+            "benchmarks", "schemas", "coding.json",
+        )
+        show_extractions = 0
+        json = None
+        check = True
+
+    try:
+        cli.cmd_run(Args())
+    except SystemExit as exc:  # pragma: no cover - would be a real failure
+        pytest.fail(f"--check failed on the vendored corpus: exit {exc.code}")

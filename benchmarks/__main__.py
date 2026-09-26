@@ -58,6 +58,22 @@ def cmd_fetch(args):
     return 0
 
 
+def _invariants(result):
+    """
+    Measurements that are bugs when non-zero, as opposed to metrics.
+
+    A retirement violation orphans a live fact, and a context that grew means the
+    state register cost more than the transcript it replaced. Neither is a
+    trade-off to be reported; both are defects. These are the only numbers in
+    the harness that are allowed to fail a build.
+    """
+    by_name = {m.name: m.value for m in result.measurements}
+    return [
+        ("retirement_violations", by_name.get("retirement_violations")),
+        ("contexts_that_grew", by_name.get("contexts_that_grew")),
+    ]
+
+
 def cmd_run(args):
     transcripts = _load(args)
     if not transcripts:
@@ -70,6 +86,16 @@ def cmd_run(args):
     if args.show_extractions:
         print()
         print(render_extraction_sample(result.extractions, limit=args.show_extractions))
+    if getattr(args, "check", False):
+        broken = [(n, v) for n, v in _invariants(result) if v]
+        if broken:
+            print()
+            print("INVARIANT VIOLATIONS (these are bugs, not metrics):")
+            for name, value in broken:
+                print(f"  {name} = {value}")
+            sys.exit(1)
+        print()
+        print("invariants: retirement_violations=0, contexts_that_grew=0")
     if args.json:
         with open(args.json, "w", encoding="utf-8") as handle:
             json.dump(result.as_dict(), handle, indent=2)
@@ -133,6 +159,13 @@ def main(argv=None):
     common(run_parser)
     run_parser.add_argument("--schema", help="JSON file of entity patterns to use")
     run_parser.add_argument("--show-extractions", type=int, default=0, metavar="N")
+    run_parser.add_argument(
+        "--check",
+        action="store_true",
+        help="exit non-zero if a retirement orphaned a live fact, or a "
+             "compiled context grew. Without this the run always exits 0, so "
+             "it cannot fail a build no matter what regresses.",
+    )
     run_parser.add_argument("--json", help="write full results here")
     run_parser.set_defaults(func=cmd_run)
 
