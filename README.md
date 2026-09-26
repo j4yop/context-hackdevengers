@@ -563,7 +563,7 @@ Responses carry `X-ContextGC-Telemetry: raw=…; compiled=…; saved=…%; compi
 git clone https://github.com/j4yop/context-hackdevengers
 cd context-hackdevengers
 pip install -e ".[dev]"
-pytest -q                      # 194 tests
+pytest -q                      # 225 tests
 uvicorn server.main:app --reload
 ```
 
@@ -575,6 +575,30 @@ to stay roughly linear from 20 to 200 turns, a monkeypatched `socket` proves
 nothing opens a network connection, and one test asserts that no fabricated
 telemetry field (`latency`, `hallucination`, `estimated`, `risk_score`,
 `embedding`, `ivfflat`) has crept back into the output.
+
+## Publishing
+
+`main` is protected: a pull request with `test (3.9)`, `test (3.11)`,
+`test (3.13)`, `benchmark`, `build` and `browser` green. Direct pushes and force
+pushes are refused, including for admins, because several of the defects in this
+project's history were mergeable and invisible until something ran.
+
+Releases are cut by tag and go out through `.github/workflows/release.yml`:
+
+```bash
+git tag v0.4.0 && git push --tags
+```
+
+One-time setup, which has to be done by the maintainer on pypi.org:
+**Publishing → add a trusted publisher** for `j4yop/context-hackdevengers`
+with workflow `release.yml`. There is then no API token anywhere.
+
+Before uploading, that workflow refuses unless the tag matches the
+`pyproject.toml` version, the version is not already on PyPI, `twine check
+--strict` passes, the wheel installs into an empty virtualenv and compiles a
+transcript using a schema from the installed package, and the dependency list is
+still empty. Run it without publishing via
+`workflow_dispatch` with `dry_run=true`.
 
 ## License
 
