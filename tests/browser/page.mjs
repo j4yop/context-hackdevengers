@@ -86,11 +86,23 @@ ok(/no entity schema is selected/i.test(resText), 'and says why');
 ok(/Reduction/i.test(resText), 'metrics still rendered');
 
 console.log('\n5. selecting a schema makes state tracking actually work');
-await page.selectOption('#schem', 'logistics');
+// Take the expected slots from the API rather than naming one. Hardcoding a slot
+// name meant this test broke the moment a schema's slots were corrected by
+// measurement, which is exactly the sort of coupling that makes a test get
+// deleted instead of fixed.
+const catalog = await (await fetch(BASE + '/api/schemas')).json();
+const pick = catalog.schemas.find((s) => s.entities.length > 0);
+ok(!!pick, 'the catalog offers a schema with slots to track',
+   pick ? `${pick.name}: ${pick.entities.join(', ')}` : 'none');
+await page.selectOption('#schem', pick.name);
 await page.waitForTimeout(300);
 const noteAfter = (await page.textContent('#schema-note')).trim();
-ok(/Schema:/.test(noteAfter) && /logistics/.test(noteAfter), 'note switches to the chosen schema');
-ok(/destination_address/.test(noteAfter), 'note lists the slots it tracks');
+ok(/Schema:/.test(noteAfter) && noteAfter.includes(pick.name), 'note switches to the chosen schema');
+ok(
+  pick.entities.some((slot) => noteAfter.includes(slot)),
+  'note lists the slots it tracks',
+  `expected one of ${pick.entities.join(', ')}`
+);
 await page.click('#go');
 await page.waitForFunction(() => /Gate 2/.test(document.getElementById('result').textContent), null, { timeout: 15000 });
 const withSchema = await page.textContent('#result');
@@ -133,7 +145,7 @@ await page.waitForTimeout(1200);
 const afterExample = await page.$eval('#schem', el => el.value);
 ok(afterExample !== '', 'example auto-selected a schema', `chose "${afterExample}"`);
 const exText = await page.textContent('#result');
-ok(/Gate 2|Tower B|destination_address|Reduction/.test(exText), 'example produced a real result');
+ok(/Gate 2|Tower B|Reduction/.test(exText), 'example produced a real result');
 
 console.log('\n10. responsive: no horizontal overflow at any phone width');
 // Checked in the state the previous steps leave the page in, not on a fresh

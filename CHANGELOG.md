@@ -2,6 +2,55 @@
 
 All notable changes. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [Unreleased] — a third slice, and the default schema's failure measured at scale
+
+### Fixed
+
+- **The shipped `logistics` schema produced only wrong answers on real data.** It
+  was the library's default before the rewrite, and on 80 real APIGen-MT retail
+  conversations it extracted 46 facts of which **every one read in context was
+  wrong** — `destination_address = "perfectly suit my needs"`, `= "my existing
+  PayPal account"`, `= "the Visa card ending in 2364"`. The `use` trigger is the
+  cause: in retail, "use" is nearly always about money. The original evidence for
+  emptying the default was three examples on coding transcripts; this is the same
+  defect at scale, on the domain the schema was written for. Replaced by a schema
+  derived from 400 measured conversations, and the original is kept at
+  `benchmarks/schemas/condemned/` with a nightly job asserting it still fails.
+- **A rejected alternative was recorded as the current value.** "instead of the
+  credit card you have on file" names a value in order to reject it, and it became
+  the payment method. The single wrong answer in a 48-judgement retail sample.
+- **The negation guard is now structural rather than a character window.** The
+  obvious fix — adding "instead of" to the prefix window — would have thrown away
+  the *new* value in "instead of Gate 3, deliver to Gate 2", replacing one error
+  with another. A negator now only governs a value it is immediately attached to:
+  a comma or a fresh intent verb between them means it governs something else.
+  Seven cases pinned, covering both directions.
+- **A performance test was intermittently failing.** `test_compile_time_is_sub_10ms`
+  timed a single cold call against a 10ms budget and went red on a loaded machine
+  — 3.6ms to 13.7ms across seven runs of identical input, failing on the previous
+  commit too. Now the minimum of nine warmed runs, because contamination from
+  other load can only make a measurement slower. A guard that goes red at random
+  is worse than no guard.
+
+### Measured
+
+| | condemned original | measured replacement |
+|---|---|---|
+| facts extracted | 46 | 47 |
+| slots | `destination_address` only | `delivery_address`, `payment_method` |
+| precision | 0 of 14 read in context | 100% (n=47, CI 92–100%) |
+
+### Not fixed, and stated
+
+- **Retail is a poor fit for a last-write-wins tracker.** 79–95% of every mutable
+  entity's mentions live in tool output, which the read path may not read, and
+  supersession is rare: payment method changes in 1% of conversations, the order
+  in 5%, the delivery address in 15% of the 26 conversations that mention one. The
+  numbers are in the schema file. No pattern tuning changes this.
+- `refund_amount` is deliberately not tracked despite 2,280 spoken mentions,
+  because 93% of conversations contain several different dollar amounts rather
+  than one being corrected. One slot for them would track nothing.
+
 ## [Unreleased] — a second domain, and three defects it exposed
 
 Measuring a second corpus was the last thing on the list of gaps, and it found

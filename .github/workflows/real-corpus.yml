@@ -116,6 +116,50 @@ jobs:
               sys.exit(1)
           PY
 
+      - name: The retail slice must still measure clean
+        run: |
+          python -m benchmarks run \
+            --corpus apigen --domain retail \
+            --limit 80 --schema logistics \
+            --check \
+            --json /tmp/retail.json
+          python - <<'PY'
+          import json, sys
+          precision = json.load(open("/tmp/retail.json")).get("precision") or {}
+          matched = precision.get("n_labelled", 0)
+          if not matched or precision.get("n_unmatched_labels"):
+              print("FAIL  the retail label file has drifted from its corpus.")
+              sys.exit(1)
+          print(f"retail labels matched: {matched}")
+          PY
+
+      - name: The condemned schema must stay condemned
+        # The original logistics patterns are kept as evidence, not as a schema.
+        # This asserts they have not been quietly improved, because a reader who
+        # finds benchmarks/schemas/condemned/ should be able to reproduce the
+        # failure the README describes.
+        run: |
+          python -m benchmarks run \
+            --corpus apigen --domain retail \
+            --limit 80 \
+            --schema benchmarks/schemas/condemned/logistics-original.json \
+            --json /tmp/condemned.json
+          python - <<'PY'
+          import json, sys
+          extractions = json.load(open("/tmp/condemned.json"))["extractions"]
+          if not extractions:
+              print("FAIL  the condemned schema now extracts nothing, so the "
+                    "documented measurement can no longer be reproduced.")
+              sys.exit(1)
+          slots = {e["entity"] for e in extractions}
+          if slots != {"destination_address"}:
+              print(f"FAIL  the condemned schema now extracts {sorted(slots)}; "
+                    "the documented failure no longer matches.")
+              sys.exit(1)
+          print(f"condemned schema still reproduces: {len(extractions)} facts, "
+                f"all in {sorted(slots)}")
+          PY
+
       - name: The known failures must still be known failures
         # Runs the two confirmed different-sentence errors. If a change fixes
         # them this fails on purpose: the entry should be deleted deliberately.

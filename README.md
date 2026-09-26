@@ -162,21 +162,26 @@ repositories and every number below inherits that narrowness.
 
 **Two corpora, because one is not evidence of generalisation.**
 
-| | coding | customer service |
-|---|---|---|
-| corpus | `nebius/SWE-agent-trajectories` | `Salesforce/APIGen-MT-5k` |
-| what it is | SWE-agent bug-fixing trajectories | airline-reservation agent tool use |
-| sample | 40 transcripts, 20 repositories, 1,936 turns | 60 conversations, 52 with a tracked fact, 901 turns |
-| facts tracked | 39 | 72 |
-| token reduction | **66.5%** | **54.3%** |
-| turns retired | 161 | 9 |
-| tool payloads compacted | 668 | 72 |
-| retirement violations | 0 | 0 |
-| contexts that grew | 0 | 0 |
-| precision (rows) | 100% (n=39) | 100% (n=72) |
-| precision (independent units) | 100% (n=36, CI 90–100%) | 100% (n=72, CI 95–100%) |
+| | coding | airline support | retail support |
+|---|---|---|---|
+| corpus | `nebius/SWE-agent-trajectories` | `APIGen-MT-5k` (airline) | `APIGen-MT-5k` (retail) |
+| what it is | SWE-agent bug-fixing | reservation tool use | order / exchange tool use |
+| sample | 40 transcripts, 20 repos | 60 conversations | 80 conversations |
+| facts tracked | 39 | 72 | 47 |
+| key re-assertions | 77 | 10 | 2 |
+| token reduction | **66.5%** | **54.3%** | **52.9%** |
+| turns retired | 161 | 9 | 2 |
+| retirement violations | 0 | 0 | 0 |
+| contexts that grew | 0 | 0 | 0 |
+| precision (independent units) | 100% (n=36, CI 90–100%) | 100% (n=72, CI 95–100%) | 100% (n=47, CI 92–100%) |
 
-Run either with `--corpus swe-agent` or `--corpus apigen`.
+Run with `--corpus swe-agent`, or `--corpus apigen --domain airline|retail`.
+
+**Reduction transfers. Supersession does not.** Coding re-asserts a key 77 times
+across 40 transcripts; retail does it twice across 80. That is the honest limit of
+this library: compaction of bulky tool output helps everywhere, but the
+last-write-wins state register only earns its keep where a conversation keeps
+changing its mind about one thing.
 
 ```bash
 pip install 'contextgc[bench]'
@@ -384,6 +389,48 @@ is derived from that observation, not from what would have been convenient.
 The logistics scenario in the demo is not representative of coding work. This is
 a domain-specific mechanism, and the corpus says which domain it actually
 applies to.
+
+### Retail: the original sin, measured at scale
+
+`contextgc/schemas/logistics.json` used to be the library's *default*. On 80 real
+retail conversations it extracted 46 facts, and **every one read in context was
+wrong**:
+
+```
+destination_address = "perfectly suit my needs"
+destination_address = "for any price difference"
+destination_address = "my existing PayPal account"
+destination_address = "the Visa card ending in 2364"
+```
+
+The `use` trigger is the cause: in a retail conversation "use" is nearly always
+about money. The original evidence for emptying the default schema was three
+examples on 60 *coding* transcripts; this is the same defect at scale, on data
+that is actually the domain the schema was written for. The patterns are kept at
+`benchmarks/schemas/condemned/logistics-original.json`, and a nightly job asserts
+they still fail, so a future reader can reproduce the claim rather than take it
+on trust.
+
+The replacement was derived by measuring 400 retail conversations, and **the
+result is mostly negative**:
+
+| entity | spoken | machine output | machine share | supersedes |
+|---|---|---|---|---|
+| `delivery_address` | 51 | 1,048 | 95% | 15% (26 convs) |
+| `payment_method` | 141 | 3,701 | 86% | 1% |
+| `order_id` | 625 | 2,340 | 79% | 5% |
+| `refund_amount` | 2,280 | — | — | 93% |
+
+`refund_amount` is deliberately **absent** despite being the most-mentioned
+quantity in the data. It "changes" in 93% of conversations because a retail
+conversation contains many different dollar amounts — item prices, totals, price
+differences — not because one is being corrected. Putting them in a single
+last-write-wins slot would be the same error as modelling origin and destination
+as one airport code, and the same error as the schema it replaces. A slot that
+changes constantly because it means several things at once tracks nothing.
+
+So retail ships two slots, and the supersession rate stays in the schema file
+where it cannot be quietly forgotten.
 
 ### What the second domain settled about the write path
 

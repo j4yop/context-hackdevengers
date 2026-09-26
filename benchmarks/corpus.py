@@ -136,6 +136,7 @@ def load_apigen_mt(
     min_turns: int = 6,
     max_turns: int = 120,
     path: Optional[str] = None,
+    domain: Optional[str] = None,
 ) -> List[Transcript]:
     """
     Load real multi-turn customer-service agent trajectories.
@@ -152,9 +153,14 @@ def load_apigen_mt(
             mind cannot exercise supersession.
         max_turns: skip anything longer, to bound runtime.
         path: a local copy of the JSON file. If absent it is downloaded.
+        domain: keep only one policy domain, matched case-insensitively against
+            the system prompt ("airline", "retail"). The file interleaves both, so
+            without this a "customer service" run is a blend of two different
+            problems and neither schema can be judged cleanly.
 
     Returns:
-        Transcripts tagged ``source="apigen-mt-5k"``.
+        Transcripts tagged ``source="apigen-mt-5k"``, or
+        ``"apigen-mt-5k:retail"`` when a domain filter was applied.
     """
     target = path or cached_apigen()
     if not os.path.exists(target):
@@ -200,14 +206,16 @@ def load_apigen_mt(
                 messages.append({"role": "assistant", "content": value})
             elif speaker == "observation":
                 messages.append({"role": "user", "content": value})
+        if domain and domain.lower() not in system.lower():
+            continue
         messages = [m for m in messages if m["content"].strip()]
         if not (min_turns <= len(messages) <= max_turns):
             continue
         out.append(Transcript(
             transcript_id=f"apigen-{row_index}",
             messages=messages,
-            source="apigen-mt-5k",
-            meta={"row": row_index, "turns": len(messages)},
+            source=f"apigen-mt-5k:{domain}" if domain else "apigen-mt-5k",
+            meta={"row": row_index, "turns": len(messages), "domain": domain},
         ))
     return out
 

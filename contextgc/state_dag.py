@@ -30,6 +30,38 @@ SOURCE_INFERRED = "inferred"  # a regex matched it in the text
 UNSETTLED = "unsettled"
 
 
+#: Words that reject or negate the value they precede.
+_NEGATORS = re.compile(
+    r"\b(?:do not|don't|dont|never|cannot|cant|can't|should not|shouldnt|not|no|"
+    r"under no circumstances|refuse|cancel|avoid|instead of|rather than|other than)\b"
+)
+
+#: A fresh statement of intent. If one of these sits between a negator and a
+#: candidate value, the negator governs an earlier phrase, not this one.
+_INTENT = re.compile(
+    r"\b(?:deliver|ship|send|go|move|use|change|switch|book|route|reroute|bring|"
+    r"take|want|need|address|pay|charge|refund|redirect|forward|mail|drop|leave)\b|,"
+)
+
+
+def _is_rejected(text: str, start: int, window: int = 60) -> bool:
+    """
+    True when a negator governs the value beginning at ``start``.
+
+    Scans backwards for a negator, then checks that nothing between it and the
+    value re-establishes intent. "instead of <value>" rejects; "instead of X,
+    deliver to <value>" does not.
+    """
+    prefix = text[max(0, start - window):start].lower()
+    for negator in _NEGATORS.finditer(prefix):
+        between = prefix[negator.end():]
+        if _INTENT.search(between):
+            # A later negator may still govern this value.
+            continue
+        return True
+    return False
+
+
 def _same_value(left: Any, right: Any) -> bool:
     """
     True when two extracted values say the same thing.
@@ -135,9 +167,19 @@ class StateDAG:
                 matches = list(re.finditer(pat, text, re.IGNORECASE))
                 found_valid = False
                 for match in matches:
-                    # Check for preceding negation within 50 characters
-                    prefix_window = text[max(0, match.start() - 50):match.start()].lower()
-                    if re.search(r"\b(?:do not|don't|dont|never|cannot|cant|can't|should not|shouldnt|not|no|under no circumstances|refuse|cancel|avoid)\b", prefix_window):
+                    # A rejected value is not current state. Negators govern the
+                    # value they are immediately attached to, so the test is
+                    # structural rather than a fixed character window: if a comma
+                    # or a fresh intent verb sits between the negator and this
+                    # match, the negator is governing something else.
+                    #
+                    # That distinction is not pedantry. "instead of the credit card
+                    # you have on file" rejects the card, and recording it as the
+                    # current payment method was the single wrong answer in a
+                    # 48-judgement retail sample. But "instead of Gate 3, deliver
+                    # to Gate 2" must keep Gate 2, and a plain prefix window threw
+                    # it away -- which would have replaced one error with another.
+                    if _is_rejected(text, match.start()):
                         # Negated proposition: do not mutate state
                         continue
 

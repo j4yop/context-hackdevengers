@@ -19,26 +19,37 @@ from typing import Any, Dict, List, Optional, Tuple
 
 LABELS_DIR = os.path.join(os.path.dirname(__file__), "labels")
 
-#: Label file per corpus. ``precision.json`` predates the second domain and keeps
-#: its name so the coding numbers stay where they were.
-LABELS_BY_CORPUS = {
-    "swe-agent-trajectories": os.path.join(LABELS_DIR, "precision.json"),
-    "apigen-mt-5k": os.path.join(LABELS_DIR, "travel.json"),
+#: Label file per schema. Keyed by schema rather than by corpus because a label
+#: judges one schema's extractions, and one dataset can be sliced several ways --
+#: the airline and retail halves of APIGen-MT have separate schemas and labels.
+LABELS_BY_SCHEMA = {
+    "coding": os.path.join(LABELS_DIR, "precision.json"),
+    "travel": os.path.join(LABELS_DIR, "travel.json"),
+    "logistics": os.path.join(LABELS_DIR, "logistics.json"),
 }
 
-LABELS_PATH = LABELS_BY_CORPUS["swe-agent-trajectories"]
+#: Corpus slices fall back to these when no schema was named.
+LABELS_BY_CORPUS = {
+    "swe-agent-trajectories": LABELS_BY_SCHEMA["coding"],
+    "apigen-mt-5k": LABELS_BY_SCHEMA["travel"],
+    "apigen-mt-5k:retail": LABELS_BY_SCHEMA["logistics"],
+}
+
+LABELS_PATH = LABELS_BY_SCHEMA["coding"]
 
 
-def labels_path_for(source: Optional[str] = None) -> str:
+def labels_path_for(source: Optional[str] = None, schema: Optional[str] = None) -> str:
     """
-    The label file for a corpus.
+    The label file for what was measured.
 
     Scoring travel labels against coding extractions would report every label as
     drifted, which is noise rather than information.
     """
-    if source is None:
-        return LABELS_PATH
-    return LABELS_BY_CORPUS.get(source, LABELS_PATH)
+    if schema and schema in LABELS_BY_SCHEMA:
+        return LABELS_BY_SCHEMA[schema]
+    if source and source in LABELS_BY_CORPUS:
+        return LABELS_BY_CORPUS[source]
+    return LABELS_PATH
 
 #: Verdict values.
 CORRECT = "correct"
