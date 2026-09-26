@@ -31,6 +31,9 @@ from pydantic import BaseModel, Field
 
 from contextgc import __version__
 from contextgc.client import compile_messages, compile_transcript
+from contextgc.gc_engine import ContextGCEngine
+from contextgc.state_protocol import render_instruction
+from contextgc.transcript import parse_transcript
 
 # --------------------------------------------------------------------------
 # Configuration
@@ -104,6 +107,9 @@ class CompileRequest(BaseModel):
     mode: str = Field("compact", pattern="^(compact|cache_friendly)$")
     invariants: List[str] = Field(default_factory=list)
     recall_query: Optional[str] = None
+    teach_protocol: bool = Field(
+        False, description="Inject the state-protocol instruction so the agent declares its state"
+    )
 
 
 class MessagesRequest(BaseModel):
@@ -111,6 +117,7 @@ class MessagesRequest(BaseModel):
     mode: str = Field("compact", pattern="^(compact|cache_friendly)$")
     invariants: List[str] = Field(default_factory=list)
     recall_query: Optional[str] = None
+    teach_protocol: bool = False
 
 
 # --------------------------------------------------------------------------
@@ -145,6 +152,7 @@ async def api_compile(req: CompileRequest, request: Request) -> JSONResponse:
         mode=req.mode,
         invariants=req.invariants or None,
         recall_query=req.recall_query,
+        teach_protocol=req.teach_protocol,
     )
 
     if "error" in telemetry:
@@ -177,11 +185,35 @@ async def api_compile_messages(req: MessagesRequest, request: Request) -> JSONRe
         mode=req.mode,
         invariants=req.invariants or None,
         recall_query=req.recall_query,
+        teach_protocol=req.teach_protocol,
     )
     return JSONResponse(
         content={"compiled_messages": compiled, "telemetry": telemetry},
         headers={"Cache-Control": "no-store"},
     )
+
+
+class InstructionRequest(BaseModel):
+    transcript: str
+    mode: str = "compact"
+
+
+@app.post("/api/protocol-instruction")
+async def api_protocol_instruction(req: InstructionRequest) -> Dict[str, Any]:
+    """
+    The exact state-protocol instruction the engine would inject for this input.
+
+    The website links here rather than showing a hardcoded sample, which used to
+    diverge from the real string -- the same "hardcoded number that does not
+    match reality" defect the audit found in the benchmarks.
+    """
+    messages, _ = parse_transcript(req.transcript)
+    if not messages:
+        return {"instruction": "", "keys": []}
+    engine = ContextGCEngine()
+    engine.process_session(messages, mode=req.mode)
+    keys = sorted(engine.dag.active_state)[:12]
+    return {"instruction": render_instruction(keys), "keys": keys}
 
 
 @app.get("/api/example")
@@ -198,7 +230,22 @@ def example() -> Dict[str, Any]:
             "user: Wait, my friend is at Gate 2 security entrance right now. Reroute there. Entry code 4921.",
             "assistant: Rerouted to Gate 2 security entrance, code 4921.",
             "user: Thanks.",
-        ])
+        ]),
+        "write_path_example": "\n".join([
+            "system: You are a delivery support agent.",
+            "user: Deliver ORD-9941 to Tower B, Flat 402. Severe peanut allergy.",
+            "assistant: Confirmed, routing to Tower B.\n<contextgc-state>{\"assert\":{\"order_id\":\"ORD-9941\",\"destination_address\":\"Tower B, Flat 402\"},\"pin\":{\"dietary_allergy\":\"peanut\"}}</contextgc-state>",
+            "user: The elevator is broken. Send it to the new place instead.",
+            "assistant: Moved to the Clubhouse security desk.\n<contextgc-state>{\"assert\":{\"destination_address\":\"Clubhouse security desk\"}}</contextgc-state>",
+            "user: Actually my friend is at Gate 2. Reroute there, code 4921.",
+            "assistant: Rerouted.\n<contextgc-state>{\"assert\":{\"destination_address\":\"Gate 2\",\"gate_code\":\"4921\"}}</contextgc-state>",
+            "user: Wait, the order was cancelled.",
+            "assistant: Cancelled.\n<contextgc-state>{\"revoke\":[\"gate_code\",\"order_id\"]}</contextgc-state>",
+            "user: OK.",
+        ]),
+        "protocol_help": render_instruction([
+            "destination_address", "gate_code", "order_id", "dietary_allergy",
+        ]),
     }
 
 

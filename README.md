@@ -41,6 +41,105 @@ paste a conversation on the left, get the compiled context back on the right.
 
 ---
 
+## Two ways to get state out of a transcript
+
+### 1. Read path — infer it (default, works with any model)
+
+Patterns scan the text for assertions. Deterministic, zero cost, works on
+transcripts you did not produce. Its ceiling is hard: it cannot resolve *"send it
+to the new place instead"*, because "it" and "the new place" are not patterns.
+Anything it misses leaves the state silently incomplete.
+
+### 2. Write path — the agent declares it
+
+With `teach_protocol=True` the agent is asked to report what it concluded, as a
+structured side-effect of the turn it was already making:
+
+```
+<contextgc-state>
+{"assert": {"destination_address": "Gate 2"},
+ "pin":    {"dietary_allergy": "peanut"},
+ "revoke": ["order_id"],
+ "unsure": {"rider_location": "maybe the west gate"}}
+</contextgc-state>
+```
+
+**No extra model call.** The block rides along in a completion the agent was
+going to make anyway. It is not free, though: the instruction is ~200 tokens
+added to the system prompt on every request, and in `compact` mode that
+invalidates the prefix cache for the first message. Use `cache_friendly` if you
+want both.
+
+The block is stripped before the transcript is sent onward, including from inside
+`tool_calls` arguments, so a model never sees protocol markup.
+
+#### What the write path actually buys
+
+| | Read path | Write path |
+|---|---|---|
+| Provenance | guessed | **declared**, and inference cannot overwrite it |
+| Void facts | inexpressible | `revoke` — void, not merely stale |
+| Unsettled facts | indistinguishable | `unsure`, surfaced and flagged |
+| Pinned rules | hardcoded list | `pin`, lifted only by an explicit re-pin |
+| Pronoun references | **not resolved** | **not resolved either** |
+
+That last row is the honest one. The write path was motivated by coreference,
+and it does **not** reliably fix it: the agent has to notice the reference and
+report it. When it does, the result is authoritative; when it does not, the
+state is quietly incomplete. There is currently no measurement of how often that
+happens, which is the main open question about this feature.
+
+#### Who may declare
+
+**Only the assistant.** Tool output is a fetched page or an MCP result, user
+text may be a pasted injection or a quote of this README, and a system message
+is a summarised transcript that inherits whatever those contained. If any of
+them could assert state, `declared` would be a mark of forgery rather than of
+authority. Markup in an untrusted role is still stripped from the prompt, but
+never applied, and is counted in `blocks_in_untrusted_roles`.
+
+#### Read `conflicts`, not `declared_share`
+
+```python
+compiled, telemetry = compile_messages(messages, teach_protocol=True)
+telemetry["declarations"]["declared_share"]   # provenance mix, NOT a score
+telemetry["conflicts"]                        # declared vs. what the text says
+```
+
+`declared_share` is the fraction of tracked facts that came from the agent. It is
+**not** a confidence measure, and it is specifically not a safety one: a declared
+fact always outranks an inferred one, so the score goes *up* when the model's
+opinion wins a disagreement. A transcript where the agent declared a stale value
+and was never contradicted reads `1.0`.
+
+`conflicts` is the signal that matters. It fires when the agent asserted a key
+and the transcript's own text still says something different:
+
+```
+conflicts: [{'entity': 'gate_code', 'declared': '1111', 'declared_turn': 1,
+             'inferred': '9999', 'inferred_turn': 2,
+             'note': 'the declaration won; verify it is still correct'}]
+```
+
+Read that as: *the agent may be quoting an older turn; the human has since said
+otherwise in plain text.* A model that keeps getting this wrong is not
+declaring better, it is declaring more confidently than the evidence supports.
+
+`rejected_writes` is the other one: writes the compiler refused — pinned keys,
+lifted guardrails, markup from an untrusted role.
+
+#### Cost and bounds
+
+An agent that re-declares its entire state every turn is the most likely real
+failure: every re-assert supersedes the last, so every declaring turn becomes
+prunable and the compiler deletes the conversation. The register is therefore
+capped at 64 facts and 512 characters per value; `state_keys_dropped_over_limit`
+reports what was cut. When the register costs more than it saves,
+`context_grew` and `token_growth` say so — `compression_ratio_pct` is clamped at
+0 and would hide it.
+
+---
+
 ## What it actually does
 
 Four things, in order:
@@ -53,8 +152,14 @@ context.
 **2. Never retires the evidence.**
 If a turn is superseded for one key but is still the only support for another,
 it **stays in the context**. Retiring it would hand the model a value with
-nothing behind it. This is enforced by `get_orphaned_facts()`, which the test
-suite asserts is always empty.
+nothing behind it. `get_retirement_violations(proposed)` checks a *proposed*
+retirement set and reports any live fact that would be left unsupported.
+
+An earlier version of this check compared the prunable set against the live set
+and could therefore only ever return `[]` — it asserted an identity, not a
+property, and the test suite "proving" it could not fail. The current test
+asserts that the check *can* return a violation, which is the only way to know it
+means anything.
 
 **3. Compacts tool output without losing the safety bits.**
 Bulk rows are sampled down. Any row carrying an allergen, severity, PII, recall,
@@ -98,10 +203,12 @@ failures, and only one is deterministic:
 | **Irrelevance** — bulk tokens competing for probability mass | No. Needs a relevance judgement, i.e. a model. |
 | **Position** — lost-in-the-middle attention decay | No. It is a property of softmax attention over sequence length. Preprocessing cannot fix it. |
 
-**State tracking is regular expressions.** There is no coreference resolution, so
-a fact expressed only through pronouns ("send it to the new place instead") will
-not be tracked. Missed extraction is the main failure mode: the state is
-*silently incomplete*. Extend the schema for your domain:
+**State tracking is regular expressions on the read path.** There is no
+coreference resolution, so a fact expressed only through pronouns will not be
+tracked. Missed extraction is the main failure mode: the state is *silently
+incomplete*. The write path can supply those facts when the agent cooperates —
+`conflicts` and `rejected_writes` tell you when it did not. Extend the schema for
+your domain:
 
 ```python
 from contextgc import StateDAG
@@ -184,6 +291,9 @@ curl -X POST localhost:8000/api/compile \
        "invariants":["refunds over 500 need supervisor approval"]}'
 ```
 
+Set `"teach_protocol": true` to inject the state-protocol instruction, and
+`/api/example` returns a `write_path_example` that demonstrates it.
+
 Accepts a plain-text transcript or a JSON message array:
 
 ```
@@ -223,7 +333,7 @@ Responses carry `X-ContextGC-Telemetry: raw=…; compiled=…; saved=…%; compi
 git clone https://github.com/j4yop/context-hackdevengers
 cd context-hackdevengers
 pip install -e ".[dev]"
-pytest -q                      # 57 tests
+pytest -q                      # 159 tests
 uvicorn server.main:app --reload
 ```
 

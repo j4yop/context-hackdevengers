@@ -26,11 +26,20 @@ from .client import (
     patch_openai,
 )
 from .sanitizer import ToolSanitizer
-from .state_dag import FactNode, StateDAG
+from .state_dag import SOURCE_DECLARED, SOURCE_INFERRED, FactNode, StateDAG
+from .state_protocol import (
+    DECLARING_ROLES,
+    StateDeclaration,
+    escape_value,
+    normalise_key,
+    parse_declaration,
+    render_instruction,
+    strip_blocks,
+)
 from .transcript import parse_transcript
 from .vector_tier import RetiredTurnArchive, VectorMemoryTier
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
 __all__ = [
     "compile_messages",
@@ -39,10 +48,19 @@ __all__ = [
     "ContextGCEngine",
     "StateDAG",
     "FactNode",
+    "SOURCE_DECLARED",
+    "SOURCE_INFERRED",
     "ToolSanitizer",
     "PolicyInvariantAnchor",
     "InvariantAuditor",
     "parse_transcript",
+    "StateDeclaration",
+    "DECLARING_ROLES",
+    "parse_declaration",
+    "render_instruction",
+    "strip_blocks",
+    "normalise_key",
+    "escape_value",
     "RetiredTurnArchive",
     "VectorMemoryTier",
     "__version__",

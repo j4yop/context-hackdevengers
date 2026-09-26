@@ -2,6 +2,104 @@
 
 All notable changes. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.2.0] — the write path, and a correction
+
+### Added
+
+- **State protocol.** The agent can declare what it concluded as a structured
+  side-effect of the turn it was already making, so there is no extra model
+  call. Markup is stripped from emitted content *and* from `tool_calls`
+  arguments.
+  - `assert` — assert a value, superseding any earlier one.
+  - `pin` — assert and mark immutable. **A bare `assert` cannot lift a pin**;
+    only an explicit re-pin can, or `revoke`.
+  - `revoke` — void a key. The operation supersession cannot express: a revoked
+    fact is not replaced, it is invalid. **Cannot void a structural guardrail.**
+  - `unsure` — a low-confidence assertion, tracked and flagged.
+- **Provenance on every fact.** `FactNode.source` is `declared` or `inferred`, an
+  inferred match can never overwrite a declared fact, and the state register now
+  emits the provenance so the model can act on the distinction.
+- **`conflicts` telemetry** — the agent asserted a key and the transcript's own
+  text disagrees. The only quantity here that correlates with a wrong state.
+- **`rejected_writes` telemetry** — writes the compiler refused: pinned keys,
+  lifted guardrails, markup from an untrusted role. Previously computed and
+  thrown away.
+- `compile_messages(..., teach_protocol=True)` and `patch_openai(...,
+  teach_protocol=True)`.
+- `get_retirement_violations(proposed)` — checks a *proposed* retirement set for
+  live facts left without support.
+- Key normalisation, so casing and separator variants cannot fork the state
+  space, and declared register caps (`MAX_TRACKED_FACTS`, `MAX_VALUE_CHARS`).
+
+### Removed
+
+- **`authority_ratio`.** Renamed to `declared_share` because "authority" implied
+  a quality judgement it cannot make: a declared fact always outranks an inferred
+  one, so the score rises precisely when the model's opinion wins a
+  disagreement. A transcript where the agent declared a stale value reads `1.0`.
+  Use `conflicts`.
+- **`confidence_from_logprobs()`.** A speculative seam for calibrated extraction,
+  added with a fabricated example in the README (it documented `-> 0.75`; it
+  returned `0.5978`), and severed at the first line of code that touched it —
+  the parser discarded the `confidence` field and `FactNode.confidence` only ever
+  held the string `"unsettled"`. A probabilistic component in front of a
+  mechanism that cannot tell a good declaration from a forged one adds a second
+  way to be wrong. The `{value, confidence}` payload shape is now rejected as
+  malformed rather than silently flattened.
+
+### Fixed
+
+- **Only the assistant may declare state.** Tool output, user text, and system
+  messages could all forge authoritative declarations — a fetched web page, a
+  pasted injection, or a quote of this project's own README each became live
+  state marked `declared`.
+- **Pins are sticky.** A single bare `assert` silently un-pinned a key, while
+  the instruction told the model "later turns cannot overwrite it".
+- **`revoke` cannot delete a structural guardrail.** One JSON string removed
+  `dietary_allergy`.
+- **`revoke` of an untracked key no longer writes a tombstone**, permanently
+  disabling inference for a key that was never live. A deliberate re-assertion
+  clears the tombstone, so the register cannot claim a key is both live and
+  retired.
+- **`rollback_to` can now undo a `revoke`.** `revoke` destroyed the node history
+  the restore path read from, so the documented behaviour was impossible. The
+  log-pruning filter also keyed on `new_turn` while revoke/reject entries use
+  `turn`, so those were never pruned.
+- **Conflicts are detected.** The previous check read the post-apply inferred
+  value, but a blocked write never lands there — so every genuine disagreement
+  was invisible.
+- **Rejections are surfaced.** `rejected` was built and discarded; the audit
+  trail existed only for direct `StateDAG` users, not through the SDK, server,
+  or web UI.
+- **The state register shows provenance**, as the previous release notes claimed
+  it did. It did not.
+- **`strip_blocks` handles nesting, blocks inside JSON payloads, and markdown
+  fences**, and leaves an emptied turn as a space rather than `""` (rejected by
+  some providers). An unterminated tag is left alone instead of deleting the rest
+  of a human's message.
+- **Values are escaped against tag forgery, not just brackets.** The register is
+  re-parsed every compile, so an unescaped `<contextgc-state>` in a declared
+  value round-tripped back in as a fresh declaration.
+- **Re-compiling no longer stacks registers.** It produced two, the stale one
+  first, so the prompt asserted two different current values. Transcripts written
+  by 0.1.0 carry the old marker and are recognised too.
+- **Growth is reported.** `token_growth` and `context_grew` state when the
+  register costs more than it saves; `compression_ratio_pct` is clamped at 0 and
+  hid it.
+- `kv_cache_prefix_intact` now means the whole input prefix is byte-identical,
+  rather than "the shared prefix is unaltered", which held even when everything
+  after the first message was rewritten.
+
+### Known limitations
+
+- The write path does **not** reliably resolve coreference. The agent has to
+  notice the reference and report it; when it does not, the state is quietly
+  incomplete. There is no measurement of how often.
+- Compliance is unfalsifiable from inside. `conflicts` and `rejected_writes` are
+  the only signals, and both are silent when the agent simply says nothing.
+- Transcripts the user did not produce — imported agent logs, third-party chats —
+  get nothing from this feature, since no protocol is present.
+
 ## [0.1.0]
 
 First release after an audit that found most of the previously published metrics
