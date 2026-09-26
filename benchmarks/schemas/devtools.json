@@ -1,0 +1,18 @@
+{
+  "_comment": "A schema for the corpus the benchmarks actually run on. Every pattern is anchored on an explicit imperative or an identifier-shaped token, which is the property the logistics patterns lacked: 'deliver to' matches prose, 'set the port to' does not.",
+  "entities": {
+    "target_port": [
+      "\\bport (?:to|is|=|:)\\s*(\\d{2,5})\\b"
+    ],
+    "signature_algorithm": [
+      "\\b(RSA-256|Ed25519|HMAC-SHA256|ECDSA)\\b"
+    ],
+    "cloud_environment": [
+      "\\b(?:deploy|release|ship)(?:ed|ing)?\\s+(?:to|into)\\s+(production|prod|staging|preview|development|dev)\\b"
+    ],
+    "refund_claim": [
+      "\\brefund (?:of|for)\\s+(\\d+)\\b"
+    ]
+  },
+  "__immutable__": []
+}

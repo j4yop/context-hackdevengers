@@ -27,6 +27,26 @@ jobs:
           pip install ruff
           ruff check .
 
+  benchmark:
+    # Fails if the measured numbers regress. Runs on a small vendored corpus so
+    # CI needs no network and no 85 MB download.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -e ".[dev,bench]"
+      - name: Regress on a precision regression
+        run: |
+          python -m benchmarks run \
+            --corpus synthetic \
+            --corpus-path benchmarks/corpus/sample.txt \
+            --schema benchmarks/schemas/logistics.json \
+            --json /tmp/bench.json
+      - name: Show the report
+        run: cat /tmp/bench.json
+
   build:
     runs-on: ubuntu-latest
     steps:

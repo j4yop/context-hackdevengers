@@ -1,0 +1,13 @@
+{
+  "_comment": "Derived from what the corpus actually contains, not from what would be convenient. In 40 real SWE-agent trajectories the only high-frequency mutable entity is the file under edit: 21 distinct paths across 146 mentions, with the agent moving between them. Last-write-wins is exactly right for that -- an agent is working on one file at a time -- and a 30-turn-deep coding session genuinely needs to be told which one is current. This is the schema the benchmarks measure.",
+  "entities": {
+    "current_file": [
+      "\\b(?:edit|editing|modify|modifying|open|opening|update|updating|change|changing|patch|patching|create|creating|write|writing)\\s+(?:the\\s+)?(?:file\\s+)?([\\w./-]+\\.(?:py|js|ts|tsx|jsx|go|rs|java|rb|c|h|cpp))\\b",
+      "\\b(?:in|inside)\\s+([\\w./-]+\\.(?:py|js|ts|tsx|jsx|go|rs|java|rb|c|h|cpp))\\b"
+    ],
+    "failing_test": [
+      "\\b(?:FAILED|ERROR|failed|error)(?:\\s+test)?\\s+([\\w./\\[\\]-]*test_[\\w./\\[\\]-]+)\\b"
+    ]
+  },
+  "__immutable__": []
+}

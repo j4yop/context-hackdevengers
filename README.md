@@ -140,6 +140,127 @@ reports what was cut. When the register costs more than it saves,
 
 ---
 
+## Measured against real agent transcripts
+
+Everything above is a design claim. This is what happens when the compiler is run
+over 40 real SWE-agent trajectories from
+[`nebius/SWE-agent-trajectories`](https://huggingface.co/datasets/nebius/SWE-agent-trajectories)
+— 1,390 turns, 1.96M characters, real model output and real tool output.
+
+```bash
+pip install 'contextgc[bench]'
+python -m benchmarks fetch          # 85 MB parquet shard
+python -m benchmarks run --limit 40 --schema benchmarks/schemas/coding.json
+```
+
+```
+CORPUS  swe-agent-trajectories
+  transcripts      40
+  turns            total 1390, median 32, range 12-92
+  characters       1,958,156
+  models           swe-agent-llama-70b x38, swe-agent-llama-8b x2
+
+  facts_extracted            40   n=40
+  keys_reasserted           118   n=40
+  token_reduction            58%  n=40
+  tool_payloads_compacted   371   n=40
+  turns_retired             191   n=40
+  retirement_violations       0   n=40
+  compile_ms_p50            2.46  n=40
+  compile_ms_p95            6.71  n=40
+
+PRECISION (hand-labelled sample)
+  labels supplied        20
+  matched an extraction  20
+  unclear                 9  (excluded from the ratio)
+  JUDGED                 11   <- the denominator
+    correct               9
+    incorrect             2
+  PRECISION              82%   (n=11)
+```
+
+**n=11 is a small sample.** It is a smell test that catches gross regression, not
+a statistic. The corpus and the labels are committed so the number is
+reproducible and auditable.
+
+### What this measurement changed
+
+Running it was not a formality. It overturned three things.
+
+**1. The default entity schema was producing confident nonsense.** The shipped
+default was a logistics schema — `destination_address`, `refund_claim`,
+`gate_code` — applied to everything. On 60 real coding transcripts it produced
+75 facts, and every sampled one was prose matched by accident:
+
+```
+destination_address = "of parentheses"
+destination_address = "it, otherwise do a lookup using type"
+destination_address = "a placeholder dictionary"
+```
+
+The patterns were written to match a fixture, and a coding transcript is full of
+the words they look for. **`ENTITY_PATTERNS` is now empty**, and a schema is
+opt-in per domain. The old patterns are kept in
+`benchmarks/schemas/logistics.json` with the measurement that condemns them.
+
+**2. The sanitizer never fired on real data.** It keyed on a `TOOL_OUTPUT` marker
+and on `role in (tool, function)`. In the corpus, **0% of messages carry that
+marker** and tool output is filed under `user`. So 371 real tool outputs were
+being passed through untouched. Detection is now content-based — a stack trace
+is a stack trace whatever role it is filed under — and picks up 19.9% of
+messages. Token reduction on the same corpus went from **17% to 58%**.
+
+**3. Reading state out of tool output was a precision failure.** A file path in a
+grep listing (`Found 14 matches for X in /path/to/dispatcher.py:`) is not a
+statement about which file the agent is editing, but the pattern promoted it
+anyway. State is no longer inferred from machine-generated output.
+
+### What the corpus says the problem actually is
+
+The measurable, high-frequency mutable entity in real coding transcripts is
+**which file the agent is working on** — 21 distinct paths across 146 mentions,
+with the agent moving between them and correcting itself:
+
+> *"It seems that I attempted to edit the wrong file again. I need to edit the
+> `memset.py` file instead of the `reproduce.py` file."*
+
+That is precisely the last-write-wins case the library exists for, and 118 key
+re-assertions fired across the 40 transcripts. `benchmarks/schemas/coding.json`
+is derived from that observation, not from what would have been convenient.
+
+The logistics scenario in the demo is not representative of coding work. This is
+a domain-specific mechanism, and the corpus says which domain it actually
+applies to.
+
+### Is the write path worth it? Still unmeasured
+
+`python -m benchmarks shadow` runs both paths and reports where they disagree.
+It is deliberately incapable of making things worse: it never emits a declared
+context, because a stale declaration silently outranks a human's plain-text
+correction.
+
+```bash
+python -m benchmarks shadow --captures captures/run1.json --limit 50 \
+    --schema benchmarks/schemas/coding.json
+```
+
+It needs a capture file: declarations recorded from a real run with a real model.
+**No such capture exists yet**, and the command says so rather than inventing a
+number. Until one does, the honest statement is that the write path is
+unmeasured — and the corpus work above is what makes measuring it possible.
+
+### What this harness refuses to do
+
+- Print a percentage without the `N` it came from.
+- Print a precision figure unless one was measured against hand labels.
+- Call a declaration "correct" — it cannot know truth, only disagreement.
+- Score itself. A compiler grading its own compression is the mistake this
+  project was rewritten to remove.
+- Report a synthetic corpus as evidence; a vendored slice of real trajectories is
+  labelled with its real source.
+
+---
+
 ## What it actually does
 
 Four things, in order:

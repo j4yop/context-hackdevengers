@@ -1,0 +1,222 @@
+[
+  {
+    "transcript": "AnalogJ__lexicon-336#0",
+    "entity": "current_file",
+    "value": "lexicon/providers/memset.py",
+    "turn_index": 53,
+    "verdict": "correct",
+    "note": "agent: \"I need to edit the `memset.py` file instead of the `reproduce.py` file\"",
+    "labelled_by": "human, reading the registering turn",
+    "corpus": "nebius/SWE-agent-trajectories shard 0",
+    "schema": "benchmarks/schemas/coding.json"
+  },
+  {
+    "transcript": "AnalogJ__lexicon-336#2",
+    "entity": "current_file",
+    "value": "lexicon/providers/memset.py",
+    "turn_index": 3,
+    "verdict": "correct",
+    "note": "agent: \"To investigate further, we should look at the `memset.py`\"",
+    "labelled_by": "human, reading the registering turn",
+    "corpus": "nebius/SWE-agent-trajectories shard 0",
+    "schema": "benchmarks/schemas/coding.json"
+  },
+  {
+    "transcript": "AnalogJ__lexicon-336#8",
+    "entity": "current_file",
+    "value": "lexicon/cli.py",
+    "turn_index": 15,
+    "verdict": "correct",
+    "note": "agent: \"the `handle_output` function is defined in `lexicon/cli.py`. Let's open the `cli.py`\"",
+    "labelled_by": "human, reading the registering turn",
+    "corpus": "nebius/SWE-agent-trajectories shard 0",
+    "schema": "benchmarks/schemas/coding.json"
+  },
+  {
+    "transcript": "AnalogJ__lexicon-336#9",
+    "entity": "current_file",
+    "value": "lexicon/cli.py",
+    "turn_index": 21,
+    "verdict": "correct",
+    "note": "agent: \"I should have edited `cli.py` instead of `reproduce.py`\"",
+    "labelled_by": "human, reading the registering turn",
+    "corpus": "nebius/SWE-agent-trajectories shard 0",
+    "schema": "benchmarks/schemas/coding.json"
+  },
+  {
+    "transcript": "AnalogJ__lexicon-336#10",
+    "entity": "current_file",
+    "value": "tests/test_output.py",
+    "turn_index": 81,
+    "verdict": "correct",
+    "note": "agent: \"We have located the `test_output.py` file. Let's open the `test_output.py` file\"",
+    "labelled_by": "human, reading the registering turn",
+    "corpus": "nebius/SWE-agent-trajectories shard 0",
+    "schema": "benchmarks/schemas/coding.json"
+  },
+  {
+    "transcript": "Azure__azure-functions-python-worker-890#11",
+    "entity": "current_file",
+    "value": "azure_functions_worker/dispatcher.py",
+    "turn_index": 5,
+    "verdict": "correct",
+    "note": "agent: \"The `constants.py` file confirms... We need to examine the `dispatcher.py`\"",
+    "labelled_by": "human, reading the registering turn",
+    "corpus": "nebius/SWE-agent-trajectories shard 0",
+    "schema": "benchmarks/schemas/coding.json"
+  },
+  {
+    "transcript": "Azure__azure-functions-python-worker-890#15",
+    "entity": "current_file",
+    "value": "azure_functions_worker/dispatcher.py",
+    "turn_index": 13,
+    "verdict": "correct",
+    "note": "agent: \"I mistakenly edited `constants.py` instead of `dispatcher.py`\"",
+    "labelled_by": "human, reading the registering turn",
+    "corpus": "nebius/SWE-agent-trajectories shard 0",
+    "schema": "benchmarks/schemas/coding.json"
+  },
+  {
+    "transcript": "Azure__azure-functions-python-worker-890#16",
+    "entity": "current_file",
+    "value": "azure_functions_worker/dispatcher.py",
+    "turn_index": 19,
+    "verdict": "correct",
+    "note": "agent: \"I mistakenly navigated within `constants.py` again. We need to navigate within `dispatcher.py`\"",
+    "labelled_by": "human, reading the registering turn",
+    "corpus": "nebius/SWE-agent-trajectories shard 0",
+    "schema": "benchmarks/schemas/coding.json"
+  },
+  {
+    "transcript": "Azure__azure-functions-python-worker-890#19",
+    "entity": "current_file",
+    "value": "azure_functions_worker/dispatcher.py",
+    "turn_index": 3,
+    "verdict": "correct",
+    "note": "agent: \"The `dispatcher.py` file has the most matches... Let's open the `dispatcher.py`\"",
+    "labelled_by": "human, reading the registering turn",
+    "corpus": "nebius/SWE-agent-trajectories shard 0",
+    "schema": "benchmarks/schemas/coding.json"
+  },
+  {
+    "transcript": "Azure__azure-functions-python-worker-890#18",
+    "entity": "current_file",
+    "value": "azure_functions_worker/dispatcher.py",
+    "turn_index": 61,
+    "verdict": "incorrect",
+    "note": "turn reviews main.py; the path matched elsewhere in the same message",
+    "labelled_by": "human, reading the registering turn",
+    "corpus": "nebius/SWE-agent-trajectories shard 0",
+    "schema": "benchmarks/schemas/coding.json"
+  },
+  {
+    "transcript": "Azure__azure-functions-python-worker-890#20",
+    "entity": "current_file",
+    "value": "azure_functions_worker/dispatcher.py",
+    "turn_index": 5,
+    "verdict": "incorrect",
+    "note": "turn discusses constants.py; the path matched elsewhere in the same message",
+    "labelled_by": "human, reading the registering turn",
+    "corpus": "nebius/SWE-agent-trajectories shard 0",
+    "schema": "benchmarks/schemas/coding.json"
+  },
+  {
+    "transcript": "AnalogJ__lexicon-336#1",
+    "entity": "current_file",
+    "value": "lexicon/providers/memset.py",
+    "turn_index": 49,
+    "verdict": "unclear",
+    "note": "value not visible in the truncated registering turn",
+    "labelled_by": "human, reading the registering turn",
+    "corpus": "nebius/SWE-agent-trajectories shard 0",
+    "schema": "benchmarks/schemas/coding.json"
+  },
+  {
+    "transcript": "AnalogJ__lexicon-336#3",
+    "entity": "current_file",
+    "value": "reproduce.py",
+    "turn_index": 23,
+    "verdict": "unclear",
+    "note": "value not visible in the truncated registering turn",
+    "labelled_by": "human, reading the registering turn",
+    "corpus": "nebius/SWE-agent-trajectories shard 0",
+    "schema": "benchmarks/schemas/coding.json"
+  },
+  {
+    "transcript": "AnalogJ__lexicon-336#4",
+    "entity": "current_file",
+    "value": "lexicon/providers/memset.py",
+    "turn_index": 31,
+    "verdict": "unclear",
+    "note": "reasoning about memset.py, but not an explicit edit statement",
+    "labelled_by": "human, reading the registering turn",
+    "corpus": "nebius/SWE-agent-trajectories shard 0",
+    "schema": "benchmarks/schemas/coding.json"
+  },
+  {
+    "transcript": "AnalogJ__lexicon-336#5",
+    "entity": "current_file",
+    "value": "lexicon/cli.py",
+    "turn_index": 9,
+    "verdict": "unclear",
+    "note": "value not visible in the truncated registering turn",
+    "labelled_by": "human, reading the registering turn",
+    "corpus": "nebius/SWE-agent-trajectories shard 0",
+    "schema": "benchmarks/schemas/coding.json"
+  },
+  {
+    "transcript": "AnalogJ__lexicon-336#7",
+    "entity": "current_file",
+    "value": "test_handle_output.py",
+    "turn_index": 11,
+    "verdict": "unclear",
+    "note": "turn announces a new test script; name inferred further in the message",
+    "labelled_by": "human, reading the registering turn",
+    "corpus": "nebius/SWE-agent-trajectories shard 0",
+    "schema": "benchmarks/schemas/coding.json"
+  },
+  {
+    "transcript": "Azure__azure-functions-python-worker-890#12",
+    "entity": "current_file",
+    "value": "test_thread_count.py",
+    "turn_index": 11,
+    "verdict": "unclear",
+    "note": "turn announces a new test script; name inferred further in the message",
+    "labelled_by": "human, reading the registering turn",
+    "corpus": "nebius/SWE-agent-trajectories shard 0",
+    "schema": "benchmarks/schemas/coding.json"
+  },
+  {
+    "transcript": "Azure__azure-functions-python-worker-890#13",
+    "entity": "current_file",
+    "value": "azure_functions_worker/dispatcher.py",
+    "turn_index": 3,
+    "verdict": "unclear",
+    "note": "turn reasons from search results rather than an explicit edit",
+    "labelled_by": "human, reading the registering turn",
+    "corpus": "nebius/SWE-agent-trajectories shard 0",
+    "schema": "benchmarks/schemas/coding.json"
+  },
+  {
+    "transcript": "Azure__azure-functions-python-worker-890#14",
+    "entity": "current_file",
+    "value": "azure_functions_worker/dispatcher.py",
+    "turn_index": 3,
+    "verdict": "unclear",
+    "note": "turn reasons from search results rather than an explicit edit",
+    "labelled_by": "human, reading the registering turn",
+    "corpus": "nebius/SWE-agent-trajectories shard 0",
+    "schema": "benchmarks/schemas/coding.json"
+  },
+  {
+    "transcript": "Azure__azure-functions-python-worker-890#17",
+    "entity": "current_file",
+    "value": "azure_functions_worker/dispatcher.py",
+    "turn_index": 27,
+    "verdict": "unclear",
+    "note": "navigate/goto context; no explicit edit statement",
+    "labelled_by": "human, reading the registering turn",
+    "corpus": "nebius/SWE-agent-trajectories shard 0",
+    "schema": "benchmarks/schemas/coding.json"
+  }
+]

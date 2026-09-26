@@ -51,50 +51,33 @@ class StateDAG:
     invalidating dead branches in the conversational history.
     """
 
-    ENTITY_PATTERNS = {
-        # Operations & Logistics
-        "destination_address": [
-            r"(?:deliver to|bring it to|change (?:the )?(?:address|destination) to|my address is|come to|new address:?|confirmed as|destination is|actually (?:use|send (?:it|them) to)|reroute (?:the rider )?to|use)\s+([A-Za-z0-9\s,–#-]{4,40}?)(?:\.|\,|$|\bwith\b|\band\b|\bplease\b|\bfor\b)",
-            r"(?:at|in|to)\s+(Tower\s+[A-Za-z0-9]+(?:\s*,\s*Flat\s+[0-9]+)?|Clubhouse(?:\s+[A-Za-z0-9\s]+)?|Gate\s+[0-9]+(?:\s+Security\s+Entrance)?|Flat\s+[0-9]+|Apartment\s+[0-9]+|Security\s+Desk)",
-        ],
-        "gate_code": [
-            r"(?:gate code|passcode|entry code|security pin|security code|otp is)\s*(?:is|to|=|:)?\s*([0-9]{4,6})",
-        ],
-        "dietary_allergy": [
-            r"\b(?:no\s+(?:peanuts?|dairy|gluten|soy|eggs?|nuts?|shellfish))\b",
-            # Adjective-first form: "a severe peanut allergy". The original
-            # pattern only matched the inverted "allergy: peanuts" shape, which
-            # meant the most safety-relevant assertion in the fixtures -- the
-            # peanut allergy -- was silently never extracted.
-            r"\b([A-Za-z]{3,20}?)\s+allergy\b",
-            r"(?:allergic to|allergy(?:\s*is|:)?|dietary restriction:?)\s*([A-Za-z\s]{3,20}?)(?:\.|\,|$|\band\b|\bdue\b)",
-        ],
-        "substitute_choice": [
-            r"(?:substitute with|replace (?:it|that) with|give me|swap for)\s+([A-Za-z0-9\s]+?(?:milk|butter|bread|paneer|curd|egg|chips|oil|rice|coke))",
-        ],
-        "refund_claim": [
-            r"(?:refund|credit back|give my money back|chargeback)\s*(?:of|for)?\s*(?:₹|rs\.?|inr)?\s*([0-9]+)",
-        ],
-        # Autonomous Software Engineering & DevTools
-        "signature_algorithm": [
-            r"\b(RSA-256|Ed25519|HMAC-SHA256|ECDSA)\b",
-        ],
-        "target_port": [
-            r"(?:(?:switch|change)?\s*(?:target\s*)?port\s*(?:from\s*[0-9]+\s*)?to|target (?:microservice )?port (?:to|is)?|listening on port|port\s*:?)\s*([0-9]{2,5})",
-        ],
-        "security_invariant": [
-            r"(NEVER log (?:the )?[A-Za-z0-9_\s]+in plaintext)",
-        ],
-        # Cloud & Infrastructure DevOps
-        "cloud_environment": [
-            r"(?:deploy to|environment:?|env:?|target env is)\s+(production|prod|staging|preview|development|dev)\b",
-        ],
-        "cloud_region": [
-            r"(?:region:?|cluster in|hosted in)\s+([a-z]{2}-[a-z]+-[0-9]{1,2})\b",
-        ]
-    }
+    #: Entity patterns, keyed by slot name.
+    #:
+    #: **Empty by default, and that is a measured decision rather than caution.**
+    #: The previous default shipped a logistics schema -- `destination_address`,
+    #: `refund_claim`, `gate_code` -- and applied it to everything. Run against
+    #: 60 real SWE-agent trajectories it produced 75 facts, of which every
+    #: sampled one was prose matched by accident:
+    #:
+    #:     destination_address = "of parentheses"
+    #:     destination_address = "it, otherwise do a lookup using type"
+    #:     destination_address = "a placeholder dictionary"
+    #:
+    #: The patterns were written to match a fixture, and a coding transcript is
+    #: full of the words they look for. Shipping them as defaults meant any user
+    #: outside that one scenario got confident nonsense for free.
+    #:
+    #: Opt in per domain:
+    #:
+    #:     dag.register_entity_schema("target_port", [r"port (?:to|is) (\d{2,5})"])
+    #:
+    #: or pass a schema mapping to the benchmark harness. The shipped schemas in
+    #: ``benchmarks/schemas/`` are the ones that were actually measured.
+    ENTITY_PATTERNS: Dict[str, List[str]] = {}
 
-    # Attributes that are strictly monotonic / immutable once asserted (cannot be silently overwritten)
+    #: Slots protected from being overwritten. Kept even though the default
+    #: schema is empty, because a caller opting into ``dietary_allergy`` or
+    #: ``security_invariant`` should get the protection without re-deriving it.
     IMMUTABLE_ENTITIES = {"dietary_allergy", "security_invariant"}
 
     def __init__(self):

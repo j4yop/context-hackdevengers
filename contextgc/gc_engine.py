@@ -79,9 +79,23 @@ class ContextGCEngine:
     MAX_TRACKED_FACTS = 64
     MAX_VALUE_CHARS = 512
 
-    def __init__(self, session_id: str = "contextgc", invariants: Optional[List[str]] = None):
+    def __init__(
+        self,
+        session_id: str = "contextgc",
+        invariants: Optional[List[str]] = None,
+        schema: Optional[Dict[str, Any]] = None,
+    ):
+        """
+        Args:
+            schema: entity patterns to enable, as
+                ``{"slot_name": [pattern, ...], "__immutable__": (...)}``. The
+                default is empty, because the shipped default used to be a
+                logistics schema that matched prose in any other domain. See
+                :attr:`StateDAG.ENTITY_PATTERNS`.
+        """
         self.session_id = session_id
-        self.dag = StateDAG()
+        self.schema = dict(schema) if schema else {}
+        self.dag = self._new_dag()
         self.sanitizer = ToolSanitizer()
         self.vector_tier = VectorMemoryTier(session_id)
         self.anchor = PolicyInvariantAnchor(invariants)
@@ -144,6 +158,22 @@ class ContextGCEngine:
                 index += 1
         return "\n".join(out).strip()
 
+    def _new_dag(self) -> StateDAG:
+        """A fresh graph carrying this engine's entity schema.
+
+        Built per invocation so nothing accumulates across calls, which means the
+        schema has to be re-applied each time rather than set once in __init__.
+        """
+        dag = StateDAG()
+        if self.schema:
+            immutable = self.schema.get("__immutable__") or ()
+            for name, patterns in self.schema.items():
+                if name == "__immutable__":
+                    continue
+                dag.register_entity_schema(name, list(patterns))
+            dag.immutable_entities.update(immutable)
+        return dag
+
     @staticmethod
     def _kv_prefix_len(original: List[Dict[str, Any]], compiled: List[Dict[str, Any]]) -> int:
         """Length of the byte-identical message prefix shared by both sequences."""
@@ -188,7 +218,7 @@ class ContextGCEngine:
 
         # Per-invocation state. Nothing is carried across calls, so a long-lived
         # process cannot accumulate unbounded archive rows.
-        self.dag = StateDAG()
+        self.dag = self._new_dag()
         self.vector_tier = VectorMemoryTier(self.session_id)
 
         raw_token_count = 0
@@ -256,7 +286,22 @@ class ContextGCEngine:
 
             # Inference sees the text with the protocol markup removed, so a
             # declared key is never also pattern-matched out of its own JSON.
-            inferrable = strip_blocks(content) if has_block(content) else content
+            # Do not infer state from machine-generated output.
+            #
+            # A traceback that mentions a path is not a statement about which file
+            # the agent is working on, and a grep listing is not an edit. Measured
+            # on 40 real SWE-agent trajectories, every mislabelled extraction came
+            # from exactly this: the pattern matched a filename inside a stack
+            # trace or a search result and promoted it to "the file under edit".
+            #
+            # The declared path is unaffected -- only the agent may write there,
+            # and it is reasoning about its own work rather than reading a blob.
+            is_machine_output = self.sanitizer.looks_like_tool_output(content, role)
+            inferrable = (
+                strip_blocks(content)
+                if has_block(content)
+                else ("" if is_machine_output else content)
+            )
             # A declared key must never be re-matched out of its own JSON, so
             # inference is told which keys are already accounted for.
             already = set(declaration.asserts) | set(declaration.pins) | set(declaration.unsure)
@@ -301,11 +346,11 @@ class ContextGCEngine:
             if role == "system":
                 content = self._strip_prior_registers(content)
 
-            is_tool_message = (
-                role in ("function", "tool")
-                or "TOOL_OUTPUT" in content
-                or (role == "system" and ("{" in content or "FAIL" in content or "diff --git" in content))
-            )
+            # Detected by content, not by a naming convention. Keying on
+            # `role in (tool, function)` or a `TOOL_OUTPUT` tag found nothing in
+            # the SWE-agent corpus, where tool output is filed as `user` and
+            # untagged -- so the compactor silently did nothing on real data.
+            is_tool_message = self.sanitizer.looks_like_tool_output(content, role)
 
             # Prefix safety: only mutate tool payloads when the caller has opted
             # out of prefix preservation.
@@ -391,13 +436,6 @@ class ContextGCEngine:
                         cleaned_msg["name"] = name
                     cleaned_messages.append(cleaned_msg)
                     continue
-                cleaned_msg = {"role": role, "content": tombstone}
-                if tool_call_id:
-                    cleaned_msg["tool_call_id"] = tool_call_id
-                if name:
-                    cleaned_msg["name"] = name
-                cleaned_messages.append(cleaned_msg)
-                continue
 
             # The model must never see protocol markup. It is a channel to the
             # compiler, and feeding it back would grow the transcript every turn.

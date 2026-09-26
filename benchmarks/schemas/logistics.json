@@ -1,0 +1,20 @@
+{
+  "_comment": "The logistics schema that used to be the library default. Measured against real SWE-agent trajectories it produced 75 facts of which every sampled one was prose matched by accident. Kept here as an opt-in example, with the measurement that condemns it.",
+  "entities": {
+    "destination_address": [
+      "(?:deliver to|bring it to|change (?:the )?(?:address|destination) to|my address is|come to|new address:?|confirmed as|destination is|actually (?:use|send (?:it|them) to)|reroute (?:the rider )?to|use)\\s+([A-Za-z0-9\\s,\u2013#-]{4,40}?)(?:\\.|\\,|$|\\bwith\\b|\\band\\b|\\bplease\\b|\\bfor\\b)",
+      "(?:at|in|to)\\s+(Tower\\s+[A-Za-z0-9]+(?:\\s*,\\s*Flat\\s+[0-9]+)?|Clubhouse(?:\\s+[A-Za-z0-9\\s]+)?|Gate\\s+[0-9]+(?:\\s+Security\\s+Entrance)?|Flat\\s+[0-9]+|Apartment\\s+[0-9]+|Security\\s+Desk)"
+    ],
+    "gate_code": [
+      "(?:gate code|passcode|entry code|security pin|security code|otp is)\\s*(?:is|to|=|:)?\\s*([0-9]{4,6})"
+    ],
+    "refund_claim": [
+      "(?:refund|credit back|give my money back|chargeback)\\s*(?:of|for)?\\s*(?:\u20b9|rs\\.?|inr)?\\s*([0-9]+)"
+    ],
+    "dietary_allergy": [
+      "\\b(?:no\\s+(?:peanuts?|dairy|gluten|soy|eggs?|nuts?|shellfish))\\b",
+      "\\b([A-Za-z]{3,20}?)\\s+allergy\\b"
+    ]
+  },
+  "__immutable__": ["dietary_allergy"]
+}

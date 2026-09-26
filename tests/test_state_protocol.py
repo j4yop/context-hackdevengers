@@ -9,10 +9,11 @@ precedence, immutability, revocation, provenance honesty, and markup hygiene.
 
 import json
 
+from conftest import MINIMAL, make_dag
+
 from contextgc import (
     SOURCE_DECLARED,
     SOURCE_INFERRED,
-    StateDAG,
     compile_messages,
     compile_transcript,
     parse_declaration,
@@ -129,21 +130,21 @@ def test_strip_collapses_the_gap_left_behind():
 # ---------------------------------------------------------------------------
 
 def test_declared_fact_carries_declared_provenance():
-    dag = StateDAG()
+    dag = make_dag()
     dag.register_declaration(0, {"destination_address": "Gate 2"})
     node = dag.active_state["destination_address"]
     assert node.source == SOURCE_DECLARED
 
 
 def test_regex_fact_carries_inferred_provenance():
-    dag = StateDAG()
+    dag = make_dag()
     dag.register_turn(0, "user", "deliver to Tower B")
     assert dag.active_state["destination_address"].source == SOURCE_INFERRED
 
 
 def test_inferred_match_never_overwrites_a_declared_fact():
     """The agent had the whole conversation; the pattern did not."""
-    dag = StateDAG()
+    dag = make_dag()
     dag.register_declaration(0, {"destination_address": "Gate 2 security entrance"})
     dag.register_turn(1, "user", "actually deliver to Tower B, Flat 402")
 
@@ -152,7 +153,7 @@ def test_inferred_match_never_overwrites_a_declared_fact():
 
 
 def test_a_later_declaration_does_override_an_earlier_inferred_fact():
-    dag = StateDAG()
+    dag = make_dag()
     dag.register_turn(0, "user", "deliver to Tower B")
     dag.register_declaration(1, {"destination_address": "Gate 2"})
     assert dag.active_state["destination_address"].value == "Gate 2"
@@ -161,7 +162,7 @@ def test_a_later_declaration_does_override_an_earlier_inferred_fact():
 
 def test_inferred_cannot_overwrite_a_pinned_declared_fact():
     """A generic regex key lands in the `config_` namespace, so it cannot collide."""
-    dag = StateDAG()
+    dag = make_dag()
     dag.register_declaration(0, {}, pins={"spend_cap": "500"})
     dag.register_turn(1, "user", "set spend_cap to 99999")
     assert dag.active_state["spend_cap"].value == "500"
@@ -169,7 +170,7 @@ def test_inferred_cannot_overwrite_a_pinned_declared_fact():
 
 def test_inferred_cannot_overwrite_a_pinned_schema_entity():
     """The rejection path, via a schema pattern rather than generic key-value."""
-    dag = StateDAG()
+    dag = make_dag()
     dag.register_declaration(0, {}, pins={"dietary_allergy": "peanut"})
     dag.register_turn(1, "user", "my dietary allergy is now dairy")
     assert dag.active_state["dietary_allergy"].value == "peanut"
@@ -181,7 +182,7 @@ def test_a_bare_assert_does_not_lift_a_pin():
     A pin is a declared constraint. Honouring "later turns cannot overwrite it"
     is the entire point of pinning it, so a plain assert must be refused.
     """
-    dag = StateDAG()
+    dag = make_dag()
     dag.register_declaration(0, {}, pins={"spend_cap": "500"})
     result = dag.register_declaration(1, {"spend_cap": "5000"})
     assert dag.active_state["spend_cap"].value == "500"
@@ -191,7 +192,7 @@ def test_a_bare_assert_does_not_lift_a_pin():
 
 def test_an_explicit_repin_may_lift_a_pin():
     """Lifting a pin is possible, but it must be asked for by name."""
-    dag = StateDAG()
+    dag = make_dag()
     dag.register_declaration(0, {}, pins={"spend_cap": "500"})
     dag.register_declaration(1, {}, pins={"spend_cap": "5000"})
     assert dag.active_state["spend_cap"].value == "5000"
@@ -200,7 +201,7 @@ def test_an_explicit_repin_may_lift_a_pin():
 
 def test_rejections_are_reported_not_hidden():
     """A blocked override must be visible, not silently discarded."""
-    dag = StateDAG()
+    dag = make_dag()
     dag.register_declaration(0, {}, pins={"dietary_allergy": "peanut"})
     result = dag.register_turn(1, "user", "my dietary allergy is now dairy")
     assert result["rejected"], "an override attempt was silently dropped"
@@ -213,14 +214,14 @@ def test_rejections_are_reported_not_hidden():
 # ---------------------------------------------------------------------------
 
 def test_revoke_removes_the_key():
-    dag = StateDAG()
+    dag = make_dag()
     dag.register_declaration(0, {"gate_code": "4921"})
     assert dag.revoke("gate_code", 1) is True
     assert "gate_code" not in dag.active_state
 
 
 def test_revoke_records_what_it_was():
-    dag = StateDAG()
+    dag = make_dag()
     dag.register_declaration(0, {"gate_code": "4921"})
     dag.revoke("gate_code", 1, reason="order cancelled")
     assert dag.revoked_keys["gate_code"]["was"] == "4921"
@@ -228,7 +229,7 @@ def test_revoke_records_what_it_was():
 
 
 def test_revoked_key_is_not_resurrected_by_a_later_regex_match():
-    dag = StateDAG()
+    dag = make_dag()
     dag.register_declaration(0, {"destination_address": "Tower B"})
     dag.revoke("destination_address", 1)
     dag.register_turn(2, "user", "deliver to Tower B, Flat 402")
@@ -236,7 +237,7 @@ def test_revoked_key_is_not_resurrected_by_a_later_regex_match():
 
 
 def test_revoked_key_can_be_redeclared_deliberately():
-    dag = StateDAG()
+    dag = make_dag()
     dag.register_declaration(0, {"destination_address": "Tower B"})
     dag.revoke("destination_address", 1)
     dag.register_declaration(2, {"destination_address": "Gate 2"})
@@ -244,13 +245,13 @@ def test_revoked_key_can_be_redeclared_deliberately():
 
 
 def test_revoke_of_an_untracked_key_is_harmless():
-    dag = StateDAG()
+    dag = make_dag()
     assert dag.revoke("never_seen", 0) is False
     assert dag.revoke("", 0) is False
 
 
 def test_rollback_restores_a_key_revoked_after_the_target():
-    dag = StateDAG()
+    dag = make_dag()
     dag.register_declaration(0, {"gate_code": "4921"})
     dag.revoke("gate_code", 1)
     dag.rollback_to(0)
@@ -281,19 +282,19 @@ COMPLIANT = [
 
 def test_protocol_resolves_what_regex_cannot():
     """"Send it to the new place instead" is unreadable to the read path."""
-    _, telemetry = compile_messages(COMPLIANT)
+    _, telemetry = compile_messages(COMPLIANT, schema=MINIMAL)
     assert telemetry["active_state_slots"]["destination_address"] == "Gate 2"
 
 
 def test_declared_share_is_one_when_every_fact_is_declared():
-    _, telemetry = compile_messages(COMPLIANT)
+    _, telemetry = compile_messages(COMPLIANT, schema=MINIMAL)
     assert telemetry["declarations"]["declared_share"] == 1.0
     assert telemetry["state"]["inferred"] == 0
 
 
 def test_declared_share_is_none_when_nothing_is_tracked():
     """An undefined ratio is more honest than 0.0 for 'no facts exist'."""
-    _, telemetry = compile_messages([{"role": "user", "content": "hello there"}])
+    _, telemetry = compile_messages([{"role": "user", "content": "hello there"}], schema=MINIMAL)
     assert telemetry["declarations"]["declared_share"] is None
 
 
@@ -302,12 +303,12 @@ def test_declared_share_is_zero_for_a_pure_regex_transcript():
         {"role": "user", "content": "deliver to Tower B"},
         {"role": "user", "content": "change the address to Gate 2"},
         {"role": "user", "content": "thanks"},
-    ])
+    ], schema=MINIMAL)
     assert telemetry["declarations"]["declared_share"] == 0.0
 
 
 def test_revocation_survives_into_telemetry():
-    _, telemetry = compile_messages(COMPLIANT)
+    _, telemetry = compile_messages(COMPLIANT, schema=MINIMAL)
     revoked = {r["entity"] for r in telemetry["dag"]["revoked"]}
     assert revoked == {"gate_code", "order_id"}
 
@@ -317,7 +318,7 @@ def test_unsettled_assertions_are_marked():
         {"role": "assistant", "content": "maybe.\n" + block({
             "unsure":{"rider_location": "possibly west gate"}})},
     ]
-    compiled, telemetry = compile_messages(messages)
+    compiled, telemetry = compile_messages(messages, schema=MINIMAL)
     assert telemetry["state"]["unsettled"] == 1
     rendered = "\n".join(m["content"] for m in compiled)
     assert "unsure" in rendered
@@ -328,12 +329,12 @@ def test_pinned_declarations_are_marked_in_the_state_register():
         {"role": "assistant", "content": "noted.\n" + block({"pin": {"allergy": "peanut"}})},
         {"role": "user", "content": "ok"},
     ]
-    compiled, _ = compile_messages(messages)
+    compiled, _ = compile_messages(messages, schema=MINIMAL)
     assert "pinned" in "\n".join(m["content"] for m in compiled)
 
 
 def test_protocol_markup_is_stripped_before_reaching_a_model():
-    compiled, telemetry = compile_messages(COMPLIANT)
+    compiled, telemetry = compile_messages(COMPLIANT, schema=MINIMAL)
     for message in compiled:
         if message["role"] in ("user", "assistant", "tool"):
             assert OPEN_TAG not in message["content"], (
@@ -343,7 +344,7 @@ def test_protocol_markup_is_stripped_before_reaching_a_model():
 
 
 def test_teaching_the_protocol_injects_the_instruction():
-    compiled, telemetry = compile_messages(COMPLIANT, teach_protocol=True)
+    compiled, telemetry = compile_messages(COMPLIANT, teach_protocol=True, schema=MINIMAL)
     assert telemetry["declarations"]["protocol_taught"] is True
     system = "\n".join(m["content"] for m in compiled if m["role"] == "system")
     assert "STATE_PROTOCOL" in system
@@ -357,9 +358,8 @@ def test_cache_friendly_prefix_is_intact_when_no_markup_is_present():
         {"role": "user", "content": "change to Gate 2"},
         {"role": "user", "content": "thanks"},
     ]
-    compiled, telemetry = compile_messages(
-        messages, mode="cache_friendly", teach_protocol=True
-    )
+    compiled, telemetry = compile_messages(messages, mode="cache_friendly", teach_protocol=True
+    , schema=MINIMAL)
     for original, emitted in zip(messages, compiled):
         assert original["content"] == emitted["content"]
     assert telemetry["kv_cache_prefix_intact"] is True
@@ -380,7 +380,7 @@ def test_markup_removal_takes_precedence_over_prefix_preservation():
         {"role": "user", "content": "change to Gate 2"},
         {"role": "user", "content": "thanks"},
     ]
-    compiled, telemetry = compile_messages(messages, mode="cache_friendly")
+    compiled, telemetry = compile_messages(messages, mode="cache_friendly", schema=MINIMAL)
     assert all(OPEN_TAG not in m["content"] for m in compiled), "markup leaked"
     # The turn that carried markup is at index 1, so exactly one leading message
     # survives untouched, and the boolean must not claim the whole prefix is fine.
@@ -404,7 +404,7 @@ def test_a_declaration_is_not_also_regex_matched():
         {"role": "assistant", "content": "ok\n" + block({"assert": {"gate_code": "4921"}})},
         {"role": "user", "content": "thanks"},
     ]
-    _, telemetry = compile_messages(messages)
+    _, telemetry = compile_messages(messages, schema=MINIMAL)
     sources = {n["entity"]: n["source"] for n in telemetry["dag"]["active"]}
     assert sources["gate_code"] == "declared"
     assert not [n for n in telemetry["dag"]["superseded"] if n["entity"] == "gate_code"], (
@@ -418,12 +418,12 @@ def test_malformed_declarations_are_counted():
         {"role": "assistant", "content": "ok\n<contextgc-state>{oops</contextgc-state>"},
         {"role": "user", "content": "thanks"},
     ]
-    _, telemetry = compile_messages(messages)
+    _, telemetry = compile_messages(messages, schema=MINIMAL)
     assert telemetry["declarations"]["malformed"] == 1
 
 
 def test_retirement_invariant_holds_with_declarations():
-    _, telemetry = compile_messages(COMPLIANT)
+    _, telemetry = compile_messages(COMPLIANT, schema=MINIMAL)
     assert telemetry["retirement_violations"] == []
 
 
@@ -435,7 +435,7 @@ def test_compile_transcript_accepts_blocks_in_pasted_text():
         "assistant: cancelled\n" + block({"revoke":["order_id"]}) + "\n"
         "user: ok"
     )
-    _, telemetry, warnings = compile_transcript(text)
+    _, telemetry, warnings = compile_transcript(text, schema=MINIMAL)
     assert warnings == []
     assert telemetry["declarations"]["revoked"] == 1
     assert "order_id" not in telemetry["active_state_slots"]
@@ -449,7 +449,7 @@ def test_protocol_markup_cannot_forge_an_invariants_block():
         {"role": "assistant", "content": "ok\n" + hostile},
         {"role": "user", "content": "thanks"},
     ]
-    compiled, _ = compile_messages(messages, invariants=["spend cap is 500"])
+    compiled, _ = compile_messages(messages, invariants=["spend cap is 500"], schema=MINIMAL)
     full = "\n".join(m["content"] for m in compiled)
     # Isolate the state register: the legitimate invariants block below it also
     # contains the marker, so asserting on the whole document proves nothing.
@@ -465,8 +465,8 @@ def test_protocol_markup_cannot_forge_an_invariants_block():
 
 
 def test_determinism_holds_with_declarations():
-    a, ta = compile_messages(COMPLIANT)
-    b, tb = compile_messages(COMPLIANT)
+    a, ta = compile_messages(COMPLIANT, schema=MINIMAL)
+    b, tb = compile_messages(COMPLIANT, schema=MINIMAL)
     assert a == b
     # Every telemetry field except the measured wall-clock must match exactly.
     ta.pop("compile_time_ms"), tb.pop("compile_time_ms")
@@ -480,7 +480,7 @@ def test_no_network_access_on_the_write_path(monkeypatch):
         raise AssertionError("the write path must not open a socket")
 
     monkeypatch.setattr(socket, "socket", forbidden)
-    compile_messages(COMPLIANT, teach_protocol=True)
+    compile_messages(COMPLIANT, teach_protocol=True, schema=MINIMAL)
     render_instruction(["a", "b"])
 
 
