@@ -36,11 +36,23 @@ _NEGATORS = re.compile(
     r"under no circumstances|refuse|cancel|avoid|instead of|rather than|other than)\b"
 )
 
-#: A fresh statement of intent. If one of these sits between a negator and a
-#: candidate value, the negator governs an earlier phrase, not this one.
+#: A fresh statement of intent, or the end of a sentence. If one of these sits
+#: between a negator and a candidate value, the negator governs an earlier phrase,
+#: not this one.
+#:
+#: The sentence terminator matters and was missing at first. A real agent turn:
+#:
+#:     "...inherits from `Base` rather than directly from `AnotherBaseClass`.
+#:      Let's modify the `reproduce.py` file..."
+#:
+#: "rather than" governs `AnotherBaseClass`, and the extraction that follows is a
+#: perfectly good one. Without the terminator in this pattern the guard threw it
+#: away, and a labelled extraction silently stopped matching -- which is how the
+#: bug was found: the drift gate, not a number.
 _INTENT = re.compile(
     r"\b(?:deliver|ship|send|go|move|use|change|switch|book|route|reroute|bring|"
-    r"take|want|need|address|pay|charge|refund|redirect|forward|mail|drop|leave)\b|,"
+    r"take|want|need|address|pay|charge|refund|redirect|forward|mail|drop|leave)\b"
+    r"|,|[.!?]\s"
 )
 
 
