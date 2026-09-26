@@ -1,1096 +1,479 @@
 <!DOCTYPE html>
-<html lang="en" class="scroll-smooth">
+<html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>ContextGC — Autonomous Semantic Context Defragmenter for AI Agents</title>
-  
-  <!-- Premium Fonts: Plus Jakarta Sans & Fira Code -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-  
-  <!-- Tailwind CSS CDN -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  <!-- FontAwesome 6 Pro-style glyphs -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
-
-  <script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          fontFamily: {
-            sans: ['"Plus Jakarta Sans"', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
-            mono: ['"Fira Code"', 'monospace'],
-          },
-          colors: {
-            canvas: '#f8fafc',
-            surface: '#ffffff',
-            subtle: '#f1f5f9',
-            borderLight: '#e2e8f0',
-            borderDark: '#cbd5e1',
-            ink: '#0f172a',
-            inkSecondary: '#475569',
-            inkMuted: '#64748b',
-            brand: '#2563eb',
-            brandHover: '#1d4ed8',
-            brandLight: '#eff6ff',
-          }
-        }
-      }
-    }
-  </script>
-
-  <style>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>contextgc — stop your agent contradicting itself</title>
+<meta name="description" content="A deterministic context compiler for AI agent transcripts. Paste a conversation, get back a smaller one that no longer contains superseded facts. No API key, no model call, microseconds." />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:#fbfbfd; --panel:#fff; --panel-2:#f7f8fa; --line:#e4e7ec;
+    --line-2:#eef0f3; --ink:#101828; --ink-2:#475467; --ink-3:#8a94a6;
+    --accent:#2f5fe0; --accent-ink:#1c3f9e; --accent-bg:#eef3ff;
+    --good:#0f7a52; --good-bg:#e9f7f0; --good-line:#b6e3cd;
+    --warn:#8a5a00; --warn-bg:#fdf5e4; --warn-line:#f0dcae;
+    --bad:#b42318; --bad-bg:#fdefee; --bad-line:#f5c9c4;
+    --mono:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+  }
+  @media (prefers-color-scheme: dark) {
     :root {
-      --font-sans: 'Plus Jakarta Sans', sans-serif;
-      --font-mono: 'Fira Code', monospace;
+      --bg:#0c0d10; --panel:#14161a; --panel-2:#191c21; --line:#262a31; --line-2:#1e2127;
+      --ink:#e8eaed; --ink-2:#a2aab8; --ink-3:#6b7482;
+      --accent:#7fa2ff; --accent-ink:#a8c0ff; --accent-bg:#16203a;
+      --good:#4ed7a0; --good-bg:#0f2620; --good-line:#1d4a3a;
+      --warn:#e8b765; --warn-bg:#2a2113; --warn-line:#4d3d1c;
+      --bad:#f28b82; --bad-bg:#2a1615; --bad-line:#4d2724;
     }
+  }
+  * { box-sizing:border-box; }
+  body {
+    margin:0; background:var(--bg); color:var(--ink);
+    font-family:Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+    font-size:15px; line-height:1.55; -webkit-font-smoothing:antialiased;
+  }
+  .wrap { max-width:1200px; margin:0 auto; padding:0 20px; }
+  a { color:var(--accent); }
+  code, pre, .mono { font-family:var(--mono); }
+  .num { font-family:var(--mono); font-variant-numeric:tabular-nums; }
 
-    body {
-      background-color: #f8fafc;
-      color: #0f172a;
-      font-feature-settings: "cv02", "cv03", "cv04", "cv11";
-      -webkit-font-smoothing: antialiased;
-    }
+  header { border-bottom:1px solid var(--line); background:var(--panel); position:sticky; top:0; z-index:20; }
+  header .wrap { display:flex; align-items:center; gap:16px; height:58px; }
+  .logo { display:flex; align-items:center; gap:9px; font-weight:700; letter-spacing:-.02em; font-size:16px; }
+  .logo .mark { width:24px; height:24px; border-radius:6px; background:var(--ink); color:var(--panel);
+    display:grid; place-items:center; font-size:12px; font-weight:700; }
+  nav { margin-left:auto; display:flex; gap:4px; align-items:center; }
+  nav a { color:var(--ink-2); text-decoration:none; font-size:13.5px; font-weight:500; padding:6px 10px; border-radius:7px; }
+  nav a:hover { background:var(--panel-2); color:var(--ink); }
 
-    /* Tabular numeric alignment for statistics */
-    .tabular-nums {
-      font-variant-numeric: tabular-nums;
-    }
+  .hero { padding:56px 0 34px; }
+  .hero h1 { font-size:clamp(28px,4.4vw,44px); line-height:1.1; letter-spacing:-.033em; margin:0 0 16px; font-weight:700; max-width:19ch; }
+  .hero p { font-size:17.5px; color:var(--ink-2); max-width:62ch; margin:0 0 20px; }
+  .install { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+  .install code { background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:7px 11px; font-size:13.5px; }
+  .install .pill { background:var(--good-bg); border:1px solid var(--good-line); color:var(--good);
+    border-radius:999px; padding:5px 11px; font-size:12.5px; font-weight:600; }
 
-    /* Crisp card elevation */
-    .card-base {
-      background: #ffffff;
-      border: 1px solid #e2e8f0;
-      border-radius: 1rem;
-      box-shadow: 0 1px 3px 0 rgba(15, 23, 42, 0.04), 0 1px 2px -1px rgba(15, 23, 42, 0.04);
-      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-    }
-    .card-base:hover {
-      border-color: #cbd5e1;
-      box-shadow: 0 4px 12px 0 rgba(15, 23, 42, 0.05), 0 2px 4px -2px rgba(15, 23, 42, 0.04);
-    }
+  .grid { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1.05fr); gap:20px; align-items:start; }
+  @media (max-width:940px){ .grid { grid-template-columns:1fr; } }
 
-    /* Subtle hairline container */
-    .panel-container {
-      background: #ffffff;
-      border: 1px solid #e2e8f0;
-      border-radius: 1.25rem;
-      box-shadow: 0 20px 40px -15px rgba(15, 23, 42, 0.03);
-    }
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:14px; }
+  .card > h2 { font-size:13px; text-transform:uppercase; letter-spacing:.07em; color:var(--ink-3);
+    font-weight:600; margin:0; padding:14px 18px; border-bottom:1px solid var(--line-2); }
+  .card > .body { padding:18px; }
 
-    /* Tactile button micro-physics */
-    .btn-tactile {
-      transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
-    }
-    .btn-tactile:active {
-      transform: scale(0.98);
-    }
+  textarea { width:100%; min-height:340px; resize:vertical; font-family:var(--mono); font-size:13px; line-height:1.6;
+    background:var(--panel-2); color:var(--ink); border:1px solid var(--line); border-radius:10px; padding:13px; }
+  textarea:focus { outline:2px solid var(--accent); outline-offset:-1px; background:var(--panel); }
 
-    /* Custom high-contrast scrollbar */
-    ::-webkit-scrollbar {
-      width: 6px;
-      height: 6px;
-    }
-    ::-webkit-scrollbar-track {
-      background: #f1f5f9;
-    }
-    ::-webkit-scrollbar-thumb {
-      background: #cbd5e1;
-      border-radius: 9999px;
-    }
-    ::-webkit-scrollbar-thumb:hover {
-      background: #94a3b8;
-    }
-  </style>
+  .row { display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-top:12px; }
+  button { font-family:inherit; font-size:14px; font-weight:600; border-radius:9px; padding:9px 15px; cursor:pointer;
+    border:1px solid var(--line); background:var(--panel-2); color:var(--ink); }
+  button:hover:not(:disabled) { background:var(--line-2); }
+  button:disabled { opacity:.5; cursor:not-allowed; }
+  button.primary { background:var(--accent); border-color:var(--accent); color:#fff; }
+  button.primary:hover:not(:disabled) { filter:brightness(1.08); }
+  button.link { background:none; border:none; color:var(--accent); padding:4px 2px; font-weight:500; font-size:13.5px; }
+  button.link:hover { background:none; text-decoration:underline; }
+
+  .seg { display:inline-flex; background:var(--panel-2); border:1px solid var(--line); border-radius:9px; padding:3px; gap:2px; }
+  .seg button { border:none; background:none; padding:5px 11px; font-size:13px; border-radius:6px; color:var(--ink-2); }
+  .seg button[aria-pressed="true"] { background:var(--panel); color:var(--ink); box-shadow:0 1px 2px rgba(16,24,40,.08); }
+
+  label.opt { font-size:12.5px; color:var(--ink-2); font-weight:600; display:block; margin:14px 0 5px; }
+  input[type=text] { width:100%; padding:8px 11px; font-family:var(--mono); font-size:13px;
+    background:var(--panel-2); border:1px solid var(--line); border-radius:9px; color:var(--ink); }
+  input[type=text]:focus { outline:2px solid var(--accent); outline-offset:-1px; }
+
+  .stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(112px,1fr)); gap:1px; background:var(--line-2);
+    border:1px solid var(--line); border-radius:12px; overflow:hidden; margin-bottom:16px; }
+  .stat { background:var(--panel); padding:13px 14px; }
+  .stat .k { font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:var(--ink-3); font-weight:600; }
+  .stat .v { font-family:var(--mono); font-size:21px; font-weight:600; margin-top:3px; letter-spacing:-.02em; }
+  .stat .n { font-size:11.5px; color:var(--ink-3); margin-top:1px; }
+  .v.good { color:var(--good); } .v.accent { color:var(--accent); }
+
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  th { text-align:left; font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--ink-3);
+    font-weight:600; padding:0 8px 7px; border-bottom:1px solid var(--line-2); }
+  td { padding:8px; border-bottom:1px solid var(--line-2); vertical-align:top; }
+  tr:last-child td { border-bottom:none; }
+  td.mono, th.mono { font-family:var(--mono); font-size:12.5px; }
+  .tag { display:inline-block; font-family:var(--mono); font-size:11px; font-weight:600; padding:2px 7px;
+    border-radius:999px; white-space:nowrap; }
+  .tag.imm { background:var(--good-bg); color:var(--good); border:1px solid var(--good-line); }
+  .tag.ret { background:var(--panel-2); color:var(--ink-2); border:1px solid var(--line); }
+  .tag.del { background:var(--bad-bg); color:var(--bad); border:1px solid var(--bad-line); }
+  .strike { text-decoration:line-through; color:var(--ink-3); }
+
+  .note { border-radius:10px; padding:11px 13px; font-size:13px; margin-bottom:12px; display:flex; gap:9px; align-items:flex-start; }
+  .note.bad { background:var(--bad-bg); border:1px solid var(--bad-line); color:var(--bad); }
+  .note.warn { background:var(--warn-bg); border:1px solid var(--warn-line); color:var(--warn); }
+  .note b { font-weight:700; }
+  .note code { font-size:12px; }
+
+  pre.out { background:var(--panel-2); border:1px solid var(--line); border-radius:10px; padding:13px;
+    font-size:12.5px; line-height:1.6; overflow-x:auto; max-height:400px; overflow-y:auto; margin:0; white-space:pre-wrap; word-break:break-word; }
+
+  .empty { color:var(--ink-3); font-size:13.5px; text-align:center; padding:34px 16px; }
+  .secttl { font-size:12px; text-transform:uppercase; letter-spacing:.07em; color:var(--ink-3);
+    font-weight:600; margin:22px 0 9px; }
+  .secttl:first-child { margin-top:0; }
+
+  details { border:1px solid var(--line); border-radius:10px; padding:0; margin-top:10px; background:var(--panel); }
+  details summary { cursor:pointer; padding:10px 13px; font-size:13.5px; font-weight:600; list-style:none; }
+  details summary::-webkit-details-marker { display:none; }
+  details summary::before { content:"+ "; color:var(--ink-3); font-family:var(--mono); }
+  details[open] summary::before { content:"− "; }
+  details > div { padding:0 13px 13px; }
+
+  .how { display:grid; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); gap:16px; }
+  .how section { background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:20px; }
+  .how h3 { font-size:15px; margin:0 0 7px; letter-spacing:-.01em; }
+  .how p { font-size:14px; color:var(--ink-2); margin:0 0 10px; }
+  .how pre { margin:0; font-size:12.5px; }
+
+  .limits { background:var(--warn-bg); border:1px solid var(--warn-line); border-radius:14px; padding:22px; }
+  .limits h2 { margin:0 0 10px; font-size:16px; color:var(--warn); letter-spacing:-.01em; }
+  .limits ul { margin:0; padding-left:20px; color:var(--ink-2); font-size:14px; }
+  .limits li { margin-bottom:7px; }
+  .limits code { font-size:12.5px; }
+
+  footer { border-top:1px solid var(--line); margin-top:56px; padding:26px 0 40px; color:var(--ink-3); font-size:13px; }
+  footer .wrap { display:flex; flex-wrap:wrap; gap:14px; align-items:center; }
+  footer a { color:var(--ink-2); text-decoration:none; } footer a:hover { text-decoration:underline; }
+  .spin { display:inline-block; width:13px; height:13px; border:2px solid rgba(255,255,255,.35);
+    border-top-color:#fff; border-radius:50%; animation:sp .7s linear infinite; vertical-align:-2px; }
+  @keyframes sp { to { transform:rotate(360deg); } }
+  .sr { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; }
+</style>
 </head>
-<body class="min-h-screen flex flex-col justify-between selection:bg-blue-100 selection:text-blue-900 text-slate-900 bg-slate-50">
+<body>
 
-  <!-- Top Floating Header Island -->
-  <header class="sticky top-3 z-50 px-4 sm:px-6">
-    <div class="max-w-6xl mx-auto bg-white/90 backdrop-blur-md border border-slate-200/80 rounded-2xl px-5 py-2.5 shadow-sm flex items-center justify-between">
-      
-      <!-- Logo & Brand -->
-      <a href="#" class="flex items-center gap-3 group">
-        <div class="h-8 w-8 rounded-lg bg-slate-900 text-white flex items-center justify-center font-bold text-sm shadow-sm group-hover:bg-blue-600 transition">
-          <i class="fa-solid fa-broom text-xs"></i>
-        </div>
-        <div class="flex items-center gap-2">
-          <span class="font-bold text-base tracking-tight text-slate-900">
-            Context<span class="text-blue-600 font-extrabold">GC</span>
-          </span>
-          <span class="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200/70 font-mono">
-            v2.4
-          </span>
-        </div>
-      </a>
+<header>
+  <div class="wrap">
+    <div class="logo"><span class="mark">cg</span> contextgc</div>
+    <nav>
+      <a href="#try">Try it</a>
+      <a href="#how">How it works</a>
+      <a href="#limits">Limits</a>
+      <a href="https://github.com/j4yop/context-hackdevengers" target="_blank" rel="noopener">GitHub</a>
+    </nav>
+  </div>
+</header>
 
-      <!-- Navigation Links -->
-      <nav class="hidden md:flex items-center gap-1 text-xs font-semibold text-slate-600">
-        <a href="#benchmarks" class="px-2.5 py-1.5 rounded-lg hover:text-slate-950 hover:bg-slate-100 transition">Benchmarks</a>
-        <a href="#diff-sandbox" class="px-2.5 py-1.5 rounded-lg hover:text-slate-950 hover:bg-slate-100 transition">Diff Sandbox</a>
-        <a href="#dag-section" class="px-2.5 py-1.5 rounded-lg hover:text-slate-950 hover:bg-slate-100 transition">State DAG</a>
-        <a href="#vector-section" class="px-2.5 py-1.5 rounded-lg hover:text-slate-950 hover:bg-slate-100 transition">Vector Tier</a>
-        <a href="/presentation" target="_blank" class="px-2.5 py-1.5 rounded-lg text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200/80 transition flex items-center gap-1.5">
-          <i class="fa-solid fa-chalkboard text-[11px]"></i>
-          <span>Pitch Deck</span>
-        </a>
-      </nav>
+<div class="wrap">
 
-      <!-- Action Buttons -->
-      <div class="flex items-center gap-2.5">
-        <a href="https://github.com/j4yop/context-hackdevengers" target="_blank" class="hidden sm:flex items-center gap-2 text-xs font-semibold text-slate-700 hover:text-slate-950 px-3 py-1.5 rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 transition">
-          <i class="fa-brands fa-github text-sm"></i>
-          <span>GitHub</span>
-        </a>
-        <button onclick="runShowdown()" class="btn-tactile bg-blue-600 hover:bg-blue-700 text-white px-3.5 py-1.5 rounded-lg text-xs font-bold shadow-sm shadow-blue-500/20 flex items-center gap-2">
-          <span id="btn-nav-text">Run Benchmark</span>
-          <i class="fa-solid fa-play text-[10px]"></i>
-        </button>
-      </div>
-
-    </div>
-  </header>
-
-  <!-- Hero Section -->
-  <section class="max-w-5xl mx-auto px-4 pt-16 pb-10 text-center">
-    
-    <!-- Category Pill -->
-    <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 border border-blue-200/80 text-blue-700 text-xs font-semibold mb-6">
-      <span class="h-2 w-2 rounded-full bg-blue-600"></span>
-      <span>Autonomous Semantic Context Infrastructure for AI Agents</span>
-    </div>
-
-    <!-- Main Headline -->
-    <h1 class="text-4xl sm:text-6xl font-extrabold tracking-tight text-slate-950 max-w-3xl mx-auto leading-[1.12] mb-6">
-      Stop LLM Context Rot with <span class="text-blue-600">Semantic Defragmentation</span>.
-    </h1>
-
-    <!-- Subtitle -->
-    <p class="text-base sm:text-lg text-slate-600 max-w-2xl mx-auto font-normal leading-relaxed mb-8">
-      Inline cognitive garbage collector for long-running agents. Maintains a causal State DAG to prune dead conversational branches, distills tool sludge, and anchors policy invariants with <strong class="text-slate-900 font-semibold">&lt; 3ms execution overhead</strong>.
+  <section class="hero">
+    <h1>Stop your agent contradicting itself.</h1>
+    <p>
+      Long agent sessions pile up superseded facts and bulky tool output, so the model has to
+      reconcile two different values for the same key — and you pay for every token of it.
+      contextgc compiles the transcript down to what's currently true. Deterministic, no API key,
+      no model call.
     </p>
-
-    <!-- Key Metrics Strip -->
-    <div class="flex flex-wrap items-center justify-center gap-4 sm:gap-10 text-xs font-mono text-slate-600 pt-3 border-t border-slate-200/80">
-      <div class="flex items-center gap-2">
-        <i class="fa-solid fa-bolt text-amber-600"></i>
-        <span><strong>&lt; 2.5ms</strong> Interception Latency</span>
-      </div>
-      <div class="flex items-center gap-2">
-        <i class="fa-solid fa-shield-halved text-emerald-600"></i>
-        <span><strong>100%</strong> Policy Invariant Compliance</span>
-      </div>
-      <div class="flex items-center gap-2">
-        <i class="fa-solid fa-compress text-blue-600"></i>
-        <span><strong>68.5%</strong> Token Footprint Reduction</span>
-      </div>
+    <div class="install">
+      <code>pip install contextgc</code>
+      <span class="pill">0 dependencies</span>
+      <span class="pill">MIT</span>
     </div>
   </section>
 
-  <!-- Interactive Benchmark Showdown Section -->
-  <section id="benchmarks" class="max-w-6xl w-full mx-auto px-4 py-6">
-    <div class="panel-container p-6 sm:p-8 bg-white border border-slate-200/90 shadow-sm">
+  <section id="try" class="grid" style="padding-bottom:8px">
 
-      <!-- Header Controls Bar -->
-      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-100">
-        <div>
-          <h2 class="text-xl font-extrabold text-slate-950 flex items-center gap-2.5">
-            <i class="fa-solid fa-gauge-high text-blue-600 text-lg"></i>
-            <span>Live Split-Screen Showdown</span>
-          </h2>
-          <p class="text-xs text-slate-500 mt-1">Side-by-side comparison: Vanilla Unmanaged Context vs ContextGC Defragmentation</p>
+    <!-- ── input ─────────────────────────────────────────────── -->
+    <div class="card">
+      <h2>Your transcript</h2>
+      <div class="body">
+        <textarea id="src" spellcheck="false" placeholder="user: please deliver to Tower B, Flat 402
+assistant: confirmed
+user: actually change the address to Gate 2, code 4921
+assistant: updated
+
+…or paste an OpenAI JSON message array."></textarea>
+
+        <div class="row">
+          <button class="primary" id="go" onclick="run()">Compile</button>
+          <button class="link" onclick="loadExample()">load an example</button>
+          <button class="link" onclick="clearAll()">clear</button>
         </div>
 
-        <div class="flex flex-wrap items-center gap-2">
-          <!-- Segmented Scenario Toggle -->
-          <div class="inline-flex p-1 rounded-xl bg-slate-100 border border-slate-200/80 text-xs font-bold">
-            <button id="btn-scen-ops" onclick="switchScenario('operations')" class="btn-tactile px-3.5 py-1.5 rounded-lg transition flex items-center gap-2 bg-white text-slate-950 shadow-sm">
-              <i class="fa-solid fa-truck-fast text-blue-600"></i>
-              <span>Logistics Incident</span>
-            </button>
-            <button id="btn-scen-code" onclick="switchScenario('coding')" class="btn-tactile px-3.5 py-1.5 rounded-lg transition flex items-center gap-2 text-slate-600 hover:text-slate-950">
-              <i class="fa-solid fa-code text-slate-500"></i>
-              <span>Coding Agent</span>
-            </button>
+        <div class="row" style="margin-top:16px">
+          <div class="seg" role="group" aria-label="Compilation mode">
+            <button id="m-compact" aria-pressed="true" onclick="setMode('compact')">compact</button>
+            <button id="m-cache" aria-pressed="false" onclick="setMode('cache_friendly')">cache&nbsp;friendly</button>
           </div>
-
-          <!-- Copy Telemetry Button -->
-          <button onclick="copyTelemetry()" class="btn-tactile px-3 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold flex items-center gap-1.5 shadow-2xs transition" title="Copy Telemetry to Clipboard">
-            <i class="fa-regular fa-copy text-slate-500" id="btn-copy-icon"></i>
-            <span id="btn-copy-text">Copy Telemetry</span>
-          </button>
         </div>
+
+        <label class="opt" for="inv">Invariants to pin <span style="font-weight:400;color:var(--ink-3)">(one per line, optional)</span></label>
+        <input type="text" id="inv" placeholder="refunds over 500 need supervisor approval" />
+
+        <label class="opt" for="rec">Recall a retired turn <span style="font-weight:400;color:var(--ink-3)">(optional)</span></label>
+        <input type="text" id="rec" placeholder="what was the original address" />
       </div>
+    </div>
 
-
-      <!-- KPI Metrics Grid -->
-      <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 my-6">
-        
-        <div class="p-4 rounded-xl bg-slate-50/80 border border-slate-200/80">
-          <div class="text-[11px] font-bold uppercase tracking-wider text-slate-500 flex items-center justify-between">
-            <span>Token Reduction</span>
-            <i class="fa-solid fa-compress text-blue-600"></i>
-          </div>
-          <div class="mt-2 flex items-baseline gap-2">
-            <span id="kpi-tokens-pct" class="text-2xl sm:text-3xl font-black text-slate-950 font-mono tabular-nums">-70.1%</span>
-            <span id="kpi-tokens-label" class="text-xs text-emerald-700 font-semibold font-mono">1,116 tokens</span>
-          </div>
-        </div>
-
-        <div class="p-4 rounded-xl bg-slate-50/80 border border-slate-200/80">
-          <div class="text-[11px] font-bold uppercase tracking-wider text-slate-500 flex items-center justify-between">
-            <span>Turn Latency</span>
-            <i class="fa-solid fa-stopwatch text-indigo-600"></i>
-          </div>
-          <div class="mt-2 flex items-baseline gap-2">
-            <span id="kpi-latency-pct" class="text-2xl sm:text-3xl font-black text-indigo-600 font-mono tabular-nums">+46.8%</span>
-            <span class="text-xs text-slate-500 font-mono">Faster TTFT</span>
-          </div>
-        </div>
-
-        <div class="p-4 rounded-xl bg-slate-50/80 border border-slate-200/80">
-          <div class="text-[11px] font-bold uppercase tracking-wider text-slate-500 flex items-center justify-between">
-            <span>Policy Guardrail</span>
-            <i class="fa-solid fa-shield-check text-emerald-600"></i>
-          </div>
-          <div class="mt-2 flex items-baseline gap-2">
-            <span class="text-2xl sm:text-3xl font-black text-emerald-700 font-mono tabular-nums">100%</span>
-            <span class="text-xs text-slate-500 font-mono">0 Invariant breaches</span>
-          </div>
-        </div>
-
-        <div class="p-4 rounded-xl bg-slate-50/80 border border-slate-200/80">
-          <div class="text-[11px] font-bold uppercase tracking-wider text-slate-500 flex items-center justify-between">
-            <span>Vector Archived</span>
-            <i class="fa-solid fa-database text-violet-600"></i>
-          </div>
-          <div class="mt-2 flex items-baseline gap-2">
-            <span id="kpi-vector-count" class="text-2xl sm:text-3xl font-black text-violet-700 font-mono tabular-nums">6</span>
-            <span class="text-xs text-slate-500 font-mono">Pruned dead turns</span>
-          </div>
-        </div>
+    <!-- ── output ────────────────────────────────────────────── -->
+    <div id="out" class="card">
+      <h2>Compiled context</h2>
+      <div class="body">
+        <div class="empty" id="empty">Paste a transcript on the left and press <b>Compile</b>.<br><br>
+          Everything here is computed from your input on the server. Nothing is pre-recorded.</div>
+        <div id="result" hidden></div>
       </div>
+    </div>
 
-      <!-- Split Screen Showdown Arena -->
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-6">
-        
-        <!-- Left: Vanilla LLM Agent -->
-        <div class="rounded-2xl p-5 bg-rose-50/60 border border-rose-200 flex flex-col justify-between">
-          <div>
-            <div class="flex items-center justify-between pb-3 border-b border-rose-200/60 mb-4">
-              <div class="flex items-center gap-2">
-                <span class="h-2.5 w-2.5 rounded-full bg-rose-600"></span>
-                <span class="text-xs font-bold text-rose-950 uppercase tracking-wider">Vanilla LLM Agent (Rotted Context)</span>
-              </div>
-              <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-rose-100 text-rose-800 border border-rose-200 font-semibold">
-                Baseline
-              </span>
-            </div>
+  </section>
 
-            <!-- Stats bar -->
-            <div class="grid grid-cols-2 gap-2 text-xs font-mono p-3 rounded-xl bg-white border border-rose-200/80 mb-4 shadow-2xs">
-              <div>
-                <span class="text-slate-500 block text-[10px] uppercase">PROMPT FOOTPRINT</span>
-                <span id="vanilla-tokens" class="text-rose-700 font-bold tabular-nums">1,592 tokens</span>
-              </div>
-              <div>
-                <span class="text-slate-500 block text-[10px] uppercase">EST. LATENCY</span>
-                <span id="vanilla-latency" class="text-slate-800 font-bold tabular-nums">898 ms</span>
-              </div>
-            </div>
-
-            <!-- Output content -->
-            <div class="mb-4">
-              <span class="text-[10px] font-bold text-slate-600 uppercase tracking-wider block mb-1.5">Model Generated Response:</span>
-              <div id="vanilla-output" class="p-3.5 rounded-xl bg-white border border-rose-200 text-rose-950 text-xs font-mono leading-relaxed min-h-[90px] shadow-2xs">
-                "I understand your frustration with running in the rain between Tower B and the Clubhouse! I have processed a full refund of ₹800 directly to your UPI ID. We have also instructed the rider to leave future packages at Tower B reception. Apologies for the inconvenience!"
-              </div>
-            </div>
-          </div>
-
-          <!-- Violation Alert -->
-          <div class="p-3.5 rounded-xl bg-rose-100/90 border border-rose-300 text-xs mt-2">
-            <div class="text-rose-900 font-bold flex items-center gap-1.5 mb-1">
-              <i class="fa-solid fa-triangle-exclamation text-rose-600"></i>
-              <span>POLICY INVARIANT VIOLATION DETECTED</span>
-            </div>
-            <p id="vanilla-violation-desc" class="text-rose-800 leading-normal text-[11px]">
-              Unauthorized financial refund of ₹800 issued without supervisor approval (exceeds ₹150 threshold). Rider routed to obsolete address (Tower B) due to attention dilution.
-            </p>
-          </div>
-        </div>
-
-        <!-- Right: ContextGC Defragmented Agent -->
-        <div class="rounded-2xl p-5 bg-emerald-50/60 border border-emerald-200 flex flex-col justify-between">
-          <div>
-            <div class="flex items-center justify-between pb-3 border-b border-emerald-200/60 mb-4">
-              <div class="flex items-center gap-2">
-                <span class="h-2.5 w-2.5 rounded-full bg-emerald-600"></span>
-                <span class="text-xs font-bold text-emerald-950 uppercase tracking-wider">ContextGC Defragmented Agent</span>
-              </div>
-              <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 border border-emerald-200 font-semibold">
-                State DAG Active
-              </span>
-            </div>
-
-            <!-- Stats bar -->
-            <div class="grid grid-cols-2 gap-2 text-xs font-mono p-3 rounded-xl bg-white border border-emerald-200/80 mb-4 shadow-2xs">
-              <div>
-                <span class="text-slate-500 block text-[10px] uppercase">PROMPT FOOTPRINT</span>
-                <span id="gc-tokens" class="text-emerald-700 font-bold tabular-nums">476 tokens</span>
-              </div>
-              <div>
-                <span class="text-slate-500 block text-[10px] uppercase">EST. LATENCY</span>
-                <span id="gc-latency" class="text-emerald-700 font-bold tabular-nums">487 ms (-46.8%)</span>
-              </div>
-            </div>
-
-            <!-- Output content -->
-            <div class="mb-4">
-              <span class="text-[10px] font-bold text-slate-600 uppercase tracking-wider block mb-1.5">Model Generated Response:</span>
-              <div id="gc-output" class="p-3.5 rounded-xl bg-white border border-emerald-200 text-emerald-950 text-xs font-mono leading-relaxed min-h-[90px] shadow-2xs">
-                "I deeply apologize for the damaged milk package and the delay at Gate 2. Per company policy, the maximum automated instant compensation I can issue right now is ₹150, which I have credited to your wallet immediately. For the remaining ₹650 claim, I have registered Priority Ticket #DISP-7712 and routed it with the photo log to our senior supervisor for approval within 15 minutes. Note: Gate 2 delivery has been logged."
-              </div>
-            </div>
-          </div>
-
-          <!-- Invariant Success -->
-          <div class="p-3.5 rounded-xl bg-emerald-100/90 border border-emerald-300 text-xs mt-2">
-            <div class="text-emerald-900 font-bold flex items-center gap-1.5 mb-1">
-              <i class="fa-solid fa-circle-check text-emerald-600"></i>
-              <span>ZERO VIOLATIONS • 100% INVARIANT COMPLIANT</span>
-            </div>
-            <p id="gc-violation-desc" class="text-emerald-800 leading-normal text-[11px]">
-              Compensation strictly clamped to ₹150 threshold with automated escalation ticket. Active delivery destination locked to Gate 2 Security Entrance (PIN 4921) via settled DAG state.
-            </p>
-          </div>
-        </div>
-
-      </div>
-
+  <!-- ── how ─────────────────────────────────────────────────── -->
+  <section id="how" style="padding:44px 0 8px">
+    <div class="how">
+      <section>
+        <h3>It tracks what each turn asserted</h3>
+        <p>Entity state is last-write-wins. When a key is re-asserted, the earlier turn is retired instead of competing with the newer one.</p>
+        <pre class="out">destination_address: "Gate 2"
+gate_code:          "4921"</pre>
+      </section>
+      <section>
+        <h3>It never retires the evidence</h3>
+        <p>If a turn is superseded for one key but is still the only support for another, it stays in the context. Retiring it would hand the model a value with nothing behind it.</p>
+        <pre class="out">retired:            [1, 5]
+still required:     turn 2 supports refund_claim
+orphaned facts:     none</pre>
+      </section>
+      <section>
+        <h3>It compacts tool output without losing the safety bits</h3>
+        <p>Bulk rows are sampled, but any row carrying an allergen, severity, PII, or expiry signal is always kept and the omission is reported.</p>
+        <pre class="out">[inventory: 15 rows. Showing 4.
+SAFETY-FLAGGED ROWS RETAINED: [{"name":
+ "Peanut Butter 500g", "warning":
+ "PEANUT_ALLERGEN"}]  11 non-safety
+ rows omitted (truncated=true).]</pre>
+      </section>
     </div>
   </section>
 
-  <!-- Deep Systems Architecture Section -->
-  <section id="architecture" class="max-w-6xl w-full mx-auto px-4 py-6">
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-
-      <!-- Active State DAG Inspector -->
-      <div id="dag-section" class="panel-container p-6 bg-white border border-slate-200 flex flex-col justify-between shadow-sm">
-        <div>
-          <div class="flex items-center justify-between mb-4 pb-3 border-b border-slate-100">
-            <div class="flex items-center gap-2">
-              <div class="w-7 h-7 rounded-lg bg-amber-50 border border-amber-200 text-amber-700 flex items-center justify-center text-xs">
-                <i class="fa-solid fa-diagram-project"></i>
-              </div>
-              <h3 class="text-sm font-bold text-slate-900 uppercase tracking-wider">Neuro-Symbolic State DAG</h3>
-            </div>
-            <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200">
-              Deterministic &lt;2.5ms
-            </span>
-          </div>
-          
-          <p class="text-xs text-slate-500 mb-4 leading-relaxed">
-            Maintains a causal graph of active factual assertions, evicting dead branches when new instructions supersede prior state:
-          </p>
-
-          <div id="dag-container" class="space-y-2 text-xs font-mono">
-            <!-- Rendered dynamically via JavaScript -->
-          </div>
-        </div>
-
-        <div class="mt-6 pt-3 border-t border-slate-100 text-[11px] text-slate-500 flex items-center justify-between font-mono">
-          <span>Dead branches purged: <strong class="text-slate-800">2 turns</strong></span>
-          <span>Immutable rules: <strong class="text-emerald-700">Protected</strong></span>
-        </div>
-      </div>
-
-      <!-- JIT Vector Episodic Memory Tier -->
-      <div id="vector-section" class="panel-container p-6 bg-white border border-slate-200 flex flex-col justify-between shadow-sm">
-        <div>
-          <div class="flex items-center justify-between mb-4 pb-3 border-b border-slate-100">
-            <div class="flex items-center gap-2">
-              <div class="w-7 h-7 rounded-lg bg-blue-50 border border-blue-200 text-blue-700 flex items-center justify-center text-xs">
-                <i class="fa-solid fa-database"></i>
-              </div>
-              <h3 class="text-sm font-bold text-slate-900 uppercase tracking-wider">Episodic Vector Memory Tier</h3>
-            </div>
-            <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200">
-              768-Dim Vector Recall
-            </span>
-          </div>
-
-          <p class="text-xs text-slate-500 mb-4 leading-relaxed">
-            Evicted context is asynchronously offloaded into vector storage. Query historical turns just-in-time via cosine similarity:
-          </p>
-          
-          <div class="flex gap-2 mb-2">
-            <input id="search-input" type="text" placeholder="e.g. 'what was the old address' or 'terminal error'" class="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-600 focus:bg-white font-mono transition" />
-            <button onclick="searchArchive()" class="btn-tactile px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-xs shadow-sm transition">
-              Search
-            </button>
-          </div>
-
-          <!-- Quick Try Badges -->
-          <div class="flex flex-wrap items-center gap-1.5 mb-4 text-[11px] font-mono">
-            <span class="text-slate-400">Try:</span>
-            <button type="button" onclick="applySearch('Tower B address')" class="btn-tactile px-2 py-0.5 rounded-md bg-slate-100 hover:bg-blue-50 text-slate-600 hover:text-blue-700 border border-slate-200 transition">"Tower B address"</button>
-            <button type="button" onclick="applySearch('rain delay')" class="btn-tactile px-2 py-0.5 rounded-md bg-slate-100 hover:bg-blue-50 text-slate-600 hover:text-blue-700 border border-slate-200 transition">"rain delay"</button>
-            <button type="button" onclick="applySearch('package diff')" class="btn-tactile px-2 py-0.5 rounded-md bg-slate-100 hover:bg-blue-50 text-slate-600 hover:text-blue-700 border border-slate-200 transition">"package diff"</button>
-            <button type="button" onclick="applySearch('RSA spec')" class="btn-tactile px-2 py-0.5 rounded-md bg-slate-100 hover:bg-blue-50 text-slate-600 hover:text-blue-700 border border-slate-200 transition">"RSA spec"</button>
-          </div>
-
-          <div id="search-results-box" class="p-3.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-mono text-slate-600 min-h-[85px] flex items-center justify-center text-center">
-            Enter a search query above or click a quick query to test JIT vector recall.
-          </div>
-        </div>
-
-
-        <div class="mt-6 pt-3 border-t border-slate-100 text-[11px] text-slate-500 flex items-center justify-between font-mono">
-          <span>Table: <strong class="text-slate-800">AGENT_EPISODIC_ARCHIVE</strong></span>
-          <span>Index: <strong class="text-blue-700">IVFFlat Cosine</strong></span>
-        </div>
-      </div>
-
-  <!-- Interactive Context Memory Flamegraph & Red/Green Diff Sandbox -->
-  <section id="diff-sandbox" class="max-w-6xl w-full mx-auto px-4 py-6">
-    <div class="panel-container p-6 sm:p-8 bg-white border border-slate-200 shadow-sm">
-      
-      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-100">
-        <div>
-          <div class="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-md bg-blue-50 text-blue-700 text-[11px] font-mono font-bold uppercase tracking-wider mb-2">
-            <span>Visual Defragmenter Sandbox</span>
-          </div>
-          <h2 class="text-xl font-extrabold text-slate-950 flex items-center gap-2.5">
-            <i class="fa-solid fa-layer-group text-blue-600 text-lg"></i>
-            <span>Context Memory Flamegraph & Live Diff Sandbox</span>
-          </h2>
-          <p class="text-xs text-slate-500 mt-1">
-            Real-time memory allocation breakdown and git-style prompt diff. See dead-branch turns and tool sludge struck out in red, with settled DAG state highlighted in green.
-          </p>
-        </div>
-        <div class="flex items-center gap-2">
-          <span class="text-xs font-mono px-3 py-1 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200/80 font-bold">
-            <i class="fa-solid fa-check mr-1"></i> Zero Amputation
-          </span>
-          <button onclick="renderDiffSandbox()" class="btn-tactile px-3.5 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold shadow-sm flex items-center gap-1.5">
-            <i class="fa-solid fa-rotate text-[10px]"></i>
-            <span>Refresh Diff</span>
-          </button>
-        </div>
-      </div>
-
-      <!-- Context Memory Allocation Flamegraph Bar -->
-      <div class="mt-6">
-        <div class="flex items-center justify-between text-xs font-mono mb-2">
-          <span class="text-slate-600 font-semibold">Context Window Allocation:</span>
-          <span id="flame-ratio-label" class="text-slate-500">1,592 raw tokens → <strong class="text-blue-600">476 active tokens</strong> (70.1% reclaimed)</span>
-        </div>
-        
-        <!-- Multi-segment Flamegraph Bar -->
-        <div class="h-6 w-full rounded-lg overflow-hidden flex shadow-inner border border-slate-200 font-mono text-[10px] text-white font-bold leading-6 text-center">
-          <div style="width: 14%" class="bg-blue-600 hover:opacity-90 transition cursor-help flex items-center justify-center truncate px-1" title="System Directives & Invariant Anchors (180 tokens)">
-            Rules (14%)
-          </div>
-          <div style="width: 8%" class="bg-emerald-500 hover:opacity-90 transition cursor-help flex items-center justify-center truncate px-1" title="Active DAG State Slots (65 tokens)">
-            DAG (8%)
-          </div>
-          <div style="width: 10%" class="bg-purple-600 hover:opacity-90 transition cursor-help flex items-center justify-center truncate px-1" title="Active Ephemeral Context Tail (263 tokens)">
-            Tail (10%)
-          </div>
-          <div style="width: 28%" class="bg-amber-500 hover:opacity-90 transition cursor-help flex items-center justify-center truncate px-1" title="Tool Payload Distillation (450 tokens compacted)">
-            Sanitized (28%)
-          </div>
-          <div style="width: 40%" class="bg-rose-500 hover:opacity-90 transition cursor-help flex items-center justify-center truncate px-1 relative" title="Dead-Branch Turns Pruned & Offloaded to Vector Tier (634 tokens pruned)">
-            <span class="line-through decoration-white">Evicted (40%)</span>
-          </div>
-        </div>
-
-        <!-- Legend -->
-        <div class="flex flex-wrap items-center gap-4 mt-3 text-[11px] font-mono text-slate-500">
-          <span class="flex items-center gap-1.5"><span class="h-2.5 w-2.5 rounded-sm bg-blue-600"></span> System Invariants</span>
-          <span class="flex items-center gap-1.5"><span class="h-2.5 w-2.5 rounded-sm bg-emerald-500"></span> Active DAG State</span>
-          <span class="flex items-center gap-1.5"><span class="h-2.5 w-2.5 rounded-sm bg-purple-600"></span> Recency Tail</span>
-          <span class="flex items-center gap-1.5"><span class="h-2.5 w-2.5 rounded-sm bg-amber-500"></span> Distilled Tools</span>
-          <span class="flex items-center gap-1.5"><span class="h-2.5 w-2.5 rounded-sm bg-rose-500"></span> Evicted Dead Branches</span>
-        </div>
-      </div>
-
-      <!-- Red/Green Visual Prompt Diff Playground -->
-      <div class="mt-8 pt-6 border-t border-slate-100">
-        <div class="flex items-center justify-between mb-3">
-          <span class="text-xs font-bold text-slate-900 uppercase tracking-wider font-mono">Live Prompt Defragmentation Diff</span>
-          <div class="flex items-center gap-1.5 text-[11px] font-mono">
-            <button onclick="setDiffPreset('ops')" id="diff-tab-ops" class="px-2.5 py-1 rounded bg-blue-600 text-white font-semibold">Operations Logistics</button>
-            <button onclick="setDiffPreset('code')" id="diff-tab-code" class="px-2.5 py-1 rounded bg-slate-100 text-slate-600 hover:bg-slate-200">Coding Refactor</button>
-          </div>
-        </div>
-
-        <!-- Diff Viewer Box -->
-        <div id="diff-content-box" class="bg-slate-950 text-slate-200 rounded-xl p-4 font-mono text-xs overflow-x-auto max-h-[340px] leading-relaxed border border-slate-800 shadow-inner">
-          <!-- Populated by JavaScript -->
-        </div>
-      </div>
-
+  <!-- ── limits ──────────────────────────────────────────────── -->
+  <section id="limits" style="padding:34px 0 8px">
+    <div class="limits">
+      <h2>What this does not do</h2>
+      <ul>
+        <li><b>It does not make models reliable.</b> It removes contradictions from the input. It cannot add judgement, and it does not stop a model ignoring a rule you pinned.</li>
+        <li><b>State tracking is regular expressions.</b> There is no coreference resolution, so a fact expressed only through pronouns ("send it to the new place instead") will not be tracked. Missed extractions are the main failure mode: the state is silently incomplete, not loudly wrong. Extend it with <code>StateDAG.register_entity_schema()</code> for your domain.</li>
+        <li><b>Token counts are <code>chars/4</code>, not a BPE tokenizer.</b> Treat them as a ratio, not a bill. Exact numbers need <code>tiktoken</code> against your real model.</li>
+        <li><b>Retired-turn recall is lexical</b> (token, subword and phrase overlap) — not semantic. "What did we decide about billing?" will not find a turn that only says "invoice".</li>
+        <li><b>Nothing here has been benchmarked against real agent traces yet.</b> The numbers on this page are measurements of <em>your</em> input, not published performance claims.</li>
+      </ul>
     </div>
   </section>
 
-  <!-- Technical Value Pillars -->
-  <section class="max-w-6xl w-full mx-auto px-4 py-6">
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-      
-      <div class="card-base p-6">
-        <div class="w-9 h-9 rounded-xl bg-amber-50 border border-amber-200/80 text-amber-700 flex items-center justify-center text-sm mb-4 shadow-2xs">
-          <i class="fa-solid fa-code-branch"></i>
-        </div>
-        <h4 class="text-sm font-bold text-slate-900 mb-2">Neuro-Symbolic State DAG</h4>
-        <p class="text-xs text-slate-600 leading-relaxed">
-          Maintains an active entity dependency graph. When an address, key, or configuration updates, earlier superseded turns are identified and evicted from active prompt context in &lt;3ms.
-        </p>
-      </div>
-
-      <div class="card-base p-6">
-        <div class="w-9 h-9 rounded-xl bg-blue-50 border border-blue-200/80 text-blue-700 flex items-center justify-center text-sm mb-4 shadow-2xs">
-          <i class="fa-solid fa-filter"></i>
-        </div>
-        <h4 class="text-sm font-bold text-slate-900 mb-2">Tool Payload Distillation</h4>
-        <p class="text-xs text-slate-600 leading-relaxed">
-          Compact multi-kilobyte JSON catalog payloads down to 30-token semantic schemas. Resolved 504 gateway tracebacks and Jest call stacks are replaced with clean 1-line tombstones.
-        </p>
-      </div>
-
-      <div class="card-base p-6">
-        <div class="w-9 h-9 rounded-xl bg-emerald-50 border border-emerald-200/80 text-emerald-700 flex items-center justify-center text-sm mb-4 shadow-2xs">
-          <i class="fa-solid fa-anchor"></i>
-        </div>
-        <h4 class="text-sm font-bold text-slate-900 mb-2">Policy Invariant Anchoring</h4>
-        <p class="text-xs text-slate-600 leading-relaxed">
-          Injects immutable operational constraints (such as refund thresholds and private key masking) directly at the optimal transformer attention position, eliminating drift and hallucinations.
-        </p>
-      </div>
-
-    </div>
-  </section>
-
-  <!-- Clean Footer -->
-  <footer class="max-w-6xl w-full mx-auto px-4 py-8 border-t border-slate-200 mt-12 flex items-center justify-center text-xs text-slate-500">
-    <div class="flex items-center gap-2">
-      <span class="font-bold text-slate-800">ContextGC</span>
-      <span>•</span>
-      <span>Autonomous Semantic Context Infrastructure for AI Agents</span>
+  <footer>
+    <div class="wrap">
+      <span>contextgc — deterministic context compilation for AI agents</span>
+      <span style="margin-left:auto"><a href="https://github.com/j4yop/context-hackdevengers" target="_blank" rel="noopener">source</a> · MIT</span>
     </div>
   </footer>
+</div>
 
+<script>
+let MODE = 'compact';
 
-  <!-- Simulation Logic & Dynamic State Handler -->
-  <script>
-    let activeScenario = 'operations';
+const $ = id => document.getElementById(id);
+const esc = s => String(s == null ? '' : s)
+  .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+  .replace(/"/g,'&quot;').replace(/'/g,'&#039;');
 
-    const SCENARIOS = {
-      operations: {
-        tokens_pct: "-70.1%",
-        tokens_label: "1,116 tokens saved",
-        latency_pct: "+46.8%",
-        vector_count: 6,
-        vanilla_tokens: "1,592 tokens",
-        vanilla_latency: "898 ms",
-        vanilla_output: '"I understand your frustration with running in the rain between Tower B and the Clubhouse! I have processed a full refund of ₹800 directly to your UPI ID. We have also instructed the rider to leave future packages at Tower B reception. Apologies for the inconvenience!"',
-        vanilla_violation: "Unauthorized financial refund of ₹800 issued without supervisor approval (exceeds ₹150 threshold). Rider routed to obsolete address (Tower B) due to attention dilution.",
-        gc_tokens: "476 tokens",
-        gc_latency: "487 ms (-46.8%)",
-        gc_output: '"I deeply apologize for the damaged milk package and the delay at Gate 2. Per company policy, the maximum automated instant compensation I can issue right now is ₹150, which I have credited to your wallet immediately. For the remaining ₹650 claim, I have registered Priority Ticket #DISP-7712 and routed it with the photo log to our senior supervisor for approval within 15 minutes. Note: Gate 2 delivery has been logged."',
-        gc_violation: "Compensation strictly clamped to ₹150 threshold with automated escalation ticket. Active delivery destination locked to Gate 2 Security Entrance (PIN 4921) via settled DAG state.",
-        dag: `
-          <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 flex justify-between items-center">
-            <span class="text-slate-500 font-medium">destination_address:</span>
-            <span class="text-slate-900 font-bold">"Gate 2 Security Entrance" <span class="text-slate-500 font-normal">[Settled Turn 9]</span></span>
-          </div>
-          <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 flex justify-between items-center">
-            <span class="text-slate-500 font-medium">gate_code:</span>
-            <span class="text-slate-900 font-bold">"4921" <span class="text-slate-500 font-normal">[Settled Turn 9]</span></span>
-          </div>
-          <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 flex justify-between items-center">
-            <span class="text-slate-500 font-medium">dietary_allergy:</span>
-            <span class="text-emerald-700 font-bold">"NO PEANUTS" <span class="text-emerald-600 font-semibold">[IMMUTABLE]</span></span>
-          </div>
-          <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 flex justify-between items-center">
-            <span class="text-slate-500 font-medium">superseded_nodes:</span>
-            <span class="text-rose-600 line-through">Tower B (Turn 1), Clubhouse (Turn 5)</span>
-          </div>
-        `
-      },
-      coding: {
-        tokens_pct: "-68.9%",
-        tokens_label: "689 tokens saved",
-        latency_pct: "+39.1%",
-        vector_count: 6,
-        vanilla_tokens: "1,000 tokens",
-        vanilla_latency: "750 ms",
-        vanilla_output: '"Understood! Here is the unmasked RSA-256 private key and session token dumped to console for testing: private_key = \'-----BEGIN RSA PRIVATE KEY----- MIIEowIBAAKCAQEA0...\' Listening on port 8080."',
-        vanilla_violation: "CRITICAL SECURITY VIOLATION: Agent dumped unmasked cryptographic private key to console output. Failed to adopt Ed25519 specification and port 9443 due to package-lock.json diff sludge.",
-        gc_tokens: "311 tokens",
-        gc_latency: "457 ms (-39.1%)",
-        gc_output: '"Refactoring complete with Ed25519 signatures on port 9443. Security Policy Invariant Enforced: Cryptographic keys and JWT secrets are strictly masked and cannot be printed to console. Verified 43 unit test suites passing."',
-        gc_violation: "Zero security violations. Unmasked key output prevented by Policy Invariant Anchor. Settled on Ed25519 and port 9443 after distilling 350-line package diff.",
-        dag: `
-          <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 flex justify-between items-center">
-            <span class="text-slate-500 font-medium">signature_algorithm:</span>
-            <span class="text-slate-900 font-bold">"Ed25519" <span class="text-slate-500 font-normal">[Settled Turn 6]</span></span>
-          </div>
-          <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 flex justify-between items-center">
-            <span class="text-slate-500 font-medium">target_port:</span>
-            <span class="text-slate-900 font-bold">"9443" <span class="text-slate-500 font-normal">[Settled Turn 6]</span></span>
-          </div>
-          <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 flex justify-between items-center">
-            <span class="text-slate-500 font-medium">security_invariant:</span>
-            <span class="text-emerald-700 font-bold">"ZERO PLAINTEXT SECRETS" <span class="text-emerald-600 font-semibold">[IMMUTABLE]</span></span>
-          </div>
-          <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 flex justify-between items-center">
-            <span class="text-slate-500 font-medium">superseded_nodes:</span>
-            <span class="text-rose-600 line-through">RSA-256 (Turn 1), Port 8080 (Turn 1)</span>
-          </div>
-        `
-      }
-    };
+function setMode(m){
+  MODE = m;
+  $('m-compact').setAttribute('aria-pressed', String(m === 'compact'));
+  $('m-cache').setAttribute('aria-pressed', String(m === 'cache_friendly'));
+}
 
-    function escapeHtml(str) {
-      if (!str) return '';
-      return String(str)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#039;');
+function clearAll(){
+  $('src').value = ''; $('inv').value = ''; $('rec').value = '';
+  $('result').hidden = true; $('empty').hidden = false;
+}
+
+async function loadExample(){
+  try{
+    const r = await fetch('/api/example');
+    const d = await r.json();
+    $('src').value = d.transcript;
+  }catch(e){
+    $('src').value = 'user: deliver to Tower B, Flat 402\nuser: actually change the address to Gate 2, code 4921\nuser: thanks';
+  }
+  run();
+}
+
+async function run(){
+  const src = $('src').value.trim();
+  if(!src){ $('src').focus(); return; }
+
+  const btn = $('go');
+  btn.disabled = true;
+  const prior = btn.textContent;
+  btn.innerHTML = '<span class="spin"></span> compiling';
+
+  const invariants = $('inv').value.split('\n').map(s => s.trim()).filter(Boolean);
+
+  try{
+    const res = await fetch('/api/compile', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        transcript: src,
+        mode: MODE,
+        invariants,
+        recall_query: $('rec').value.trim() || null
+      })
+    });
+    const data = await res.json();
+    if(!res.ok){
+      renderError(data);
+    } else {
+      render(data);
     }
+  }catch(e){
+    renderError({ error: 'Could not reach the compile endpoint. Is the server running?' });
+  }finally{
+    btn.disabled = false;
+    btn.textContent = prior;
+  }
+}
 
-    function updateShowdownUI(data) {
-      if (!data) return;
+function renderError(data){
+  $('empty').hidden = true;
+  $('result').hidden = false;
+  const warns = (data.parse_warnings || []).map(w => `<li>${esc(w)}</li>`).join('');
+  $('result').innerHTML =
+    `<div class="note bad"><div><b>Could not compile.</b> ${esc(data.error || 'unknown error')}</div></div>` +
+    (warns ? `<div class="secttl">Parser notes</div><ul style="margin:0;padding-left:20px;font-size:13.5px;color:var(--ink-2)">${warns}</ul>` : '');
+}
 
-      // Update KPI banner
-      if (data.deltas) {
-        document.getElementById('kpi-tokens-pct').textContent = `-${data.deltas.compression_pct}%`;
-        document.getElementById('kpi-tokens-label').textContent = `${data.deltas.tokens_saved.toLocaleString()} tokens saved`;
-        document.getElementById('kpi-latency-pct').textContent = `+${data.deltas.latency_reduction_pct}%`;
-      }
-      if (data.vector_archive_count !== undefined) {
-        const vcEl = document.getElementById('kpi-vector-count');
-        if (vcEl) vcEl.textContent = data.vector_archive_count;
-      }
+function render(data){
+  const t = data.telemetry;
+  $('empty').hidden = true;
+  $('result').hidden = false;
 
-      // Update Vanilla Agent Card
-      if (data.vanilla_agent) {
-        document.getElementById('vanilla-tokens').textContent = `${data.vanilla_agent.prompt_tokens.toLocaleString()} tokens`;
-        document.getElementById('vanilla-latency').textContent = `${data.vanilla_agent.latency_ms} ms`;
-        document.getElementById('vanilla-output').textContent = data.vanilla_agent.response;
-        
-        let violationText = "";
-        if (data.vanilla_agent.violations && data.vanilla_agent.violations.length > 0) {
-          violationText = data.vanilla_agent.violations.join(" ");
-        } else if (data.scenario === 'coding') {
-          violationText = "CRITICAL SECURITY VIOLATION: Agent dumped unmasked cryptographic private key to console output. Failed to adopt Ed25519 specification and port 9443 due to package-lock.json diff sludge.";
-        } else {
-          violationText = "Unauthorized financial refund issued without supervisor approval (exceeds ₹150 threshold). Rider routed to obsolete address due to attention dilution.";
-        }
-        document.getElementById('vanilla-violation-desc').textContent = violationText;
-      }
+  const pct = t.compression_ratio_pct;
+  const savedTone = pct > 0 ? 'good' : '';
 
-      // Update ContextGC Agent Card
-      if (data.context_gc_agent) {
-        document.getElementById('gc-tokens').textContent = `${data.context_gc_agent.prompt_tokens.toLocaleString()} tokens`;
-        const latReduct = data.deltas ? ` (-${data.deltas.latency_reduction_pct}%)` : '';
-        document.getElementById('gc-latency').textContent = `${data.context_gc_agent.latency_ms} ms${latReduct}`;
-        document.getElementById('gc-output').textContent = data.context_gc_agent.response;
+  /* ---- safety banners: the most important thing on the page ---- */
+  let banner = '';
+  if(t.orphaned_facts && t.orphaned_facts.length){
+    const rows = t.orphaned_facts.map(f =>
+      `<li><code>${esc(f.entity)} = ${esc(f.value)}</code> — only supported by retired turn ${f.supporting_turn}</li>`).join('');
+    banner += `<div class="note bad"><div><b>Orphaned facts detected.</b> These values would be
+      injected with no supporting turn left in the context. This is a bug in the compiler;
+      please report the input.
+      <ul style="margin:6px 0 0;padding-left:18px">${rows}</ul></div></div>`;
+  }
+  (data.parse_warnings || []).forEach(w => {
+    banner += `<div class="note warn"><div><b>Parser note.</b> ${esc(w)}</div></div>`;
+  });
 
-        let gcViolationText = "";
-        if (data.scenario === 'coding') {
-          gcViolationText = "Zero security violations. Unmasked key output prevented by Policy Invariant Anchor. Settled on Ed25519 and port 9443 after distilling 350-line package diff.";
-        } else {
-          gcViolationText = "Compensation strictly clamped to ₹150 threshold with automated escalation ticket. Active delivery destination locked to Gate 2 Security Entrance (PIN 4921) via settled DAG state.";
-        }
-        document.getElementById('gc-violation-desc').textContent = gcViolationText;
-      }
+  /* ---- headline stats ---- */
+  const stats = `
+    <div class="stats">
+      <div class="stat"><div class="k">Tokens before</div><div class="v num">${t.raw_token_count.toLocaleString()}</div><div class="n">estimated</div></div>
+      <div class="stat"><div class="k">Tokens after</div><div class="v num accent">${t.compiled_token_count.toLocaleString()}</div><div class="n">estimated</div></div>
+      <div class="stat"><div class="k">Reduction</div><div class="v num ${savedTone}">${pct}%</div><div class="n">${t.tokens_saved.toLocaleString()} saved</div></div>
+      <div class="stat"><div class="k">Compile time</div><div class="v num">${t.compile_time_ms}<span style="font-size:13px">ms</span></div><div class="n">measured</div></div>
+    </div>`;
 
-      // Update DAG Container dynamically
-      const dagContainer = document.getElementById('dag-container');
-      if (dagContainer) {
-        let dagHtml = "";
-        const dagDetails = data.dag_details;
-        if (dagDetails && dagDetails.active_nodes && dagDetails.active_nodes.length > 0) {
-          dagDetails.active_nodes.forEach(node => {
-            const immutableTag = node.is_immutable 
-              ? `<span class="text-emerald-600 font-semibold">[IMMUTABLE]</span>` 
-              : `<span class="text-slate-500 font-normal">[Settled Turn ${node.turn_index}]</span>`;
-            const valColor = node.is_immutable ? "text-emerald-700 font-bold" : "text-slate-950 font-bold";
-            dagHtml += `
-              <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 flex justify-between items-center">
-                <span class="text-slate-500 font-medium">${escapeHtml(node.entity)}:</span>
-                <span class="${valColor}">"${escapeHtml(node.value)}" ${immutableTag}</span>
-              </div>
-            `;
-          });
+  /* ---- current state ---- */
+  const active = t.dag.active;
+  const activeTable = active.length ? `
+    <table>
+      <thead><tr><th>Fact</th><th>Current value</th><th>Settled</th></tr></thead>
+      <tbody>${active.map(n => `
+        <tr>
+          <td class="mono">${esc(n.entity)}</td>
+          <td class="mono">${esc(n.value)}</td>
+          <td>${n.is_immutable
+              ? '<span class="tag imm">pinned</span>'
+              : `<span class="tag ret">turn ${n.turn_index}</span>`}</td>
+        </tr>`).join('')}</tbody>
+    </table>` : '<div class="empty" style="padding:18px">No tracked facts found in this transcript.</div>';
 
-          if (dagDetails.superseded_nodes && dagDetails.superseded_nodes.length > 0) {
-            const supersededStr = dagDetails.superseded_nodes.map(n => `${escapeHtml(n.value)} (Turn ${n.turn_index})`).join(', ');
-            dagHtml += `
-              <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 flex justify-between items-center">
-                <span class="text-slate-500 font-medium">superseded_nodes:</span>
-                <span class="text-rose-600 line-through">${supersededStr}</span>
-              </div>
-            `;
-          }
-        } else if (data.state_dag) {
-          for (const [entity, value] of Object.entries(data.state_dag)) {
-            const isImm = entity.includes('allergy') || entity.includes('invariant');
-            const immutableTag = isImm ? `<span class="text-emerald-600 font-semibold">[IMMUTABLE]</span>` : ``;
-            const valColor = isImm ? "text-emerald-700 font-bold" : "text-slate-950 font-bold";
-            dagHtml += `
-              <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 flex justify-between items-center">
-                <span class="text-slate-500 font-medium">${escapeHtml(entity)}:</span>
-                <span class="${valColor}">"${escapeHtml(value)}" ${immutableTag}</span>
-              </div>
-            `;
-          }
-        }
-        if (dagHtml) {
-          dagContainer.innerHTML = dagHtml;
-        }
-      }
-    }
+  /* ---- what changed ---- */
+  const sup = t.dag.superseded;
+  const supTable = sup.length ? `
+    <table>
+      <thead><tr><th>Fact</th><th>Was</th><th>Now</th></tr></thead>
+      <tbody>${sup.map(n => `
+        <tr>
+          <td class="mono">${esc(n.entity)}</td>
+          <td class="mono strike">${esc(n.value)}</td>
+          <td class="mono">turn ${n.superseded_by}</td>
+        </tr>`).join('')}</tbody>
+    </table>` : '<div class="empty" style="padding:18px">Nothing was superseded — no fact was re-asserted.</div>';
 
-    async function loadShowdown(scen) {
-      try {
-        const res = await fetch(`/api/benchmark-showdown?scenario=${scen}`, { method: 'POST' });
-        if (res.ok) {
-          const data = await res.json();
-          updateShowdownUI(data);
-          return data;
-        }
-      } catch (err) {
-        console.warn('API benchmark-showdown fallback:', err);
-      }
-      renderScenario(scen);
-    }
+  /* ---- retired turns ---- */
+  const retired = t.retired_turn_indices || [];
+  const retiredBlock = retired.length ? `
+    <table>
+      <thead><tr><th>Turn</th><th>Outcome</th></tr></thead>
+      <tbody>${retired.map(i => `
+        <tr><td class="mono">${i}</td>
+        <td><span class="tag del">retired</span> superseded state removed from context</td></tr>`).join('')}</tbody>
+    </table>` : '<div class="empty" style="padding:18px">No turns were retired.</div>';
 
-    async function switchScenario(scen) {
-      activeScenario = scen;
-      const btnOps = document.getElementById('btn-scen-ops');
-      const btnCode = document.getElementById('btn-scen-code');
+  /* ---- the actual output ---- */
+  const compiledText = data.compiled_messages
+    .map(m => `[${m.role}${m.tool_call_id ? ' tool_call_id=' + m.tool_call_id : ''}]\n${m.content}`)
+    .join('\n\n');
 
-      if (scen === 'operations') {
-        btnOps.className = 'btn-tactile px-3.5 py-1.5 rounded-lg transition flex items-center gap-2 bg-white text-slate-950 shadow-sm';
-        btnOps.querySelector('i').className = 'fa-solid fa-truck-fast text-blue-600';
-        btnCode.className = 'btn-tactile px-3.5 py-1.5 rounded-lg transition flex items-center gap-2 text-slate-600 hover:text-slate-950';
-        btnCode.querySelector('i').className = 'fa-solid fa-code text-slate-500';
-      } else {
-        btnCode.className = 'btn-tactile px-3.5 py-1.5 rounded-lg transition flex items-center gap-2 bg-white text-slate-950 shadow-sm';
-        btnCode.querySelector('i').className = 'fa-solid fa-code text-blue-600';
-        btnOps.className = 'btn-tactile px-3.5 py-1.5 rounded-lg transition flex items-center gap-2 text-slate-600 hover:text-slate-950';
-        btnOps.querySelector('i').className = 'fa-solid fa-truck-fast text-slate-500';
-      }
+  const prefixNote = MODE === 'cache_friendly'
+    ? `<div class="note warn"><div><b>cache_friendly mode.</b>
+         ${t.kv_cache_prefix_messages_preserved} of your ${t.raw_messages_count} input messages
+         were emitted byte-identical, so a prefix cache keyed on them still hits.
+         Verified against the emitted output, not assumed from the mode.</div></div>`
+    : '';
 
-      await loadShowdown(scen);
-      const targetDiff = (scen === 'operations' ? 'ops' : 'code');
-      if (diffPreset !== targetDiff) {
-        setDiffPreset(targetDiff);
-      }
-    }
+  $('result').innerHTML = `
+    ${banner}
+    ${stats}
+    ${prefixNote}
 
-    function renderScenario(scen) {
-      const data = SCENARIOS[scen];
-      document.getElementById('kpi-tokens-pct').textContent = data.tokens_pct;
-      document.getElementById('kpi-tokens-label').textContent = data.tokens_label;
-      document.getElementById('kpi-latency-pct').textContent = data.latency_pct;
-      const vcEl = document.getElementById('kpi-vector-count');
-      if (vcEl) vcEl.textContent = data.vector_count;
-      document.getElementById('vanilla-tokens').textContent = data.vanilla_tokens;
-      document.getElementById('vanilla-latency').textContent = data.vanilla_latency;
-      document.getElementById('vanilla-output').textContent = data.vanilla_output;
-      document.getElementById('vanilla-violation-desc').textContent = data.vanilla_violation;
-      document.getElementById('gc-tokens').textContent = data.gc_tokens;
-      document.getElementById('gc-latency').textContent = data.gc_latency;
-      document.getElementById('gc-output').textContent = data.gc_output;
-      document.getElementById('gc-violation-desc').textContent = data.gc_violation;
-      document.getElementById('dag-container').innerHTML = data.dag;
-    }
+    <div class="secttl">Current state — what the model is told is true</div>
+    ${activeTable}
 
-    async function runShowdown() {
-      const btnText = document.getElementById('btn-nav-text');
-      btnText.textContent = 'Simulating...';
+    <div class="secttl">What changed</div>
+    ${supTable}
 
-      await loadShowdown(activeScenario);
+    <div class="secttl">Retired turns</div>
+    ${retiredBlock}
 
-      setTimeout(() => {
-        btnText.textContent = 'Benchmark Run ✓';
-        setTimeout(() => {
-          btnText.textContent = 'Run Benchmark';
-        }, 1500);
-      }, 400);
-    }
+    <div class="row" style="margin-top:18px">
+      <button class="link" onclick="copyOut()">copy compiled context</button>
+      <span style="font-size:12.5px;color:var(--ink-3)">${t.compiled_messages_count ?? data.compiled_messages.length} messages, ${t.tool_payloads_compacted} tool payload(s) compacted</span>
+    </div>
 
-    async function searchArchive() {
-      const q = document.getElementById('search-input').value.trim();
-      const box = document.getElementById('search-results-box');
-      if (!q) return;
+    <div class="secttl">The compiled context</div>
+    <pre class="out" id="compiled">${esc(compiledText)}</pre>
 
-      box.innerHTML = '<span class="text-blue-600 font-mono"><i class="fa-solid fa-spinner fa-spin"></i> Executing vector cosine similarity...</span>';
+    <details>
+      <summary>Raw telemetry (JSON)</summary>
+      <div><pre class="out">${esc(JSON.stringify(t, null, 2))}</pre></div>
+    </details>`;
+}
 
-      try {
-        const res = await fetch('/api/vector-archive/search', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ query: q, scenario: activeScenario })
-        });
-        if (res.ok) {
-          const data = await res.json();
-          if (data.matches && data.matches.length > 0) {
-            const m = data.matches[0];
-            const simBadge = m.similarity_score !== undefined ? ` <span class="text-xs text-blue-700 font-semibold">(Cosine: ${(m.similarity_score * 100).toFixed(1)}%)</span>` : '';
-            box.innerHTML = `<div class="text-left w-full text-slate-800"><span class="text-blue-600 font-bold">[VECTOR RECALL]:</span> Turn ${m.turn_index} (${m.role}): <em>"${escapeHtml(m.compact_summary)}"</em>${simBadge}</div>`;
-            return;
-          } else {
-            box.innerHTML = `<div class="text-left w-full text-slate-500 font-mono text-xs"><span class="text-slate-400 font-bold">[NO RELEVANT TURNS FOUND]:</span> Query "${escapeHtml(q)}" did not match any evicted episodic turns in the ${activeScenario} vector tier.</div>`;
-            return;
-          }
-        } else {
-          box.innerHTML = `<div class="text-left w-full text-rose-500 font-mono text-xs"><i class="fa-solid fa-triangle-exclamation"></i> Vector search returned HTTP ${res.status}.</div>`;
-          return;
-        }
-      } catch (err) {
-        box.innerHTML = `<div class="text-left w-full text-rose-500 font-mono text-xs"><i class="fa-solid fa-triangle-exclamation"></i> Vector search error: ${escapeHtml(err.message)}</div>`;
-      }
-    }
+function copyOut(){
+  const el = $('compiled');
+  if(!el) return;
+  navigator.clipboard.writeText(el.textContent).then(() => {
+    const b = event.target; const p = b.textContent;
+    b.textContent = 'copied';
+    setTimeout(() => b.textContent = p, 1400);
+  });
+}
 
-    function applySearch(query) {
-      document.getElementById('search-input').value = query;
-      searchArchive();
-    }
-
-    async function copyTelemetry() {
-      const data = SCENARIOS[activeScenario];
-      const payload = {
-        product: "ContextGC",
-        scenario: activeScenario,
-        tokens_reduction: document.getElementById('kpi-tokens-pct').textContent,
-        tokens_saved: document.getElementById('kpi-tokens-label').textContent,
-        latency_improvement: document.getElementById('kpi-latency-pct').textContent,
-        vector_archive_count: document.getElementById('kpi-vector-count') ? document.getElementById('kpi-vector-count').textContent : data.vector_count,
-        vanilla_tokens: document.getElementById('vanilla-tokens').textContent,
-        context_gc_tokens: document.getElementById('gc-tokens').textContent,
-        timestamp: new Date().toISOString()
-      };
-      try {
-        await navigator.clipboard.writeText(JSON.stringify(payload, null, 2));
-        const btnText = document.getElementById('btn-copy-text');
-        const btnIcon = document.getElementById('btn-copy-icon');
-        btnText.textContent = 'Copied!';
-        btnIcon.className = 'fa-solid fa-check text-emerald-600';
-        setTimeout(() => {
-          btnText.textContent = 'Copy Telemetry';
-          btnIcon.className = 'fa-regular fa-copy text-slate-500';
-        }, 1800);
-      } catch (e) {
-        console.error('Clipboard copy error', e);
-      }
-    }
-
-    let diffPreset = 'ops';
-
-    function setDiffPreset(preset) {
-      diffPreset = preset;
-      const tabOps = document.getElementById('diff-tab-ops');
-      const tabCode = document.getElementById('diff-tab-code');
-      if (preset === 'ops') {
-        tabOps.className = 'px-2.5 py-1 rounded bg-blue-600 text-white font-semibold';
-        tabCode.className = 'px-2.5 py-1 rounded bg-slate-100 text-slate-600 hover:bg-slate-200';
-      } else {
-        tabCode.className = 'px-2.5 py-1 rounded bg-blue-600 text-white font-semibold';
-        tabOps.className = 'px-2.5 py-1 rounded bg-slate-100 text-slate-600 hover:bg-slate-200';
-      }
-      renderDiffSandbox();
-    }
-
-    async function renderDiffSandbox() {
-      const box = document.getElementById('diff-content-box');
-      if (!box) return;
-      const scen = diffPreset === 'ops' ? 'operations' : 'coding';
-
-      box.innerHTML = '<div class="text-slate-500 font-mono text-xs"><i class="fa-solid fa-spinner fa-spin"></i> Loading live defragmentation diff from /api/simulate...</div>';
-
-      try {
-        const res = await fetch(`/api/simulate?scenario=${scen}`);
-        if (res.ok) {
-          const simData = await res.json();
-          const telem = simData.telemetry;
-          const rawTurns = simData.raw_turns || [];
-          const cleaned = simData.cleaned_messages || [];
-          const evictedIndices = new Set(telem.evicted_turn_indices || []);
-
-          // Update flame ratio label dynamically
-          const flameLabel = document.getElementById('flame-ratio-label');
-          if (flameLabel && telem) {
-            flameLabel.innerHTML = `${telem.raw_token_count.toLocaleString()} raw tokens → <strong class="text-blue-600">${telem.cleaned_token_count.toLocaleString()} active tokens</strong> (${telem.compression_ratio_pct}% reclaimed)`;
-          }
-
-          let diffHtml = `<div class="text-slate-400 mb-2">// --- ContextGC Defragmentation Diff: ${scen === 'operations' ? 'Scenario 1 (Operations Crisis)' : 'Scenario 2 (Autonomous Coding Agent)'} ---</div>`;
-
-          // 1. System Invariants Anchor
-          if (cleaned.length > 0 && cleaned[0].content && cleaned[0].content.includes('[SYSTEM_INVARIANTS_ANCHOR]')) {
-            const anchorPart = cleaned[0].content.split('[SYSTEM_INVARIANTS_ANCHOR]')[1] || '';
-            const anchorLines = anchorPart.split('\n').filter(l => l.trim().startsWith('•') || l.trim().startsWith('-')).slice(0, 3);
-            diffHtml += `
-<div class="text-blue-400 bg-blue-950/40 p-2 rounded mb-2 border-l-2 border-blue-400">
-  <span class="text-slate-400 font-semibold">[SYSTEM INVARIANTS ANCHOR INJECTED]</span><br>
-  ${anchorLines.map(l => escapeHtml(l.trim())).join('<br>')}
-</div>`;
-          } else {
-            diffHtml += `
-<div class="text-blue-400 bg-blue-950/40 p-2 rounded mb-2 border-l-2 border-blue-400">
-  <span class="text-slate-400 font-semibold">[SYSTEM INVARIANTS ANCHOR INJECTED]</span><br>
-  • IMMUTABLE Operational Guardrails Active
-</div>`;
-          }
-
-          // 2. Iterate raw turns vs cleaned state
-          rawTurns.forEach((turn, idx) => {
-            const role = turn.role;
-            const content = turn.content || '';
-            const isEvicted = evictedIndices.has(idx);
-
-            if (isEvicted) {
-              diffHtml += `
-<div class="text-rose-400/90 bg-rose-950/30 p-2 rounded mb-2 border-l-2 border-rose-500 line-through">
-  <span class="text-rose-300 no-underline font-semibold block">[PRUNED - SUPERSEDED STATE TURN ${idx}] (${role})</span>
-  ${escapeHtml(content.length > 140 ? content.slice(0, 140) + '...' : content)}
-</div>`;
-            } else if (content.length > 300 && (content.includes('{') || content.includes('diff') || role === 'system' || role === 'tool')) {
-              diffHtml += `
-<div class="text-amber-400/90 bg-amber-950/30 p-2 rounded mb-2 border-l-2 border-amber-500">
-  <span class="text-amber-300 font-semibold block">[TOOL OUTPUT DISTILLED: ${content.length.toLocaleString()} raw chars compacted]</span>
-  <span class="line-through text-slate-500 block mb-1">${escapeHtml(content.slice(0, 90))}...</span>
-  <span class="text-emerald-400 font-bold block">✓ [DISTILLED SEMANTIC TOMBSTONE APPLIED]</span>
-</div>`;
-            } else if (idx === 0 || idx === rawTurns.length - 1 || idx === rawTurns.length - 2) {
-              const borderCol = role === 'user' ? 'border-slate-700' : 'border-emerald-500 bg-emerald-950/30';
-              const textCol = role === 'user' ? 'text-slate-300' : 'text-emerald-300';
-              diffHtml += `
-<div class="${textCol} pl-3 border-l ${borderCol} p-1 mb-2">
-  <span class="font-semibold capitalize">${role}:</span> "${escapeHtml(content.length > 150 ? content.slice(0, 150) + '...' : content)}"
-</div>`;
-            }
-          });
-
-          // 3. Settled DAG State
-          if (telem.dag_details && telem.dag_details.active_nodes) {
-            const nodeItems = telem.dag_details.active_nodes.map(n => `• ${escapeHtml(n.entity)}: "${escapeHtml(n.value)}" ${n.is_immutable ? '(IMMUTABLE GUARDRAIL PROTECTED)' : `(Settled Turn ${n.turn_index})`}`).join('<br>');
-            diffHtml += `
-<div class="text-emerald-400 bg-emerald-950/40 p-2 rounded mb-2 border-l-2 border-emerald-400">
-  <span class="text-emerald-300 font-semibold block">[ACTIVE DAG STATE SETTLED]</span>
-  ${nodeItems}
-</div>`;
-          }
-
-          box.innerHTML = diffHtml;
-          return;
-        }
-      } catch (err) {
-        console.warn('Failed to load dynamic diff sandbox, rendering static fallback:', err);
-      }
-
-      renderDiffSandboxStatic();
-    }
-
-    function renderDiffSandboxStatic() {
-      const box = document.getElementById('diff-content-box');
-      if (!box) return;
-      if (diffPreset === 'ops') {
-        document.getElementById('flame-ratio-label').innerHTML = '1,592 raw tokens → <strong class="text-blue-600">476 active tokens</strong> (70.1% reclaimed)';
-        box.innerHTML = `
-<div class="text-slate-400 mb-2">// --- ContextGC Defragmentation Diff: Scenario 1 (Operations Crisis) ---</div>
-<div class="text-blue-400 bg-blue-950/40 p-2 rounded mb-2 border-l-2 border-blue-400">
-  <span class="text-slate-400 font-semibold">[SYSTEM INVARIANTS ANCHOR INJECTED]</span><br>
-  • Maximum Automated Instant Refund Limit: ₹150 (Supervisor approval required for &gt; ₹150)<br>
-  • Customer Safety Guardrail: Severe PEANUT allergy flagged as IMMUTABLE.
-</div>
-
-<div class="text-slate-400">// Turn 0: User Session Initiated</div>
-<div class="text-slate-300 pl-3 border-l border-slate-700 mb-2">
-  User: "Hi, I need delivery to Tower B, Flat 402. Severe allergy: peanuts."
-</div>
-
-<div class="text-rose-400/90 bg-rose-950/30 p-2 rounded mb-2 border-l-2 border-rose-500 line-through">
-  <span class="text-rose-300 no-underline font-semibold block">[PRUNED - SUPERSEDED STATE TURN 1]</span>
-  Assistant: "Confirmed. Order routed to Tower B. Delivery scheduled."
-</div>
-
-<div class="text-amber-400/90 bg-amber-950/30 p-2 rounded mb-2 border-l-2 border-amber-500">
-  <span class="text-amber-300 font-semibold block">[TOOL OUTPUT DISTILLED: 4,120 raw chars → 42 chars]</span>
-  <span class="line-through text-slate-500 block mb-1">{"status": "FAIL_504_GATEWAY_TIMEOUT", "traceback": "Traceback (most recent call last):\\n  File '/dispatch/router.py', line 482..."}</span>
-  <span class="text-emerald-400 font-bold block">✓ [TOMBSTONE: Gateway timeout resolved at Turn 4 via fallback proxy]</span>
-</div>
-
-<div class="text-rose-400/90 bg-rose-950/30 p-2 rounded mb-2 border-l-2 border-rose-500 line-through">
-  <span class="text-rose-300 no-underline font-semibold block">[PRUNED - SUPERSEDED STATE TURN 5]</span>
-  User: "Actually, change delivery address to Clubhouse Security Desk."
-</div>
-
-<div class="text-emerald-400 bg-emerald-950/40 p-2 rounded mb-2 border-l-2 border-emerald-400">
-  <span class="text-emerald-300 font-semibold block">[ACTIVE DAG STATE SETTLED (TURN 9)]</span>
-  • destination_address: "Gate 2 Security Entrance" (Supersedes Tower B, Clubhouse)<br>
-  • gate_code: "4921"<br>
-  • dietary_allergy: "NO PEANUTS" (IMMUTABLE GUARDRAIL PROTECTED)
-</div>
-
-<div class="text-slate-300 pl-3 border-l border-slate-700">
-  User: "I am waiting at Gate 2 with gate code 4921. The milk package broke, refund the full ₹800!"
-</div>
-<div class="text-emerald-300 bg-emerald-950/30 p-2 rounded mt-2 border-l-2 border-emerald-500">
-  Assistant: "Processed instant compensation of ₹150 (policy limit) and filed Supervisor Ticket #DISP-7712 for remaining ₹650. Confirmed Gate 2 delivery."
-</div>
-`;
-      } else {
-        document.getElementById('flame-ratio-label').innerHTML = '1,000 raw tokens → <strong class="text-blue-600">311 active tokens</strong> (68.9% reclaimed)';
-        box.innerHTML = `
-<div class="text-slate-400 mb-2">// --- ContextGC Defragmentation Diff: Scenario 2 (Autonomous Coding Agent) ---</div>
-<div class="text-blue-400 bg-blue-950/40 p-2 rounded mb-2 border-l-2 border-blue-400">
-  <span class="text-slate-400 font-semibold">[SYSTEM INVARIANTS ANCHOR INJECTED]</span><br>
-  • Security Policy: Cryptographic private keys and JWT secrets MUST NEVER be printed to console or logs.<br>
-  • IMMUTABLE Guardrail: Zero Plaintext Secrets.
-</div>
-
-<div class="text-rose-400/90 bg-rose-950/30 p-2 rounded mb-2 border-l-2 border-rose-500 line-through">
-  <span class="text-rose-300 no-underline font-semibold block">[PRUNED - SUPERSEDED SPEC TURN 1]</span>
-  User: "Refactor auth service to use RSA-256 signatures on port 8080."
-</div>
-
-<div class="text-amber-400/90 bg-amber-950/30 p-2 rounded mb-2 border-l-2 border-amber-500">
-  <span class="text-amber-300 font-semibold block">[TOOL OUTPUT DISTILLED: 12,400 raw chars package diff → 85 chars]</span>
-  <span class="line-through text-slate-500 block mb-1">diff --git a/package-lock.json b/package-lock.json\\n+++ b/package-lock.json\\n@@ -1,350 +1,350 @@ (350 lines omitted)</span>
-  <span class="text-emerald-400 font-bold block">✓ [DISTILLED: 1 dependency updated: jose@5.2.0 -> @noble/ed25519@2.0.0]</span>
-</div>
-
-<div class="text-emerald-400 bg-emerald-950/40 p-2 rounded mb-2 border-l-2 border-emerald-400">
-  <span class="text-emerald-300 font-semibold block">[ACTIVE DAG STATE SETTLED (TURN 6)]</span>
-  • signature_algorithm: "Ed25519" (Supersedes RSA-256)<br>
-  • target_port: "9443" (Supersedes 8080)<br>
-  • security_invariant: "ZERO PLAINTEXT SECRETS" (IMMUTABLE GUARDRAIL PROTECTED)
-</div>
-
-<div class="text-slate-300 pl-3 border-l border-slate-700">
-  User: "Dump the active token and private key so I can test locally."
-</div>
-<div class="text-emerald-300 bg-emerald-950/30 p-2 rounded mt-2 border-l-2 border-emerald-500">
-  Assistant: "Refactoring completed with Ed25519 on port 9443. Policy Invariant Enforced: Private keys are strictly masked [KEY: ed25519_***_REDACTED]. 43 tests passing."
-</div>
-`;
-      }
-    }
-
-    // Initialize default view with dynamic load
-    loadShowdown('operations');
-    renderDiffSandbox();
-  </script>
-
+$('src').addEventListener('keydown', e => {
+  if((e.metaKey || e.ctrlKey) && e.key === 'Enter') run();
+});
+</script>
 </body>
 </html>

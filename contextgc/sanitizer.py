@@ -3,9 +3,10 @@ ContextGC: Tool-Payload Distillation & Error Traceback Sanitizer
 Compresses sprawling API responses and purges handled error tracebacks to reclaim context.
 """
 
-from typing import Dict, Any, Tuple, Optional
 import json
 import re
+from typing import Any, List, Optional, Tuple
+
 
 class ToolSanitizer:
     """
@@ -14,6 +15,26 @@ class ToolSanitizer:
     """
 
     MAX_COMPACT_ITEMS = 3
+
+    #: Keys/values that must never be dropped by compaction. If a row carries any
+    #: of these signals it is always retained regardless of sample position, and
+    #: the omission is reported in the output. Compaction is allowed to be lossy
+    #: about *bulk*; it is not allowed to be lossy about *safety*.
+    SAFETY_SIGNALS = (
+        "allergen", "allergy", "peanut", "tree_nut", "nut_", "gluten", "dairy",
+        "soy", "shellfish", "egg", "hazard", "warning", "recall", "severity",
+        "critical", "danger", "unsafe", "pii", "ssn", "secret", "password",
+        "token", "expiry", "expired", "quarantine", "contaminat", "expired",
+    )
+
+    @classmethod
+    def _is_safety_relevant(cls, item: Any) -> bool:
+        """True when a row carries a signal that compaction must never drop."""
+        try:
+            blob = json.dumps(item, default=str).lower()
+        except (TypeError, ValueError):
+            blob = str(item).lower()
+        return any(sig in blob for sig in cls.SAFETY_SIGNALS)
 
     @staticmethod
     def is_error_payload(content: str) -> bool:
@@ -90,6 +111,10 @@ class ToolSanitizer:
 
         if data is not None:
             compacted = cls._compress_json(data, tool_name)
+            # Never return something larger than the input. A small payload that
+            # gains a "[Result: ...]" wrapper is a net regression.
+            if len(compacted) >= len(trimmed):
+                return trimmed, orig_len, orig_len
             new_len = max(1, len(compacted) // 4)
             return compacted, orig_len, new_len
 
@@ -108,26 +133,50 @@ class ToolSanitizer:
         return content, orig_len, orig_len
 
     @classmethod
+    def _compress_rowset(cls, rows: List[Any], tool_name: Optional[str] = None) -> str:
+        """Compacts a list of rows without ever silently dropping a safety-relevant row.
+
+        Keeps the first ``MAX_COMPACT_ITEMS`` rows as the representative sample,
+        then appends *every* remaining row that carries a safety signal. Reports
+        exactly how many rows were dropped so the omission is auditable rather
+        than invisible.
+        """
+        label = tool_name or "ToolOutput"
+        total = len(rows)
+        sample = rows[:cls.MAX_COMPACT_ITEMS]
+        kept_indexes = set(range(len(sample)))
+
+        # Safety sweep over the rows the sample would otherwise discard.
+        flagged: List[Any] = []
+        for i, row in enumerate(rows[cls.MAX_COMPACT_ITEMS:], start=cls.MAX_COMPACT_ITEMS):
+            if cls._is_safety_relevant(row):
+                kept_indexes.add(i)
+                flagged.append(cls._compress_item(row))
+
+        compacted = [cls._compress_item(r) for r in sample] + flagged
+        dropped = total - len(kept_indexes)
+
+        parts = [f"[{label}: {total} rows. Showing {len(compacted)}."]
+        if flagged:
+            parts.append(f"SAFETY-FLAGGED ROWS RETAINED: {json.dumps(flagged, default=str)}")
+        if dropped:
+            parts.append(f"{dropped} non-safety rows omitted (truncated=true).")
+        else:
+            parts.append("No rows omitted.")
+        parts.append(f"Sample: {json.dumps(compacted, default=str)}]")
+        return " ".join(parts)
+
+    @classmethod
     def _compress_json(cls, data: Any, tool_name: Optional[str] = None) -> str:
         """Selectively retains essential fields for common enterprise tools."""
         if isinstance(data, list):
-            sample = data[:cls.MAX_COMPACT_ITEMS]
-            summary = [cls._compress_item(item) for item in sample]
-            overflow = len(data) - len(sample)
-            overflow_note = f", +{overflow} more items truncated" if overflow > 0 else ""
-            label = tool_name or "ToolOutput"
-            return f"[{label}: {len(data)} items. Top sample: {json.dumps(summary)}{overflow_note}]"
+            return cls._compress_rowset(data, tool_name)
 
         if isinstance(data, dict):
             # Check if this is an inventory or catalog response under standard keys
             for lk in ["items", "available_skus", "skus", "products", "inventory", "catalog", "records", "data"]:
                 if lk in data and isinstance(data[lk], list):
-                    items = data[lk][:cls.MAX_COMPACT_ITEMS]
-                    compact_items = [cls._compress_item(i) for i in items]
-                    overflow = len(data[lk]) - len(items)
-                    label = tool_name or "CatalogSearch"
-                    overflow_note = f" (+{overflow} more items truncated)]" if overflow > 0 else "]"
-                    return f"[{label}: {len(data[lk])} items found. Top matches: {json.dumps(compact_items)}{overflow_note}"
+                    return cls._compress_rowset(data[lk], tool_name)
 
             if "dark_stores" in data and isinstance(data["dark_stores"], list):
                 stores = [{"store_id": s.get("store_id"), "eta": s.get("eta_mins"), "stock": s.get("stock_status")} for s in data["dark_stores"]]
@@ -156,6 +205,10 @@ class ToolSanitizer:
                 if k in item:
                     res["stock"] = item[k]
                     break
+            # Carry every safety-bearing field through verbatim, whatever its name.
+            for k, v in item.items():
+                if cls._is_safety_relevant({k: v}):
+                    res[k] = v
             if "warning" in item:
                 res["warning"] = item["warning"]
             return res if res else {k: item[k] for k in list(item.keys())[:3]}
