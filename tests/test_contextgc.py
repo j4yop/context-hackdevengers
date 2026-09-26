@@ -22,6 +22,7 @@ from contextgc import (
     compile_messages,
     compile_transcript,
     parse_transcript,
+    patch_openai,
 )
 from contextgc.gc_engine import ContextGCEngine as _Engine  # noqa: F401  (import-path guard)
 
@@ -695,3 +696,125 @@ def test_no_py310_only_annotations_in_runtime_evaluated_positions():
     assert offenders == [], (
         "PEP 604 unions break the declared 3.9 floor:\n  " + "\n  ".join(offenders)
     )
+
+
+# --- schema plumbing ---------------------------------------------------------
+#
+# A schema is opt-in, so every path that can enable one has to actually reach the
+# engine. Two of them did not, which made the whole measured mechanism
+# unreachable from the library's own entry points.
+
+_HISTORY = [
+    {"role": "system", "content": "You are a coding agent."},
+    {"role": "user", "content": "The dispatch test fails. Fix it."},
+]
+
+
+def test_a_whole_schema_file_can_be_passed_straight_in():
+    """The shipped schemas document themselves in `_comment`; that prose is not a regex."""
+    import json
+    import os
+
+    here = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    with open(os.path.join(here, "benchmarks", "schemas", "coding.json")) as handle:
+        schema = json.load(handle)
+    assert "_comment" in schema, "fixture no longer has the documentation key"
+
+    messages = _HISTORY + [
+        {"role": "assistant", "content": "I should be editing `tests/test_dispatch.py`."}
+    ]
+    _, telemetry = compile_messages(messages, schema=schema)
+    assert telemetry["active_state_slots"].get("current_file") == "tests/test_dispatch.py"
+
+
+def test_a_documentation_key_is_never_compiled_as_a_pattern():
+    """A comment containing an unbalanced paren used to raise re.PatternError."""
+    engine_schema = {"_comment": "derived from measurement (see below",
+                     "entities": {"target_port": [r"port (?:to|is) (\d{2,5})"]}}
+    out, telemetry = compile_messages(
+        _HISTORY + [{"role": "assistant", "content": "the port to 8080 is open"}],
+        schema=engine_schema,
+    )
+    assert telemetry["active_state_slots"].get("target_port") == "8080"
+
+
+def test_patch_openai_can_turn_state_tracking_on():
+    """
+    The wrapper took no schema, so with the default now empty it compiled with
+    nothing enabled and no caller could tell.
+    """
+    schema = {"entities": {"current_file": [r"editing `([\w./-]+\.py)`"]}}
+    messages = _HISTORY + [
+        {"role": "assistant", "content": "I should be editing `tests/test_dispatch.py`."}
+    ]
+
+    sent = {}
+
+    class _Resp:
+        choices = []
+
+    class _Completions:
+        def create(self, **kwargs):
+            sent.update(kwargs)
+            return _Resp()
+
+    class _Chat:
+        def __init__(self):
+            self.completions = _Completions()
+
+    class _Client:
+        def __init__(self):
+            self.chat = _Chat()
+
+    client = _Client()
+    patch_openai(client, schema=schema)
+    response = client.chat.completions.create(model="gpt-4o", messages=messages)
+
+    assert response.context_gc["active_state_slots"].get("current_file") == \
+        "tests/test_dispatch.py"
+    assert "ACTIVE_AGENT_STATE" in sent["messages"][0]["content"]
+
+
+def test_a_superseded_turn_is_gone_and_the_state_survives_it():
+    """
+    The point of the library: a wrong earlier claim must not reach the model,
+    and the correct value must still be stated somewhere.
+    """
+    schema = {"entities": {"current_file": [r"editing `([\w./-]+\.py)`"]}}
+    messages = _HISTORY + [
+        {"role": "user", "content": "(Open file: /repo/right.py)"},
+        {"role": "assistant", "content": "I should be editing `wrong.py`."},
+        {"role": "user", "content": "ok"},
+        {"role": "assistant", "content": "Actually I should be editing `right.py`."},
+    ]
+    out, telemetry = compile_messages(messages, mode="compact", schema=schema)
+    body = "\n".join(m["content"] for m in out)
+
+    assert "right.py" in body, "the current value must be stated"
+    assert "editing `wrong.py`" not in body, "the superseded claim must be retired"
+    assert telemetry["retired_turn_count"] >= 1
+    assert telemetry["retirement_violations"] == []
+
+
+def test_the_last_two_turns_are_never_retired():
+    """
+    Deliberate guard: a correction arriving immediately after the wrong claim
+    leaves both in place, because the trailing turns are the model's most recent
+    exchange and cutting them would strip the reply it is about to continue.
+
+    Worth pinning, because it means a short session can report 0 turns retired
+    while still holding a contradiction -- the state register is what resolves
+    it there, not retirement.
+    """
+    schema = {"entities": {"current_file": [r"editing `([\w./-]+\.py)`"]}}
+    messages = _HISTORY + [
+        {"role": "assistant", "content": "I should be editing `wrong.py`."},
+        {"role": "assistant", "content": "Actually I should be editing `right.py`."},
+    ]
+    out, telemetry = compile_messages(messages, mode="compact", schema=schema)
+    body = "\n".join(m["content"] for m in out)
+
+    assert telemetry["retired_turn_count"] == 0
+    assert "editing `wrong.py`" in body
+    # The contradiction is still resolved, by the state register.
+    assert 'current_file = "right.py"' in body

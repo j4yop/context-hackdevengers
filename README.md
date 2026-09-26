@@ -195,6 +195,34 @@ This still catches gross regression; it is not a claim about unseen transcripts.
 labels and the loader settings that produced them are committed
 (`benchmarks/labels/`), so the number can be regenerated and argued with.
 
+### When it does *not* help
+
+Two behaviours worth knowing before you point this at a live agent. Both are
+deliberate; neither was documented until they were measured.
+
+**The last two turns are never retired.** A correction that arrives immediately
+after the wrong claim leaves both turns in place, because the trailing turns are
+the model's most recent exchange and cutting them would strip the reply it is
+about to continue. So a short session can hold a visible contradiction and still
+report `retired_turn_count: 0`; there, the state register is what resolves it.
+
+```python
+# adjacent: nothing retired, but the register states the current value
+H + [asst("editing `wrong.py`."), asst("actually editing `right.py`.")]
+#   -> retired 0, register says current_file = "right.py"
+
+# one turn between them: the wrong claim is gone
+H + [asst("editing `wrong.py`."), user("ok"), asst("actually editing `right.py`.")]
+#   -> retired 1, "editing `wrong.py`" no longer reaches the model
+```
+
+**A short session can cost more than it saves.** The state register is a fixed
+header plus one line per slot. On a 7-turn transcript the compiled output is
+*larger* than the input, and the telemetry says so rather than rounding it away:
+`compression_ratio_pct: 0.0`, `context_grew: True`. The 70% figure comes from
+40 real transcripts averaging 48 turns. If your sessions are shorter than that,
+measure before you adopt this.
+
 ### What this measurement changed
 
 Running it was not a formality. It overturned five things.

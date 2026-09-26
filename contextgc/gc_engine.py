@@ -58,6 +58,37 @@ def _strip_tool_calls(tool_calls: Any) -> Any:
 #: re-compile replaces it instead of stacking a second, contradictory copy.
 
 
+def _normalise_schema(schema: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+    """
+    Accept either a bare slot mapping or a whole schema file.
+
+    ``benchmarks/schemas/*.json`` wrap their patterns in ``{"entities": ...}``
+    and carry a ``_comment`` explaining how the patterns were arrived at. The
+    benchmark CLI and the HTTP server both unwrapped that; the Python SDK did
+    not, so ``compile_messages(schema=json.load(open(path)))`` -- the obvious
+    thing to write, and what the other two entry points do internally -- raised
+    ``re.PatternError: missing ), unterminated subpattern`` on the comment prose.
+
+    Keys beginning with ``_`` are documentation, not entities.
+    """
+    if not schema:
+        return {}
+    raw = schema.get("entities") if isinstance(schema.get("entities"), dict) else schema
+    out: Dict[str, Any] = {}
+    for name, patterns in raw.items():
+        if name.startswith("_"):
+            continue
+        if isinstance(patterns, str):
+            patterns = [patterns]
+        if not isinstance(patterns, (list, tuple)):
+            # A slot with no patterns is a slot that cannot match. Keeping it
+            # would only make the state register advertise an entity that can
+            # never be filled.
+            continue
+        out[name] = [p for p in patterns if isinstance(p, str) and p]
+    return out
+
+
 class ContextGCEngine:
     """
     Compiles a conversation transcript into a bounded, high-signal context.
@@ -92,9 +123,16 @@ class ContextGCEngine:
                 default is empty, because the shipped default used to be a
                 logistics schema that matched prose in any other domain. See
                 :attr:`StateDAG.ENTITY_PATTERNS`.
+
+                A whole schema *file* may also be passed, i.e. the
+                ``{"entities": {...}}`` shape used by ``benchmarks/schemas/``.
+                Documentation keys such as ``_comment`` are ignored rather than
+                compiled as patterns -- a schema's own prose is not a regex, and
+                feeding it to ``re`` raises an opaque ``re.PatternError`` about
+                unbalanced parentheses instead of saying what is wrong.
         """
         self.session_id = session_id
-        self.schema = dict(schema) if schema else {}
+        self.schema = _normalise_schema(schema)
         self.dag = self._new_dag()
         self.sanitizer = ToolSanitizer()
         self.vector_tier = VectorMemoryTier(session_id)

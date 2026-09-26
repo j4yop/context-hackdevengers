@@ -100,10 +100,20 @@ def patch_openai(
     mode: str = "compact",
     invariants: Optional[List[str]] = None,
     teach_protocol: bool = False,
+    schema: Optional[Dict[str, Any]] = None,
 ) -> Any:
     """
     Wrap ``client.chat.completions.create`` so outgoing message histories are
     compiled first. The response carries the telemetry as ``.context_gc``.
+
+    Args:
+        schema: entity patterns to enable, exactly as for
+            :func:`compile_messages`. This parameter was missing, which meant
+            that with the default schema now empty there was **no way to turn
+            state tracking on through this wrapper** -- the most documented
+            integration path silently compiled with nothing enabled. A whole
+            schema file may be passed; ``{"entities": ...}`` and ``_comment``
+            are handled for you.
 
     Set ``teach_protocol=True`` to have the agent declare its own state changes.
     The declared facts are authoritative and carry provenance, which is what
@@ -122,7 +132,11 @@ def patch_openai(
 
     def _compile(messages):
         return compile_messages(
-            messages, mode=mode, invariants=invariants, teach_protocol=teach_protocol
+            messages,
+            mode=mode,
+            invariants=invariants,
+            teach_protocol=teach_protocol,
+            schema=schema,
         )
 
     @functools.wraps(original_create)
