@@ -579,3 +579,5 @@ telemetry field (`latency`, `hallucination`, `estimated`, `risk_score`,
 ## License
 
 MIT — see [LICENSE](LICENSE).
+
+<!-- protection check -->
