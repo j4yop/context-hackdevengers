@@ -4,10 +4,11 @@ Tracks entity state mutations across multi-turn agent sessions.
 Identifies when new turns supersede prior facts and prunes obsolete context tokens.
 """
 
-from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Set, Any
 import re
 import time
+from dataclasses import dataclass, field
+from typing import Any, Dict, List, Optional, Set
+
 
 @dataclass
 class FactNode:
@@ -25,19 +26,24 @@ class StateDAG:
     Detects state overrides across enterprise operations and autonomous coding workflows,
     invalidating dead branches in the conversational history.
     """
-    
+
     ENTITY_PATTERNS = {
         # Operations & Logistics
         "destination_address": [
-            r"(?:deliver to|bring it to|change address to|my address is|come to|new address:?|confirmed as|destination is)\s+([A-Za-z0-9\s,–#-]{4,40}?)(?:\.|\,|$|\bwith\b|\band\b|\bplease\b|\bfor\b)",
+            r"(?:deliver to|bring it to|change (?:the )?(?:address|destination) to|my address is|come to|new address:?|confirmed as|destination is|actually (?:use|send (?:it|them) to)|reroute (?:the rider )?to|use)\s+([A-Za-z0-9\s,–#-]{4,40}?)(?:\.|\,|$|\bwith\b|\band\b|\bplease\b|\bfor\b)",
             r"(?:at|in|to)\s+(Tower\s+[A-Za-z0-9]+(?:\s*,\s*Flat\s+[0-9]+)?|Clubhouse(?:\s+[A-Za-z0-9\s]+)?|Gate\s+[0-9]+(?:\s+Security\s+Entrance)?|Flat\s+[0-9]+|Apartment\s+[0-9]+|Security\s+Desk)",
         ],
         "gate_code": [
-            r"(?:gate code|passcode|entry code|security pin|security code|otp is)\s*(?:is|:)?\s*([0-9]{4,6})",
+            r"(?:gate code|passcode|entry code|security pin|security code|otp is)\s*(?:is|to|=|:)?\s*([0-9]{4,6})",
         ],
         "dietary_allergy": [
             r"\b(?:no\s+(?:peanuts?|dairy|gluten|soy|eggs?|nuts?|shellfish))\b",
-            r"(?:allergic to|allergy(?:\s*is|:)?|severe allergy(?:\s*to|:)?|dietary restriction:?)\s*([A-Za-z\s]{3,20}?)(?:\.|\,|$|\band\b|\bdue\b)",
+            # Adjective-first form: "a severe peanut allergy". The original
+            # pattern only matched the inverted "allergy: peanuts" shape, which
+            # meant the most safety-relevant assertion in the fixtures -- the
+            # peanut allergy -- was silently never extracted.
+            r"\b([A-Za-z]{3,20}?)\s+allergy\b",
+            r"(?:allergic to|allergy(?:\s*is|:)?|dietary restriction:?)\s*([A-Za-z\s]{3,20}?)(?:\.|\,|$|\band\b|\bdue\b)",
         ],
         "substitute_choice": [
             r"(?:substitute with|replace (?:it|that) with|give me|swap for)\s+([A-Za-z0-9\s]+?(?:milk|butter|bread|paneer|curd|egg|chips|oil|rice|coke))",
@@ -236,7 +242,10 @@ class StateDAG:
                 reverted_entities.append({"entity": entity, "restored_value": latest.value, "turn": latest.turn_index})
 
         # Prune invalidation log entries past target_turn
-        self.invalidation_log = [l for l in self.invalidation_log if l.get("new_turn", 0) <= target_turn]
+        self.invalidation_log = [
+            entry for entry in self.invalidation_log
+            if entry.get("new_turn", 0) <= target_turn
+        ]
         return {
             "rollback_target_turn": target_turn,
             "active_state": {k: v.value for k, v in self.active_state.items()},
@@ -244,13 +253,45 @@ class StateDAG:
         }
 
     def get_prunable_turns(self) -> Set[int]:
-        """Returns turn indices whose substantive facts have been completely superseded."""
+        """Returns turn indices whose substantive facts have been completely superseded.
+
+        A turn is only prunable when *no* fact it uniquely asserted is still the
+        live value for its entity. Evicting a turn that owns a still-current fact
+        would delete the conversational evidence while the derived fact stayed
+        in the prompt as authoritative -- a half-pruned dead branch, where the
+        model is handed a value with no visible support for it.
+
+        Concretely: turn 0 asserts ``refund_claim=99999`` and nothing ever
+        re-asserts it. Turn 0 is superseded for ``destination_address`` but is
+        the sole support for ``refund_claim``, so it must stay in the prompt.
+        """
+        live_turns = {node.turn_index for node in self.active_state.values()}
+
         prunable = set()
         for entity, history in self.nodes.items():
             for node in history:
                 if node.superseded_by is not None and not node.is_immutable:
-                    prunable.add(node.turn_index)
+                    if node.turn_index not in live_turns:
+                        prunable.add(node.turn_index)
         return prunable
+
+    def get_orphaned_facts(self) -> List[Dict[str, Any]]:
+        """Facts in the active state whose *sole* supporting turn is itself prunable.
+
+        This is the invariant check behind :meth:`get_prunable_turns`. It returns
+        an empty list when the graph is internally consistent, and is asserted
+        directly by the test suite so the class of bug cannot regress silently.
+        """
+        prunable = self.get_prunable_turns()
+        orphans = []
+        for entity, node in self.active_state.items():
+            if node.turn_index in prunable:
+                orphans.append({
+                    "entity": entity,
+                    "value": node.value,
+                    "supporting_turn": node.turn_index,
+                })
+        return orphans
 
     def get_active_state_summary(self) -> str:
         """Returns a consolidated state representation for prompt injection, safely escaped against delimiter injection."""
