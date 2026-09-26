@@ -30,6 +30,17 @@ jobs:
           python -m pip install --upgrade pip
           pip install -e ".[dev,bench]"
 
+      - name: Fetch the second corpus
+        # APIGen-MT, ~122 MB. A second domain is the point: without it every
+        # number here is a statement about Python bug-fixing.
+        run: |
+          mkdir -p ~/.cache/contextgc
+          url="$(python -c 'from benchmarks.corpus import APIGEN_MT_HF_URL; print(APIGEN_MT_HF_URL)')"
+          echo "fetching $url"
+          curl -sSfL --retry 3 --retry-delay 5 \
+            -o ~/.cache/contextgc/apigen-mt_5k.json "$url"
+          test -s ~/.cache/contextgc/apigen-mt_5k.json
+
       - name: Fetch the shard
         # The URL comes from the loader, not from a copy pasted here. An earlier
         # version of this file hardcoded .../train-00000-of-00100.parquet, which
@@ -80,6 +91,28 @@ jobs:
           if clusters is not None and clusters < 20:
               print(f"FAIL  only {clusters} independent units; the sample is too "
                     "clustered to quote. Re-read the labels.")
+              sys.exit(1)
+          PY
+
+      - name: The second domain must still measure clean
+        run: |
+          python -m benchmarks run \
+            --corpus apigen \
+            --limit 60 --schema travel \
+            --check \
+            --json /tmp/travel.json
+          python - <<'PY'
+          import json, sys
+          precision = json.load(open("/tmp/travel.json")).get("precision") or {}
+          matched = precision.get("n_labelled", 0)
+          supplied = matched + precision.get("n_unmatched_labels", 0)
+          print(f"travel labels matched: {matched}/{supplied}")
+          if not matched or precision.get("n_unmatched_labels"):
+              print("FAIL  the travel label file has drifted from its corpus.")
+              sys.exit(1)
+          clusters = precision.get("n_clusters")
+          if clusters is not None and clusters < 20:
+              print(f"FAIL  only {clusters} independent travel units.")
               sys.exit(1)
           PY
 

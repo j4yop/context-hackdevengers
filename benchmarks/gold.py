@@ -17,7 +17,28 @@ import math
 import os
 from typing import Any, Dict, List, Optional, Tuple
 
-LABELS_PATH = os.path.join(os.path.dirname(__file__), "labels", "precision.json")
+LABELS_DIR = os.path.join(os.path.dirname(__file__), "labels")
+
+#: Label file per corpus. ``precision.json`` predates the second domain and keeps
+#: its name so the coding numbers stay where they were.
+LABELS_BY_CORPUS = {
+    "swe-agent-trajectories": os.path.join(LABELS_DIR, "precision.json"),
+    "apigen-mt-5k": os.path.join(LABELS_DIR, "travel.json"),
+}
+
+LABELS_PATH = LABELS_BY_CORPUS["swe-agent-trajectories"]
+
+
+def labels_path_for(source: Optional[str] = None) -> str:
+    """
+    The label file for a corpus.
+
+    Scoring travel labels against coding extractions would report every label as
+    drifted, which is noise rather than information.
+    """
+    if source is None:
+        return LABELS_PATH
+    return LABELS_BY_CORPUS.get(source, LABELS_PATH)
 
 #: Verdict values.
 CORRECT = "correct"
@@ -95,6 +116,7 @@ def label_key(transcript_id: str, entity: str, turn_index: Any = None) -> Tuple:
 def score(
     extractions: List[Dict[str, Any]],
     labels: Optional[List[Dict[str, Any]]] = None,
+    labels_path: Optional[str] = None,
 ) -> Dict[str, Any]:
     """
     Precision over labelled items only.
@@ -104,7 +126,10 @@ def score(
     that has drifted out of sync with the corpus is a measurement that has quietly
     stopped measuring anything.
     """
-    labels = load_labels() if labels is None else labels
+    if labels is None:
+        labels = load_labels(labels_path)
+    else:
+        labels = labels
     by_key: Dict[Tuple, List[Dict[str, Any]]] = {}
     for label in labels:
         by_key.setdefault(

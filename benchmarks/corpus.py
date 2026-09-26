@@ -26,6 +26,21 @@ from typing import Any, Dict, Iterable, List, Optional
 #: Kept in sync with the README so a reader can check the claim against the data.
 SWE_AGENT_DATASET = "nebius/SWE-agent-trajectories"
 SWE_AGENT_SHARD = "data/train-00000-of-00012.parquet"
+#: A second domain, so "measured" stops meaning "measured on coding".
+#:
+#: SWE-agent trajectories are all Python bug-fixing, and the shipped `coding`
+#: schema was derived from them. A library whose only evidence is one domain has
+#: not been shown to generalise, it has been shown once. APIGen-MT-5k is
+#: multi-turn customer-service tool use in travel and retail, with real
+#: mid-conversation changes of mind -- the supersession case the library exists
+#: for, in a domain where the entities are reservation ids, cabin classes and
+#: payment methods rather than file paths.
+APIGEN_MT_DATASET = "Salesforce/APIGen-MT-5k"
+APIGEN_MT_FILE = "apigen-mt_5k.json"
+APIGEN_MT_HF_URL = (
+    "https://huggingface.co/datasets/" + APIGEN_MT_DATASET + "/resolve/main/" + APIGEN_MT_FILE
+)
+
 SWE_AGENT_HF_URL = (
     "https://huggingface.co/datasets/"
     + SWE_AGENT_DATASET
@@ -93,6 +108,107 @@ def normalise_messages(raw: Iterable[Dict[str, Any]]) -> List[Dict[str, Any]]:
         if not isinstance(content, str) or not content.strip():
             continue
         out.append({"role": role, "content": content})
+    return out
+
+
+def cached_apigen() -> str:
+    """Where the APIGen-MT download lives."""
+    import os
+
+    cache = os.path.expanduser("~/.cache/contextgc")
+    os.makedirs(cache, exist_ok=True)
+    return os.path.join(cache, "apigen-mt_5k.json")
+
+
+def _download(url: str, target: str) -> None:
+    import urllib.request
+
+    with urllib.request.urlopen(url) as response, open(target, "wb") as handle:
+        while True:
+            chunk = response.read(1 << 20)
+            if not chunk:
+                break
+            handle.write(chunk)
+
+
+def load_apigen_mt(
+    limit: int = 200,
+    min_turns: int = 6,
+    max_turns: int = 120,
+    path: Optional[str] = None,
+) -> List[Transcript]:
+    """
+    Load real multi-turn customer-service agent trajectories.
+
+    The dataset stores a conversation as ``human`` / ``gpt`` / ``function_call`` /
+    ``observation`` turns. Tool results are filed under ``observation`` and are
+    mapped to ``user`` here, which is the role a chat transcript would give them.
+    That is deliberate: it is the same shape as the SWE-agent corpus, so a fix
+    for one corpus cannot quietly exempt the other.
+
+    Args:
+        limit: stop after this many usable conversations.
+        min_turns: skip anything shorter. A conversation too short to change its
+            mind cannot exercise supersession.
+        max_turns: skip anything longer, to bound runtime.
+        path: a local copy of the JSON file. If absent it is downloaded.
+
+    Returns:
+        Transcripts tagged ``source="apigen-mt-5k"``.
+    """
+    target = path or cached_apigen()
+    if not os.path.exists(target):
+        import urllib.request  # noqa: F401  (documents the dependency)
+
+        print(f"downloading {APIGEN_MT_HF_URL}\n  -> {target}")
+        try:
+            _download(APIGEN_MT_HF_URL, target)
+        except Exception as exc:
+            raise SystemExit(
+                f"could not fetch the APIGen-MT file: {exc}\n"
+                f"  curl -L -o {target} {APIGEN_MT_HF_URL}"
+            )
+    import json as _json
+
+    with open(target, encoding="utf-8") as handle:
+        rows = _json.load(handle)
+
+    out: List[Transcript] = []
+    for row_index, row in enumerate(rows):
+        if len(out) >= limit:
+            break
+        messages: List[Dict[str, Any]] = []
+        system = str(row.get("system") or "").strip()
+        if system:
+            # The policy prompt is part of the agent's instructions, and it is
+            # long and static. Keeping it would let one boilerplate block
+            # dominate every reduction figure in the report.
+            messages.append({"role": "system", "content": system})
+        for turn in row.get("conversations") or []:
+            speaker = turn.get("from")
+            value = turn.get("value")
+            if value is None:
+                continue
+            value = value if isinstance(value, str) else str(value)
+            if speaker == "human":
+                messages.append({"role": "user", "content": value})
+            elif speaker == "gpt":
+                messages.append({"role": "assistant", "content": value})
+            elif speaker == "function_call":
+                # The call itself is the agent speaking about a tool, so it
+                # belongs to the assistant turn.
+                messages.append({"role": "assistant", "content": value})
+            elif speaker == "observation":
+                messages.append({"role": "user", "content": value})
+        messages = [m for m in messages if m["content"].strip()]
+        if not (min_turns <= len(messages) <= max_turns):
+            continue
+        out.append(Transcript(
+            transcript_id=f"apigen-{row_index}",
+            messages=messages,
+            source="apigen-mt-5k",
+            meta={"row": row_index, "turns": len(messages)},
+        ))
     return out
 
 
