@@ -41,6 +41,68 @@ paste a conversation on the left, get the compiled context back on the right.
 
 ---
 
+## Two ways to get state out of a transcript
+
+### 1. Read path — infer it (default, works with any model)
+
+Patterns scan the text for assertions. Deterministic, zero cost, works on
+transcripts you did not produce. Its ceiling is hard: it cannot resolve *"send it
+to the new place instead"*, because "it" and "the new place" are not patterns.
+Anything it misses leaves the state silently incomplete.
+
+### 2. Write path — the agent declares it
+
+Turn on `teach_protocol` and the agent is asked to report what it concluded, as
+a structured side-effect of the turn it was already making:
+
+```
+<contextgc-state>
+{"assert": {"destination_address": "Gate 2"},
+ "pin":    {"dietary_allergy": "peanut"},
+ "revoke": ["order_id"],
+ "unsure": {"rider_location": "maybe the west gate"}}
+</contextgc-state>
+```
+
+**There is no extra model call and no extra latency.** The block rides along in
+a completion the agent was going to make anyway, and it is stripped from the
+content before the transcript is sent onward — the model never sees its own
+protocol markup.
+
+What it buys:
+
+| | Read path | Write path |
+|---|---|---|
+| Pronoun references | invisible | resolved by the model that made the claim |
+| Provenance | guessed | **declared**, and an inferred match can never overwrite it |
+| Void facts | impossible to express | `revoke` — void, not merely stale |
+| Low-confidence facts | indistinguishable | `unsure`, surfaced and flagged |
+| Immutable rules | inferred from a hardcoded list | `pin`, declared by you |
+
+The loop closes because the compiler already injects the state register at the
+head of the context. The agent reads it, reasons, and declares what changed.
+
+```python
+compiled, telemetry = compile_messages(messages, teach_protocol=True)
+telemetry["declarations"]["authority_ratio"]   # 1.0 = every fact declared
+```
+
+`authority_ratio` is the honest measure of whether the protocol is working.
+`1.0` means nothing is being guessed; `0.0` means the agent declared nothing and
+every fact is a regex's opinion.
+
+**The seam for calibrated confidence.** `unsure` is where a probabilistic
+extractor plugs in. `confidence_from_logprobs()` converts an OpenAI-compatible
+`logprobs` response into a normalised confidence, which is what lets an agent
+loop gate on a number — *"re-ask the human below 0.7"* — instead of a vibe:
+
+```python
+from contextgc import confidence_from_logprobs
+confidence_from_logprobs([0.0, -0.4, -6.0])   # -> 0.75
+```
+
+---
+
 ## What it actually does
 
 Four things, in order:
@@ -98,10 +160,11 @@ failures, and only one is deterministic:
 | **Irrelevance** — bulk tokens competing for probability mass | No. Needs a relevance judgement, i.e. a model. |
 | **Position** — lost-in-the-middle attention decay | No. It is a property of softmax attention over sequence length. Preprocessing cannot fix it. |
 
-**State tracking is regular expressions.** There is no coreference resolution, so
-a fact expressed only through pronouns ("send it to the new place instead") will
-not be tracked. Missed extraction is the main failure mode: the state is
-*silently incomplete*. Extend the schema for your domain:
+**On the read path, state tracking is regular expressions.** There is no
+coreference resolution, so a fact expressed only through pronouns will not be
+tracked. Missed extraction is the main failure mode: the state is *silently
+incomplete*. The write path fixes this for agents that comply, and
+`authority_ratio` tells you whether they did. Extend the schema for your domain:
 
 ```python
 from contextgc import StateDAG
@@ -184,6 +247,9 @@ curl -X POST localhost:8000/api/compile \
        "invariants":["refunds over 500 need supervisor approval"]}'
 ```
 
+Set `"teach_protocol": true` to inject the state-protocol instruction, and
+`/api/example` returns a `write_path_example` that demonstrates it.
+
 Accepts a plain-text transcript or a JSON message array:
 
 ```
@@ -223,7 +289,7 @@ Responses carry `X-ContextGC-Telemetry: raw=…; compiled=…; saved=…%; compi
 git clone https://github.com/j4yop/context-hackdevengers
 cd context-hackdevengers
 pip install -e ".[dev]"
-pytest -q                      # 57 tests
+pytest -q                      # 112 tests
 uvicorn server.main:app --reload
 ```
 

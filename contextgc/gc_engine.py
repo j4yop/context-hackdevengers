@@ -15,7 +15,14 @@ from typing import Any, Dict, List, Optional
 
 from .anchors import PolicyInvariantAnchor
 from .sanitizer import ToolSanitizer
-from .state_dag import StateDAG
+from .state_dag import SOURCE_DECLARED, StateDAG
+from .state_protocol import (
+    declaration_counts,
+    has_block,
+    parse_declaration,
+    render_instruction,
+    strip_blocks,
+)
 from .vector_tier import VectorMemoryTier
 
 
@@ -34,6 +41,18 @@ class ContextGCEngine:
         self.anchor = PolicyInvariantAnchor(invariants)
         self.turn_counter = 0
 
+    def _authority_ratio(self) -> Optional[float]:
+        """Share of active facts that were declared rather than inferred.
+
+        ``None`` when nothing is being tracked -- an undefined ratio is more
+        honest than reporting 0.0 for "no facts exist".
+        """
+        total = len(self.dag.active_state)
+        if not total:
+            return None
+        declared = sum(1 for n in self.dag.active_state.values() if n.source == SOURCE_DECLARED)
+        return round(declared / total, 3)
+
     @staticmethod
     def _kv_prefix_len(original: List[Dict[str, Any]], compiled: List[Dict[str, Any]]) -> int:
         """Length of the byte-identical message prefix shared by both sequences."""
@@ -49,6 +68,7 @@ class ContextGCEngine:
         messages: List[Dict[str, str]],
         query_for_jit: Optional[str] = None,
         mode: str = "compact",
+        teach_protocol: bool = False,
     ) -> Dict[str, Any]:
         """
         Compiles a message history.
@@ -61,6 +81,11 @@ class ContextGCEngine:
               untouched prefix still hits. Tool payloads are passed through
               verbatim in this mode -- distilling them would mutate the prefix and
               invalidate the very cache this mode exists to protect.
+
+        Args:
+            teach_protocol: prepend the state-protocol instruction to the system
+              prompt, teaching the agent to declare its own state changes. Costs a
+              few tokens per turn and buys authoritative provenance in return.
 
         Returns ``{"cleaned_messages", "telemetry", ...}``. Every telemetry field
         is a runtime measurement.
@@ -78,15 +103,35 @@ class ContextGCEngine:
         raw_token_count = 0
         sanitized_tools_count = 0
         evicted_turns: List[int] = []
+        declarations = []
+        stripped_blocks = 0
 
-        # ---- Pass 1: register turns, optionally distil tool payloads ----------
+        # ---- Pass 1: read declarations, then infer what was not declared -----
+        # Declarations are applied first and are authoritative. A regex match is
+        # a guess about text; a declaration is the agent reporting on its own
+        # reasoning, and the agent had the whole conversation when it made it.
         annotated_turns = []
         for idx, msg in enumerate(messages):
             role = msg.get("role", "user")
             content = msg.get("content", "") or ""
             raw_token_count += max(1, len(content) // 4)
 
-            reg_info = self.dag.register_turn(idx, role, content)
+            # Protocol markup is a channel to the compiler, not to the model.
+            declaration = parse_declaration(content)
+            if has_block(content):
+                stripped_blocks += 1
+            declarations.append(declaration)
+
+            reg_info = self.dag.register_declaration(
+                idx, declaration.asserts, declaration.pins, declaration.unsure
+            )
+            for key in declaration.revokes:
+                self.dag.revoke(key, idx, reason="revoked by agent declaration")
+
+            # Inference sees the text with the protocol markup removed, so a
+            # declared key is never also pattern-matched out of its own JSON.
+            inferrable = strip_blocks(content) if has_block(content) else content
+            inferred_info = self.dag.register_turn(idx, role, inferrable)
 
             tool_name = msg.get("name")
             if not tool_name:
@@ -118,7 +163,9 @@ class ContextGCEngine:
                 "name": msg.get("name"),
                 "tool_call_id": msg.get("tool_call_id"),
                 "tool_calls": msg.get("tool_calls"),
-                "superseded_turns": reg_info.get("superseded_turns", []),
+                "superseded_turns": list(reg_info.get("superseded_turns", []))
+                + list(inferred_info.get("superseded_turns", [])),
+                "stripped": has_block(content),
             })
 
         # ---- Pass 2: find retired branches ----------------------------------
@@ -174,7 +221,9 @@ class ContextGCEngine:
                 cleaned_messages.append(cleaned_msg)
                 continue
 
-            cleaned_msg = {"role": role, "content": content}
+            # The model must never see protocol markup. It is a channel to the
+            # compiler, and feeding it back would grow the transcript every turn.
+            cleaned_msg = {"role": role, "content": strip_blocks(content) if item.get("stripped") else content}
             if tool_call_id:
                 cleaned_msg["tool_call_id"] = tool_call_id
             if name:
@@ -201,20 +250,31 @@ class ContextGCEngine:
 
         # ---- Pass 4: inject the state register -------------------------------
         if cleaned_messages:
+            tail_extra = ""
+            if teach_protocol:
+                instruction = render_instruction(sorted(self.dag.active_state)[:12])
+                if mode == "cache_friendly":
+                    # Appending only: touching messages[0] would mutate the very
+                    # prefix this mode exists to keep cacheable.
+                    tail_extra += f"{instruction}\n\n"
+                elif cleaned_messages[0]["role"] == "system":
+                    cleaned_messages[0]["content"] += f"\n\n{instruction}"
+                else:
+                    cleaned_messages.insert(0, {"role": "system", "content": instruction})
+
             if mode == "cache_friendly":
                 # Append only. The input prefix is never touched.
                 cleaned_messages.append({
                     "role": "system",
-                    "content": f"[STATE_REGISTER]\n{state_summary}\n\n{anchor_block}",
+                    "content": f"{tail_extra}[STATE_REGISTER]\n{state_summary}\n\n{anchor_block}".strip(),
                 })
             else:
-                if cleaned_messages[0]["role"] == "system" and "ACTIVE_AGENT_STATE_DAG" not in cleaned_messages[0]["content"]:
-                    cleaned_messages[0]["content"] += f"\n\n{state_summary}\n\n{anchor_block}"
+                head = f"{state_summary}\n\n{anchor_block}".strip()
+                first = cleaned_messages[0]
+                if first["role"] == "system" and "[ACTIVE_AGENT_STATE]" not in first["content"]:
+                    first["content"] += f"\n\n{head}"
                 else:
-                    cleaned_messages.insert(0, {
-                        "role": "system",
-                        "content": f"{state_summary}\n\n{anchor_block}",
-                    })
+                    cleaned_messages.insert(0, {"role": "system", "content": head})
 
             if jit_block and cleaned_messages[-1]["role"] == "user":
                 cleaned_messages[-1]["content"] += jit_block
@@ -227,11 +287,12 @@ class ContextGCEngine:
         compression_pct = round((tokens_saved / max(1, raw_token_count)) * 100, 1)
 
         # Verified against the actual emitted sequence, not the requested mode.
+        # `prefix_len` is how far the byte-identical prefix extends. The boolean
+        # answers the question a caller actually has -- "is my cache still valid
+        # for the whole conversation" -- not "is message[0] unchanged", which is
+        # true even when everything after it was rewritten.
         prefix_len = self._kv_prefix_len(messages, cleaned_messages)
-        kv_prefix_preserved = all(
-            a.get("content") == b.get("content")
-            for a, b in zip(messages[:prefix_len], cleaned_messages[:prefix_len])
-        )
+        kv_prefix_intact = prefix_len >= len(messages)
 
         return {
             "cleaned_messages": cleaned_messages,
@@ -253,22 +314,46 @@ class ContextGCEngine:
                 "retired_turn_indices": sorted(evicted_turns),
                 "retired_turn_count": len(evicted_turns),
                 "tool_payloads_compacted": sanitized_tools_count,
+
+                # --- write-path provenance, measured ---
+                "state": self.dag.provenance_summary(),
+                "declarations": {
+                    **declaration_counts(declarations),
+                    "blocks_stripped": stripped_blocks,
+                    # Share of tracked facts that came from the agent rather than
+                    # a regex. 1.0 means the write path is fully adopted; 0.0
+                    # means nothing declared anything and every fact is a guess.
+                    "authority_ratio": self._authority_ratio(),
+                    "protocol_taught": teach_protocol,
+                },
                 "active_state_slots": {k: v.value for k, v in self.dag.active_state.items()},
                 "orphaned_facts": self.dag.get_orphaned_facts(),
                 "dag": {
                     "active": [
-                        {"entity": k, "value": v.value, "turn_index": v.turn_index, "is_immutable": v.is_immutable}
+                        {
+                            "entity": k,
+                            "value": v.value,
+                            "turn_index": v.turn_index,
+                            "is_immutable": v.is_immutable,
+                            "source": v.source,
+                            "confidence": v.confidence,
+                        }
                         for k, v in self.dag.active_state.items()
                     ],
+                    "revoked": [
+                        {"entity": k, "was": v.get("was"), "turn": v.get("turn"), "reason": v.get("reason")}
+                        for k, v in sorted(self.dag.revoked_keys.items())
+                    ],
                     "superseded": [
-                        {"entity": n.entity, "value": n.value, "turn_index": n.turn_index, "superseded_by": n.superseded_by}
+                        {"entity": n.entity, "value": n.value, "turn_index": n.turn_index,
+                         "superseded_by": n.superseded_by, "source": n.source}
                         for history in self.dag.nodes.values()
                         for n in history
                         if n.superseded_by is not None
                     ],
                 },
                 "kv_cache_prefix_messages_preserved": prefix_len,
-                "kv_cache_prefix_intact": kv_prefix_preserved,
+                "kv_cache_prefix_intact": kv_prefix_intact,
             },
             "raw_messages_count": len(messages),
             "compiled_messages_count": len(cleaned_messages),

@@ -2,6 +2,43 @@
 
 All notable changes. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.2.0] — the write path
+
+### Added
+
+- **State protocol.** The agent can declare what it concluded as a structured
+  side-effect of the turn it was already making. No extra model call, no extra
+  latency: the block rides along in a completion that was going to happen
+  anyway, and is stripped before the transcript is sent onward so a model never
+  sees its own markup.
+  - `assert` — assert a value, superseding any earlier one.
+  - `pin` — assert and mark immutable. Only a *declared* re-assertion may lift a
+    pin; an inferred match never can.
+  - `revoke` — void a key. This is the operation supersession cannot express: a
+    revoked fact is not replaced, it is invalid, and there is no value to replace
+    it with. A revoked key is not resurrected by a later regex match.
+  - `unsure` — a low-confidence assertion, tracked and flagged rather than
+    presented as settled.
+- **Provenance on every fact.** `FactNode.source` is `declared` or `inferred`, and
+  an inferred match can never overwrite a declared fact. The state register tags
+  each value with its origin so the model can tell what it asserted itself from
+  what a pattern guessed.
+- **`authority_ratio` telemetry** — the share of tracked facts that came from the
+  agent rather than a regex. `1.0` means nothing is guessed; `0.0` means the
+  protocol is not being adopted. `None`, not `0.0`, when nothing is tracked.
+- `compile_messages(..., teach_protocol=True)` and `patch_openai(...,
+  teach_protocol=True)`.
+- `confidence_from_logprobs()` — converts an OpenAI-compatible `logprobs`
+  response into a normalised confidence, the seam for probabilistic extraction
+  and for gating an agent loop on a number rather than a vibe.
+
+### Fixed
+
+- `kv_cache_prefix_intact` was computed as "the shared prefix is unaltered",
+  which is true even when everything after message[0] was rewritten. It now means
+  the entire input prefix is byte-identical, which is the question a caller
+  actually has about their cache.
+
 ## [0.1.0]
 
 First release after an audit that found most of the previously published metrics

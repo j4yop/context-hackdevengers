@@ -31,6 +31,7 @@ from pydantic import BaseModel, Field
 
 from contextgc import __version__
 from contextgc.client import compile_messages, compile_transcript
+from contextgc.state_protocol import render_instruction
 
 # --------------------------------------------------------------------------
 # Configuration
@@ -104,6 +105,9 @@ class CompileRequest(BaseModel):
     mode: str = Field("compact", pattern="^(compact|cache_friendly)$")
     invariants: List[str] = Field(default_factory=list)
     recall_query: Optional[str] = None
+    teach_protocol: bool = Field(
+        False, description="Inject the state-protocol instruction so the agent declares its state"
+    )
 
 
 class MessagesRequest(BaseModel):
@@ -111,6 +115,7 @@ class MessagesRequest(BaseModel):
     mode: str = Field("compact", pattern="^(compact|cache_friendly)$")
     invariants: List[str] = Field(default_factory=list)
     recall_query: Optional[str] = None
+    teach_protocol: bool = False
 
 
 # --------------------------------------------------------------------------
@@ -145,6 +150,7 @@ async def api_compile(req: CompileRequest, request: Request) -> JSONResponse:
         mode=req.mode,
         invariants=req.invariants or None,
         recall_query=req.recall_query,
+        teach_protocol=req.teach_protocol,
     )
 
     if "error" in telemetry:
@@ -177,6 +183,7 @@ async def api_compile_messages(req: MessagesRequest, request: Request) -> JSONRe
         mode=req.mode,
         invariants=req.invariants or None,
         recall_query=req.recall_query,
+        teach_protocol=req.teach_protocol,
     )
     return JSONResponse(
         content={"compiled_messages": compiled, "telemetry": telemetry},
@@ -198,7 +205,22 @@ def example() -> Dict[str, Any]:
             "user: Wait, my friend is at Gate 2 security entrance right now. Reroute there. Entry code 4921.",
             "assistant: Rerouted to Gate 2 security entrance, code 4921.",
             "user: Thanks.",
-        ])
+        ]),
+        "write_path_example": "\n".join([
+            "system: You are a delivery support agent.",
+            "user: Deliver ORD-9941 to Tower B, Flat 402. Severe peanut allergy.",
+            "assistant: Confirmed, routing to Tower B.\n<contextgc-state>{\"assert\":{\"order_id\":\"ORD-9941\",\"destination_address\":\"Tower B, Flat 402\"},\"pin\":{\"dietary_allergy\":\"peanut\"}}</contextgc-state>",
+            "user: The elevator is broken. Send it to the new place instead.",
+            "assistant: Moved to the Clubhouse security desk.\n<contextgc-state>{\"assert\":{\"destination_address\":\"Clubhouse security desk\"}}</contextgc-state>",
+            "user: Actually my friend is at Gate 2. Reroute there, code 4921.",
+            "assistant: Rerouted.\n<contextgc-state>{\"assert\":{\"destination_address\":\"Gate 2\",\"gate_code\":\"4921\"}}</contextgc-state>",
+            "user: Wait, the order was cancelled.",
+            "assistant: Cancelled.\n<contextgc-state>{\"revoke\":[\"gate_code\",\"order_id\"]}</contextgc-state>",
+            "user: OK.",
+        ]),
+        "protocol_help": render_instruction([
+            "destination_address", "gate_code", "order_id", "dietary_allergy",
+        ]),
     }
 
 

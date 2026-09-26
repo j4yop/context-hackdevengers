@@ -1,13 +1,31 @@
 """
-ContextGC: Neuro-Symbolic State DAG & Dead-Branch Invalidation Engine
-Tracks entity state mutations across multi-turn agent sessions.
-Identifies when new turns supersede prior facts and prunes obsolete context tokens.
+ContextGC: state DAG with provenance-aware supersession.
+
+Tracks entity state across a transcript and retires assertions that have been
+replaced. Two things this module is careful about, because getting either wrong
+produces a *confidently wrong* context rather than a merely incomplete one:
+
+**Provenance.** A fact the agent explicitly declared is not the same kind of
+object as one a regex guessed. ``FactNode.source`` records which, and a declared
+fact is never overwritten by an inferred one. See :mod:`contextgc.state_protocol`.
+
+**Retraction.** Retiring a turn must retract the facts that turn uniquely held,
+and a fact can be *void* rather than merely stale. :meth:`StateDAG.revoke` is
+that operation; without it the only way to drop a key is for the agent to
+re-assert it with a tombstone value, which is a workaround, not a mechanism.
 """
 
 import re
 import time
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Set
+
+#: Provenance of an assertion.
+SOURCE_DECLARED = "declared"  # the agent emitted it in a <contextgc-state> block
+SOURCE_INFERRED = "inferred"  # a regex matched it in the text
+
+#: Confidence marker for an assertion the agent flagged as unsure.
+UNSETTLED = "unsettled"
 
 
 @dataclass
@@ -19,6 +37,10 @@ class FactNode:
     is_immutable: bool = False
     superseded_by: Optional[int] = None
     created_at: float = field(default_factory=time.time)
+    #: :data:`SOURCE_DECLARED` or :data:`SOURCE_INFERRED`.
+    source: str = SOURCE_INFERRED
+    #: Set to :data:`UNSETTLED` when the agent declared low confidence.
+    confidence: Optional[str] = None
 
 class StateDAG:
     """
@@ -79,6 +101,9 @@ class StateDAG:
         self.nodes: Dict[str, List[FactNode]] = {}
         self.active_state: Dict[str, FactNode] = {}
         self.invalidation_log: List[Dict[str, Any]] = []
+        #: Keys the agent voided. Retained so a later stray regex match cannot
+        #: resurrect a fact the agent explicitly retired.
+        self.revoked_keys: Dict[str, Dict[str, Any]] = {}
 
     def register_entity_schema(self, entity_name: str, patterns: List[str], is_immutable: bool = False) -> None:
         """Dynamically registers a new domain entity schema with regex extraction patterns."""
@@ -177,49 +202,150 @@ class StateDAG:
         Returns a summary of active assertions and invalidated turns.
         """
         extracted = self.extract_entities(content, turn_index, role=role)
+        return self._apply(extracted, turn_index, default_source=SOURCE_INFERRED)
+
+    def register_declaration(
+        self,
+        turn_index: int,
+        asserts: Dict[str, str],
+        pins: Optional[Dict[str, str]] = None,
+        unsure: Optional[Dict[str, str]] = None,
+    ) -> Dict[str, Any]:
+        """
+        Apply a fact the agent explicitly declared in a ``<contextgc-state>`` block.
+
+        Declared facts are authoritative. A regex match can never overwrite one,
+        because the agent had the full conversational context when it made the
+        assertion and the pattern did not.
+        """
+        nodes = []
+        for entity, value in (asserts or {}).items():
+            nodes.append(FactNode(
+                entity=entity, value=value, turn_index=turn_index,
+                raw_snippet="<contextgc-state>", source=SOURCE_DECLARED,
+            ))
+        for entity, value in (pins or {}).items():
+            nodes.append(FactNode(
+                entity=entity, value=value, turn_index=turn_index,
+                raw_snippet="<contextgc-state>", is_immutable=True,
+                source=SOURCE_DECLARED,
+            ))
+        for entity, value in (unsure or {}).items():
+            nodes.append(FactNode(
+                entity=entity, value=value, turn_index=turn_index,
+                raw_snippet="<contextgc-state>", source=SOURCE_DECLARED,
+                confidence=UNSETTLED,
+            ))
+        return self._apply(nodes, turn_index, default_source=SOURCE_DECLARED)
+
+    def revoke(self, entity: str, turn_index: int, reason: str = "revoked by agent") -> bool:
+        """
+        Stop tracking ``entity`` entirely.
+
+        The operation that supersession cannot express. A superseded fact was
+        *replaced*; a revoked fact is *void* -- the order was cancelled, the
+        credential was invalidated, the code path was deleted. There is no value
+        to replace it with, so without this a void key lingers in the state
+        register forever and the model keeps reasoning from it.
+
+        Returns True if the key was being tracked.
+        """
+        entity = (entity or "").strip()
+        if not entity:
+            return False
+        was_tracked = entity in self.active_state
+        previous = self.active_state.pop(entity, None)
+        self.nodes.pop(entity, None)
+        self.revoked_keys[entity] = {
+            "turn": turn_index,
+            "reason": reason,
+            "was": previous.value if previous else None,
+        }
+        if was_tracked:
+            self.invalidation_log.append({
+                "entity": entity,
+                "old_value": previous.value if previous else None,
+                "turn": turn_index,
+                "reason": reason,
+            })
+        return was_tracked
+
+    def _apply(
+        self,
+        extracted: List[FactNode],
+        turn_index: int,
+        default_source: str = SOURCE_INFERRED,
+    ) -> Dict[str, Any]:
+        """Merge extracted nodes into the graph, honouring immutability and provenance."""
         superseded_turns = set()
         new_assertions = []
+        rejected = []
 
         for node in extracted:
+            if default_source and node.source == SOURCE_INFERRED:
+                node.source = default_source
+
+            # A revoked key stays revoked unless the agent re-asserts it on purpose.
+            if node.entity in self.revoked_keys and node.source != SOURCE_DECLARED:
+                continue
+
             if node.entity not in self.nodes:
                 self.nodes[node.entity] = []
 
-            # Check if this overrides an existing active fact
             if node.entity in self.active_state:
                 prev_node = self.active_state[node.entity]
-                if not prev_node.is_immutable:
-                    # Invalidate previous node
-                    prev_node.superseded_by = turn_index
-                    superseded_turns.add(prev_node.turn_index)
-                    self.invalidation_log.append({
-                        "entity": node.entity,
-                        "old_value": prev_node.value,
-                        "new_value": node.value,
-                        "old_turn": prev_node.turn_index,
-                        "new_turn": turn_index,
-                        "reason": f"Active state mutation: {prev_node.value} -> {node.value}"
-                    })
-                    self.nodes[node.entity].append(node)
-                    self.active_state[node.entity] = node
-                    new_assertions.append({"entity": node.entity, "value": node.value})
-                else:
-                    # Previous node is an immutable guardrail! Reject override!
-                    self.invalidation_log.append({
+
+                if prev_node.is_immutable:
+                    # An immutable guardrail holds. A *declared* re-assertion is
+                    # allowed through: only the agent knows that a constraint was
+                    # deliberately lifted, and guessing that from regex is exactly
+                    # the failure mode this rewrite exists to remove.
+                    if node.source != SOURCE_DECLARED:
+                        rejected.append({
+                            "entity": node.entity,
+                            "attempted_value": node.value,
+                            "turn": turn_index,
+                            "reason": f"{node.entity} is an IMMUTABLE guardrail",
+                        })
+                        self.invalidation_log.append(dict(rejected[-1]))
+                        continue
+                    prev_node.is_immutable = False
+
+                # An inferred match never displaces a declared fact.
+                if prev_node.source == SOURCE_DECLARED and node.source == SOURCE_INFERRED:
+                    rejected.append({
                         "entity": node.entity,
                         "attempted_value": node.value,
                         "turn": turn_index,
-                        "reason": f"Rejected mutation: {node.entity} is an IMMUTABLE guardrail."
+                        "reason": "declared fact is not overwritten by an inferred one",
                     })
-            else:
-                self.nodes[node.entity].append(node)
-                self.active_state[node.entity] = node
-                new_assertions.append({"entity": node.entity, "value": node.value})
+                    continue
+
+                prev_node.superseded_by = turn_index
+                superseded_turns.add(prev_node.turn_index)
+                self.invalidation_log.append({
+                    "entity": node.entity,
+                    "old_value": prev_node.value,
+                    "new_value": node.value,
+                    "old_turn": prev_node.turn_index,
+                    "new_turn": turn_index,
+                    "reason": f"{prev_node.source} -> {node.source}: {prev_node.value} -> {node.value}",
+                })
+
+            self.nodes[node.entity].append(node)
+            self.active_state[node.entity] = node
+            new_assertions.append({
+                "entity": node.entity,
+                "value": node.value,
+                "source": node.source,
+            })
 
         return {
             "turn_index": turn_index,
             "new_assertions": new_assertions,
+            "rejected": rejected,
             "superseded_turns": list(superseded_turns),
-            "current_active_slots": {k: v.value for k, v in self.active_state.items()}
+            "current_active_slots": {k: v.value for k, v in self.active_state.items()},
         }
 
     def rollback_to(self, target_turn: int) -> Dict[str, Any]:
@@ -246,6 +372,16 @@ class StateDAG:
             entry for entry in self.invalidation_log
             if entry.get("new_turn", 0) <= target_turn
         ]
+
+        # A revocation is a state mutation like any other; rolling back past it
+        # must restore the key rather than leave it permanently void.
+        self.revoked_keys = {
+            k: v for k, v in self.revoked_keys.items() if v.get("turn", 0) <= target_turn
+        }
+        for entity in list(self.revoked_keys):
+            restored = [n for n in self.nodes.get(entity, []) if n.turn_index <= target_turn]
+            if restored:
+                self.active_state[entity] = restored[-1]
         return {
             "rollback_target_turn": target_turn,
             "active_state": {k: v.value for k, v in self.active_state.items()},
@@ -294,13 +430,42 @@ class StateDAG:
         return orphans
 
     def get_active_state_summary(self) -> str:
-        """Returns a consolidated state representation for prompt injection, safely escaped against delimiter injection."""
+        """
+        Render the current state for injection at the head of the context.
+
+        Every value is tagged with its provenance so the model can tell a fact it
+        declared itself apart from one a pattern guessed, and an unsettled
+        assertion is marked so it is not treated as settled. Values are escaped
+        against delimiter forgery.
+        """
         if not self.active_state:
             return ""
-        lines = ["[ACTIVE_AGENT_STATE_DAG]"]
+        lines = ["[ACTIVE_AGENT_STATE]"]
         for entity, node in sorted(self.active_state.items()):
-            imm_flag = " (IMMUTABLE)" if node.is_immutable else ""
-            # Escape newlines and bracket delimiters to prevent prompt boundary forgery
+            flags = []
+            if node.is_immutable:
+                flags.append("PINNED")
+            if node.confidence == UNSETTLED:
+                flags.append("UNSETTLED")
+            suffix = f" [{', '.join(flags)}]" if flags else ""
+            safe_entity = str(entity).replace("\n", " ").replace("[", "(").replace("]", ")")
             safe_val = str(node.value).replace("\n", " ").replace("[", "(").replace("]", ")")
-            lines.append(f"  • {entity}: \"{safe_val}\" [Settled Turn {node.turn_index}{imm_flag}]")
+            lines.append(f"  - {safe_entity} = \"{safe_val}\" (turn {node.turn_index}{suffix})")
+        if self.revoked_keys:
+            voided = ", ".join(sorted(self.revoked_keys)[:10])
+            lines.append(f"  (retired: {voided})")
         return "\n".join(lines)
+
+    def provenance_summary(self) -> Dict[str, Any]:
+        """Counts of declared vs inferred vs unsettled facts, for telemetry."""
+        declared = sum(1 for n in self.active_state.values() if n.source == SOURCE_DECLARED)
+        inferred = sum(1 for n in self.active_state.values() if n.source == SOURCE_INFERRED)
+        unsettled = sum(1 for n in self.active_state.values() if n.confidence == UNSETTLED)
+        return {
+            "active_facts": len(self.active_state),
+            "declared": declared,
+            "inferred": inferred,
+            "unsettled": unsettled,
+            "revoked": len(self.revoked_keys),
+            "revoked_keys": sorted(self.revoked_keys),
+        }
