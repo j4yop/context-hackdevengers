@@ -143,17 +143,6 @@
     "schema": "contextgc/schemas/logistics.json"
   },
   {
-    "transcript": "apigen-1609",
-    "entity": "payment_method",
-    "value": "credit card",
-    "turn_index": 13,
-    "verdict": "correct",
-    "note": "was wrong before the negation guard covered 'instead of': the turn rejects this value rather than asserting it. Recorded here so the change is attributable rather than invisible.",
-    "labelled_by": "human, reading the registering turn in context",
-    "corpus": "Salesforce/APIGen-MT-5k retail slice",
-    "schema": "contextgc/schemas/logistics.json"
-  },
-  {
     "transcript": "apigen-1612",
     "entity": "payment_method",
     "value": "gift card",
