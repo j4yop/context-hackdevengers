@@ -1,0 +1,22 @@
+{
+  "note": "Confirmed extraction errors, kept out of precision.json because the stratified sampling rule (first N per repo) excludes these rows. They are tracked so a sampling change cannot hide them.",
+  "cause": "the path is named in one sentence of the turn while the agent's actual subject is a different file in another sentence",
+  "cases": [
+    {
+      "transcript": "Azure__azure-functions-python-worker-890#18",
+      "turn_index": 61,
+      "entity": "current_file",
+      "value": "azure_functions_worker/dispatcher.py",
+      "verdict": "incorrect",
+      "note": "turn reviews main.py; the dispatcher.py path matched elsewhere in the message"
+    },
+    {
+      "transcript": "Azure__azure-functions-python-worker-890#20",
+      "turn_index": 5,
+      "entity": "current_file",
+      "value": "dispatcher.py",
+      "verdict": "incorrect",
+      "note": "turn discusses constants.py; the dispatcher.py path matched elsewhere in the message"
+    }
+  ]
+}

@@ -41,6 +41,302 @@ paste a conversation on the left, get the compiled context back on the right.
 
 ---
 
+## Two ways to get state out of a transcript
+
+### 1. Read path — infer it (default, works with any model)
+
+Patterns scan the text for assertions. Deterministic, zero cost, works on
+transcripts you did not produce. Its ceiling is hard: it cannot resolve *"send it
+to the new place instead"*, because "it" and "the new place" are not patterns.
+Anything it misses leaves the state silently incomplete.
+
+### 2. Write path — the agent declares it
+
+With `teach_protocol=True` the agent is asked to report what it concluded, as a
+structured side-effect of the turn it was already making:
+
+```
+<contextgc-state>
+{"assert": {"destination_address": "Gate 2"},
+ "pin":    {"dietary_allergy": "peanut"},
+ "revoke": ["order_id"],
+ "unsure": {"rider_location": "maybe the west gate"}}
+</contextgc-state>
+```
+
+**No extra model call.** The block rides along in a completion the agent was
+going to make anyway. It is not free, though: the instruction is ~200 tokens
+added to the system prompt on every request, and in `compact` mode that
+invalidates the prefix cache for the first message. Use `cache_friendly` if you
+want both.
+
+The block is stripped before the transcript is sent onward, including from inside
+`tool_calls` arguments, so a model never sees protocol markup.
+
+#### What the write path actually buys
+
+| | Read path | Write path |
+|---|---|---|
+| Provenance | guessed | **declared**, and inference cannot overwrite it |
+| Void facts | inexpressible | `revoke` — void, not merely stale |
+| Unsettled facts | indistinguishable | `unsure`, surfaced and flagged |
+| Pinned rules | hardcoded list | `pin`, lifted only by an explicit re-pin |
+| Pronoun references | **not resolved** | **not resolved either** |
+
+That last row is the honest one. The write path was motivated by coreference,
+and it does **not** reliably fix it: the agent has to notice the reference and
+report it. When it does, the result is authoritative; when it does not, the
+state is quietly incomplete. There is currently no measurement of how often that
+happens, which is the main open question about this feature.
+
+#### Who may declare
+
+**Only the assistant.** Tool output is a fetched page or an MCP result, user
+text may be a pasted injection or a quote of this README, and a system message
+is a summarised transcript that inherits whatever those contained. If any of
+them could assert state, `declared` would be a mark of forgery rather than of
+authority. Markup in an untrusted role is still stripped from the prompt, but
+never applied, and is counted in `blocks_in_untrusted_roles`.
+
+#### Read `conflicts`, not `declared_share`
+
+```python
+compiled, telemetry = compile_messages(messages, teach_protocol=True)
+telemetry["declarations"]["declared_share"]   # provenance mix, NOT a score
+telemetry["conflicts"]                        # declared vs. what the text says
+```
+
+`declared_share` is the fraction of tracked facts that came from the agent. It is
+**not** a confidence measure, and it is specifically not a safety one: a declared
+fact always outranks an inferred one, so the score goes *up* when the model's
+opinion wins a disagreement. A transcript where the agent declared a stale value
+and was never contradicted reads `1.0`.
+
+`conflicts` is the signal that matters. It fires when the agent asserted a key
+and the transcript's own text still says something different:
+
+```
+conflicts: [{'entity': 'gate_code', 'declared': '1111', 'declared_turn': 1,
+             'inferred': '9999', 'inferred_turn': 2,
+             'note': 'the declaration won; verify it is still correct'}]
+```
+
+Read that as: *the agent may be quoting an older turn; the human has since said
+otherwise in plain text.* A model that keeps getting this wrong is not
+declaring better, it is declaring more confidently than the evidence supports.
+
+`rejected_writes` is the other one: writes the compiler refused — pinned keys,
+lifted guardrails, markup from an untrusted role.
+
+#### Cost and bounds
+
+An agent that re-declares its entire state every turn is the most likely real
+failure: every re-assert supersedes the last, so every declaring turn becomes
+prunable and the compiler deletes the conversation. The register is therefore
+capped at 64 facts and 512 characters per value; `state_keys_dropped_over_limit`
+reports what was cut. When the register costs more than it saves,
+`context_grew` and `token_growth` say so — `compression_ratio_pct` is clamped at
+0 and would hide it.
+
+---
+
+## Measured against real agent transcripts
+
+Everything above is a design claim. This is what happens when the compiler is run
+over 40 real SWE-agent trajectories from
+[`nebius/SWE-agent-trajectories`](https://huggingface.co/datasets/nebius/SWE-agent-trajectories)
+— 1,936 turns, 2.26M characters, 20 repositories, real model output and real
+tool output. The shard is repository-ordered, so the loader caps trajectories per
+repository (`--per-repo`); without that cap the first 40 transcripts come from three
+repositories and every number below inherits that narrowness.
+
+```bash
+pip install 'contextgc[bench]'
+python -m benchmarks fetch          # 85 MB parquet shard
+python -m benchmarks run --limit 40 --schema benchmarks/schemas/coding.json
+```
+
+```
+CORPUS  swe-agent-trajectories
+  transcripts      40
+  turns            total 1390, median 32, range 12-92
+  characters       1,958,156
+  models           swe-agent-llama-70b x38, swe-agent-llama-8b x2
+
+  facts_extracted            40   n=40
+  keys_reasserted           187   n=40
+  token_reduction          70.1%  n=40
+  tool_payloads_compacted   668   n=40
+  turns_retired              271   n=40
+  retirement_violations       0   n=40
+  compile_ms_p50            2.96  n=40
+  compile_ms_p95           11.97  n=40
+
+PRECISION (hand-labelled sample)
+  labels supplied        36
+  matched an extraction  36
+  unclear                 1  (excluded from the ratio)
+  JUDGED                 35   <- the denominator
+    correct              35
+    incorrect             0
+  PRECISION (rows)       100%   (n=35)
+  PRECISION (clusters)   100%   (n=35, 95% CI 90-100%)
+  repositories covered  20
+  unclear clusters        1  (excluded from the ratio)
+```
+
+Every count above is deterministic and reproduces exactly. The two `compile_ms`
+figures are wall-clock on one machine and move run to run — treat them as "single
+-digit milliseconds", not as a benchmark.
+
+**The interval is the finding, not the point estimate.** 35 independent judgements
+cannot distinguish 95% from 100%, and one repository contributes a handful of them.
+This still catches gross regression; it is not a claim about unseen transcripts. The
+labels and the loader settings that produced them are committed
+(`benchmarks/labels/`), so the number can be regenerated and argued with.
+
+### When it does *not* help
+
+Two behaviours worth knowing before you point this at a live agent. Both are
+deliberate; neither was documented until they were measured.
+
+**The last two turns are never retired.** A correction that arrives immediately
+after the wrong claim leaves both turns in place, because the trailing turns are
+the model's most recent exchange and cutting them would strip the reply it is
+about to continue. So a short session can hold a visible contradiction and still
+report `retired_turn_count: 0`; there, the state register is what resolves it.
+
+```python
+# adjacent: nothing retired, but the register states the current value
+H + [asst("editing `wrong.py`."), asst("actually editing `right.py`.")]
+#   -> retired 0, register says current_file = "right.py"
+
+# one turn between them: the wrong claim is gone
+H + [asst("editing `wrong.py`."), user("ok"), asst("actually editing `right.py`.")]
+#   -> retired 1, "editing `wrong.py`" no longer reaches the model
+```
+
+**A short session can cost more than it saves.** The state register is a fixed
+header plus one line per slot. On a 7-turn transcript the compiled output is
+*larger* than the input, and the telemetry says so rather than rounding it away:
+`compression_ratio_pct: 0.0`, `context_grew: True`. The 70% figure comes from
+40 real transcripts averaging 48 turns. If your sessions are shorter than that,
+measure before you adopt this.
+
+### What this measurement changed
+
+Running it was not a formality. It overturned five things.
+
+**1. The default entity schema was producing confident nonsense.** The shipped
+default was a logistics schema — `destination_address`, `refund_claim`,
+`gate_code` — applied to everything. On 60 real coding transcripts it produced
+75 facts, and every sampled one was prose matched by accident:
+
+```
+destination_address = "of parentheses"
+destination_address = "it, otherwise do a lookup using type"
+destination_address = "a placeholder dictionary"
+```
+
+The patterns were written to match a fixture, and a coding transcript is full of
+the words they look for. **`ENTITY_PATTERNS` is now empty**, and a schema is
+opt-in per domain. The old patterns are kept in
+`benchmarks/schemas/logistics.json` with the measurement that condemns them.
+
+**2. The sanitizer never fired on real data.** It keyed on a `TOOL_OUTPUT` marker
+and on `role in (tool, function)`. In the corpus, **0% of messages carry that
+marker** and tool output is filed under `user`. So 668 real tool outputs were
+being passed through untouched. Detection is now content-based — a stack trace
+is a stack trace whatever role it is filed under — and picks up 19.9% of
+messages. Token reduction on the same corpus went from **17% to 58%**.
+
+**3. Reading state out of tool output was a precision failure.** A file path in a
+grep listing (`Found 14 matches for X in /path/to/dispatcher.py:`) is not a
+statement about which file the agent is editing, but the pattern promoted it
+anyway. State is no longer inferred from machine-generated output.
+
+**4. Two more precision defects, found by the second labelling pass.**
+A weak `in <path>` trigger matched prose — *"Upon reviewing `main.py` again …
+`dispatcher.py` uses a helper"* became `current_file = dispatcher.py` — and a
+single-letter `c` extension parsed `example.com` as `example.c`. Patterns now
+require an explicit verb acting on the path, and a real path prefix. Both
+defects were found by hand-labelling, not by the aggregate numbers.
+
+**5. The precision sample was too small, too narrow, and partly fake.** The
+first label set drew all 24 rows from **two** repositories, and several rows were
+the *same turn* of the same issue read twice from two trajectories of that issue.
+Counting those as independent evidence inflated the denominator. The corpus loader
+made this worse: the shard is repository-ordered, so "the first 40 transcripts"
+were 40 trajectories from **3** repositories, and every aggregate number
+inherited that.
+
+Both are fixed rather than caveated. The loader takes `--per-repo` (default 2), so
+a run spans as many repositories as the shard allows — **20** for the same 40
+transcripts. The label set was re-read from scratch, one extraction per
+`(repository, turn)`, giving 35 independent judgements across 20 repositories. The
+report now prints the row count *and* the clustered count, so a reader can see
+when `n` is inflated, plus a 95% Wilson interval so a point estimate is not
+mistaken for a measurement.
+
+This changed the headline: the previous **88% (n=16)** was, on independent units,
+**100% (n=35, 95% CI 90–100%)** from a far wider sample — and a naive re-run of
+the old labels against the widened corpus collapsed to **n=2**, which is what
+exposed the problem in the first place.
+
+The 100% is not a claim that the tracker is perfect. Two confirmed errors survive,
+and `--per-repo` structurally excludes the rows they came from (it takes the first
+N trajectories per repository). They live in
+`benchmarks/labels/known_failures.json` — same defect, a path named in one
+sentence while the agent's subject is a different file in another — and a test
+re-runs those exact rows and fails if they stop being wrong. That is deliberate:
+the entry should be deleted on purpose, not vanish into a sampling change.
+
+### What the corpus says the problem actually is
+
+The measurable, high-frequency mutable entity in real coding transcripts is
+**which file the agent is working on** — across 187 mentions,
+with the agent moving between them and correcting itself:
+
+> *"It seems that I attempted to edit the wrong file again. I need to edit the
+> `memset.py` file instead of the `reproduce.py` file."*
+
+That is precisely the last-write-wins case the library exists for, and 187 key
+re-assertions fired across the 40 transcripts. `benchmarks/schemas/coding.json`
+is derived from that observation, not from what would have been convenient.
+
+The logistics scenario in the demo is not representative of coding work. This is
+a domain-specific mechanism, and the corpus says which domain it actually
+applies to.
+
+### Is the write path worth it? Still unmeasured
+
+`python -m benchmarks shadow` runs both paths and reports where they disagree.
+It is deliberately incapable of making things worse: it never emits a declared
+context, because a stale declaration silently outranks a human's plain-text
+correction.
+
+```bash
+python -m benchmarks shadow --captures captures/run1.json --limit 50 \
+    --schema benchmarks/schemas/coding.json
+```
+
+It needs a capture file: declarations recorded from a real run with a real model.
+**No such capture exists yet**, and the command says so rather than inventing a
+number. Until one does, the honest statement is that the write path is
+unmeasured — and the corpus work above is what makes measuring it possible.
+
+### What this harness refuses to do
+
+- Print a percentage without the `N` it came from.
+- Print a precision figure unless one was measured against hand labels.
+- Call a declaration "correct" — it cannot know truth, only disagreement.
+- Score itself. A compiler grading its own compression is the mistake this
+  project was rewritten to remove.
+- Report a synthetic corpus as evidence; a vendored slice of real trajectories is
+  labelled with its real source.
+
+---
+
 ## What it actually does
 
 Four things, in order:
@@ -53,8 +349,14 @@ context.
 **2. Never retires the evidence.**
 If a turn is superseded for one key but is still the only support for another,
 it **stays in the context**. Retiring it would hand the model a value with
-nothing behind it. This is enforced by `get_orphaned_facts()`, which the test
-suite asserts is always empty.
+nothing behind it. `get_retirement_violations(proposed)` checks a *proposed*
+retirement set and reports any live fact that would be left unsupported.
+
+An earlier version of this check compared the prunable set against the live set
+and could therefore only ever return `[]` — it asserted an identity, not a
+property, and the test suite "proving" it could not fail. The current test
+asserts that the check *can* return a violation, which is the only way to know it
+means anything.
 
 **3. Compacts tool output without losing the safety bits.**
 Bulk rows are sampled down. Any row carrying an allergen, severity, PII, recall,
@@ -98,10 +400,12 @@ failures, and only one is deterministic:
 | **Irrelevance** — bulk tokens competing for probability mass | No. Needs a relevance judgement, i.e. a model. |
 | **Position** — lost-in-the-middle attention decay | No. It is a property of softmax attention over sequence length. Preprocessing cannot fix it. |
 
-**State tracking is regular expressions.** There is no coreference resolution, so
-a fact expressed only through pronouns ("send it to the new place instead") will
-not be tracked. Missed extraction is the main failure mode: the state is
-*silently incomplete*. Extend the schema for your domain:
+**State tracking is regular expressions on the read path.** There is no
+coreference resolution, so a fact expressed only through pronouns will not be
+tracked. Missed extraction is the main failure mode: the state is *silently
+incomplete*. The write path can supply those facts when the agent cooperates —
+`conflicts` and `rejected_writes` tell you when it did not. Extend the schema for
+your domain:
 
 ```python
 from contextgc import StateDAG
@@ -184,6 +488,9 @@ curl -X POST localhost:8000/api/compile \
        "invariants":["refunds over 500 need supervisor approval"]}'
 ```
 
+Set `"teach_protocol": true` to inject the state-protocol instruction, and
+`/api/example` returns a `write_path_example` that demonstrates it.
+
 Accepts a plain-text transcript or a JSON message array:
 
 ```
@@ -223,7 +530,7 @@ Responses carry `X-ContextGC-Telemetry: raw=…; compiled=…; saved=…%; compi
 git clone https://github.com/j4yop/context-hackdevengers
 cd context-hackdevengers
 pip install -e ".[dev]"
-pytest -q                      # 57 tests
+pytest -q                      # 194 tests
 uvicorn server.main:app --reload
 ```
 

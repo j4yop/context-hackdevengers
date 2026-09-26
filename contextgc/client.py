@@ -30,6 +30,8 @@ def compile_messages(
     invariants: Optional[List[str]] = None,
     recall_query: Optional[str] = None,
     session_id: Optional[str] = None,
+    teach_protocol: bool = False,
+    schema: Optional[Dict[str, Any]] = None,
 ) -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
     """
     Compile an OpenAI-format message history.
@@ -41,13 +43,22 @@ def compile_messages(
             state register at the tail).
         invariants: rules to pin into the compiled context.
         recall_query: if set, search retired turns and re-inject the best match.
+        teach_protocol: prepend the state-protocol instruction so the agent
+            declares its own state changes. See :mod:`contextgc.state_protocol`.
+        schema: entity patterns to enable. Empty by default -- the read path has
+            no built-in domain, because the default it used to ship was measured
+            producing nonsense on real transcripts.
 
     Returns:
         ``(compiled_messages, telemetry)``. Every telemetry field is measured at
         runtime; see :meth:`ContextGCEngine.process_session`.
     """
-    engine = ContextGCEngine(session_id=session_id or "contextgc", invariants=invariants)
-    result = engine.process_session(messages, query_for_jit=recall_query, mode=mode)
+    engine = ContextGCEngine(
+        session_id=session_id or "contextgc", invariants=invariants, schema=schema
+    )
+    result = engine.process_session(
+        messages, query_for_jit=recall_query, mode=mode, teach_protocol=teach_protocol
+    )
     return result["cleaned_messages"], result["telemetry"]
 
 
@@ -56,6 +67,8 @@ def compile_transcript(
     mode: str = "compact",
     invariants: Optional[List[str]] = None,
     recall_query: Optional[str] = None,
+    teach_protocol: bool = False,
+    schema: Optional[Dict[str, Any]] = None,
 ) -> Tuple[List[Dict[str, Any]], Dict[str, Any], List[str]]:
     """
     Compile a pasted plain-text transcript.
@@ -76,15 +89,36 @@ def compile_transcript(
         }, warnings
 
     compiled, telemetry = compile_messages(
-        messages, mode=mode, invariants=invariants, recall_query=recall_query
+        messages, mode=mode, invariants=invariants, recall_query=recall_query,
+        teach_protocol=teach_protocol, schema=schema,
     )
     return compiled, telemetry, warnings
 
 
-def patch_openai(client: Any, mode: str = "compact", invariants: Optional[List[str]] = None) -> Any:
+def patch_openai(
+    client: Any,
+    mode: str = "compact",
+    invariants: Optional[List[str]] = None,
+    teach_protocol: bool = False,
+    schema: Optional[Dict[str, Any]] = None,
+) -> Any:
     """
     Wrap ``client.chat.completions.create`` so outgoing message histories are
     compiled first. The response carries the telemetry as ``.context_gc``.
+
+    Args:
+        schema: entity patterns to enable, exactly as for
+            :func:`compile_messages`. This parameter was missing, which meant
+            that with the default schema now empty there was **no way to turn
+            state tracking on through this wrapper** -- the most documented
+            integration path silently compiled with nothing enabled. A whole
+            schema file may be passed; ``{"entities": ...}`` and ``_comment``
+            are handled for you.
+
+    Set ``teach_protocol=True`` to have the agent declare its own state changes.
+    The declared facts are authoritative and carry provenance, which is what
+    lets the compiler retire a superseded turn without stranding a value the
+    turn uniquely held.
 
     Works with both ``openai.OpenAI`` and ``openai.AsyncOpenAI``.
 
@@ -97,7 +131,13 @@ def patch_openai(client: Any, mode: str = "compact", invariants: Optional[List[s
     original_create = client.chat.completions.create
 
     def _compile(messages):
-        return compile_messages(messages, mode=mode, invariants=invariants)
+        return compile_messages(
+            messages,
+            mode=mode,
+            invariants=invariants,
+            teach_protocol=teach_protocol,
+            schema=schema,
+        )
 
     @functools.wraps(original_create)
     def wrapped_create(*args, **kwargs):

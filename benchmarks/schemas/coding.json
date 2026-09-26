@@ -1,0 +1,13 @@
+{
+  "_comment": "Derived from what the corpus actually contains, not from what would be convenient. In 40 real SWE-agent trajectories the only high-frequency mutable entity is the file under edit: 21 distinct paths across 146 mentions, with the agent moving between them. Last-write-wins is exactly right for that -- an agent works on one file at a time -- and a 30-turn-deep session genuinely needs to be told which one is current.\n\nTwo properties were arrived at by measuring precision, not by taste:\n(1) paths are almost always wrapped in markdown backticks or quotes, so a pattern assuming bare whitespace between the trigger and the path matches almost nothing;\n(2) a weak trigger like 'in <path>' matches prose, and was the sole source of every incorrect label in the first precision pass. Both alternatives below require an explicit verb naming an action on the file.",
+  "entities": {
+    "current_file": [
+      "\\b(?:edit|edits|edited|editing|modify|modifies|modified|modifying|open|opens|opened|opening|update|updates|updated|updating|change|changes|changed|changing|patch|patches|patched|patching|create|creates|created|creating|write|writes|wrote|writing|revisit|revisited|revisiting|navigate|navigates|navigated|navigating|examine|examines|examined|examining)\\b[^.\\n]{0,40}?(?:^|[\\s`'\\\"/(])([\\w][\\w./-]*\\.(?:py|js|ts|tsx|jsx|go|rs|java|rb|cpp|hpp))\\b",
+      "\\b(?:working on|changes (?:to|in)|making changes (?:to|in)|should be editing|need(?:ed)? to edit(?: the)?|instead of)\\s+(?:^|[\\s`'\\\"/(])([\\w][\\w./-]*\\.(?:py|js|ts|tsx|jsx|go|rs|java|rb|cpp|hpp))\\b"
+    ],
+    "failing_test": [
+      "\\b(?:FAILED|ERROR|failed|error)\\s+([\\w./\\[\\]-]*test_[\\w./\\[\\]-]+)\\b"
+    ]
+  },
+  "__immutable__": []
+}

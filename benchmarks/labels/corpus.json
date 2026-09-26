@@ -1,0 +1,12 @@
+{
+  "source": "nebius/SWE-agent-trajectories",
+  "shard": "00000",
+  "loader": "benchmarks.corpus.load_swe_agent",
+  "limit": 40,
+  "per_repo": 2,
+  "min_turns": 8,
+  "max_turns": 200,
+  "schema": "benchmarks/schemas/coding.json",
+  "sampling": "2 extractions per repository, 20 repositories",
+  "why": "the shard is repo-ordered; without per_repo the first 40 transcripts come from 3 repos and the sample inherits that narrowness"
+}

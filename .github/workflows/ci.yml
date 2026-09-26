@@ -4,6 +4,7 @@ on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch:
 
 jobs:
   test:
@@ -27,6 +28,30 @@ jobs:
           pip install ruff
           ruff check .
 
+  benchmark:
+    # Guards the two measurements that are bugs when non-zero. Runs on a small
+    # vendored corpus so CI needs no network and no 200 MB download. The step
+    # used to be named "regress on a precision regression" while only writing a
+    # JSON file, which cannot fail; --check is what makes it able to.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -e ".[dev,bench]"
+      - name: Retirement must not orphan a live fact; context must not grow
+        run: |
+          python -m benchmarks run \
+            --corpus synthetic \
+            --corpus-path benchmarks/corpus/sample.txt \
+            --schema benchmarks/schemas/coding.json \
+            --check \
+            --json /tmp/bench.json
+      - name: Report
+        if: always()
+        run: cat /tmp/bench.json
+
   build:
     runs-on: ubuntu-latest
     steps:
@@ -39,3 +64,34 @@ jobs:
         run: |
           pip install dist/*.whl
           cd /tmp && python -c "import contextgc; assert contextgc.__version__"
+
+  browser:
+    # The website shipped inert once: boot() had been lost, so it never fetched
+    # /api/schemas and never rendered a result. A JS syntax check and a
+    # handler/ID audit both passed it. Only driving the real page found it, so
+    # driving the real page is what CI has to do.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -e ".[dev]"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Install the browser driver
+        working-directory: tests/browser
+        run: |
+          npm install
+          npx playwright install --with-deps chromium
+      - name: Drive the page
+        working-directory: tests/browser
+        run: node page.mjs
+      - name: Keep the screenshot from a failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: page
+          path: /tmp/opencode/site.png
+          if-no-files-found: ignore

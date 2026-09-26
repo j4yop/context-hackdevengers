@@ -20,6 +20,7 @@ could not be taken seriously.
 
 from __future__ import annotations
 
+import json
 import os
 import time
 from typing import Any, Dict, List, Optional
@@ -31,6 +32,9 @@ from pydantic import BaseModel, Field
 
 from contextgc import __version__
 from contextgc.client import compile_messages, compile_transcript
+from contextgc.gc_engine import ContextGCEngine
+from contextgc.state_protocol import render_instruction
+from contextgc.transcript import parse_transcript
 
 # --------------------------------------------------------------------------
 # Configuration
@@ -104,6 +108,12 @@ class CompileRequest(BaseModel):
     mode: str = Field("compact", pattern="^(compact|cache_friendly)$")
     invariants: List[str] = Field(default_factory=list)
     recall_query: Optional[str] = None
+    teach_protocol: bool = Field(
+        False, description="Inject the state-protocol instruction so the agent declares its state"
+    )
+    entity_schema: Optional[str] = Field(
+        None, description="Name of a shipped entity schema. Required for state tracking to do anything."
+    )
 
 
 class MessagesRequest(BaseModel):
@@ -111,11 +121,77 @@ class MessagesRequest(BaseModel):
     mode: str = Field("compact", pattern="^(compact|cache_friendly)$")
     invariants: List[str] = Field(default_factory=list)
     recall_query: Optional[str] = None
+    teach_protocol: bool = False
+    entity_schema: Optional[str] = None
 
 
 # --------------------------------------------------------------------------
 # The product
 # --------------------------------------------------------------------------
+
+
+#: Shipped entity schemas, loaded from benchmarks/schemas at import time.
+#:
+#: The library's default schema is empty, so a caller who wants state tracking
+#: must pick a domain. Exposing the list here is what lets the website offer the
+#: choice instead of silently showing an empty state DAG.
+SCHEMA_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "benchmarks", "schemas")
+
+
+def _load_schemas() -> Dict[str, Dict[str, Any]]:
+    import json as _json
+
+    out: Dict[str, Dict[str, Any]] = {}
+    if not os.path.isdir(SCHEMA_DIR):
+        return out
+    for name in sorted(os.listdir(SCHEMA_DIR)):
+        if not name.endswith(".json"):
+            continue
+        try:
+            with open(os.path.join(SCHEMA_DIR, name), encoding="utf-8") as handle:
+                raw = _json.load(handle)
+        except (OSError, ValueError):
+            continue
+        entities = raw.get("entities", {})
+        out[name[:-5]] = {
+            "name": name[:-5],
+            "entities": sorted(entities),
+            "summary": raw.get("_comment", "").strip().split("\n")[0],
+            "detail": raw.get("_comment", ""),
+        }
+    return out
+
+
+SCHEMAS = _load_schemas()
+
+
+def _entities_for(name: Optional[str]) -> Optional[Dict[str, Any]]:
+    """Resolve a schema name to an entities mapping, or None for the empty default."""
+    if not name:
+        return None
+    entry = SCHEMAS.get(name)
+    if entry is None:
+        raise HTTPException(status_code=404, detail=f"unknown schema {name!r}; have {sorted(SCHEMAS)}")
+    path = os.path.join(SCHEMA_DIR, f"{name}.json")
+    with open(path, encoding="utf-8") as handle:
+        raw = json.load(handle)
+    entities = dict(raw.get("entities", {}))
+    if raw.get("__immutable__"):
+        entities["__immutable__"] = tuple(raw["__immutable__"])
+    return entities
+
+
+@app.get("/api/schemas")
+def list_schemas() -> Dict[str, Any]:
+    """The domain schemas a caller can opt into. The default is empty, by design."""
+    return {
+        "default": None,
+        "default_note": (
+            "contextgc ships an empty entity schema. The default it replaced matched prose "
+            "in unrelated domains; see the README. Pick one to enable state tracking."
+        ),
+        "schemas": list(SCHEMAS.values()),
+    }
 
 
 @app.get("/api/health")
@@ -125,6 +201,7 @@ def health() -> Dict[str, Any]:
         "service": "contextgc",
         "version": __version__,
         "proxy_configured": bool(UPSTREAM_KEY),
+        "schemas": sorted(SCHEMAS),
     }
 
 
@@ -145,6 +222,8 @@ async def api_compile(req: CompileRequest, request: Request) -> JSONResponse:
         mode=req.mode,
         invariants=req.invariants or None,
         recall_query=req.recall_query,
+        teach_protocol=req.teach_protocol,
+        schema=_entities_for(req.entity_schema),
     )
 
     if "error" in telemetry:
@@ -177,11 +256,36 @@ async def api_compile_messages(req: MessagesRequest, request: Request) -> JSONRe
         mode=req.mode,
         invariants=req.invariants or None,
         recall_query=req.recall_query,
+        teach_protocol=req.teach_protocol,
+        schema=_entities_for(req.entity_schema),
     )
     return JSONResponse(
         content={"compiled_messages": compiled, "telemetry": telemetry},
         headers={"Cache-Control": "no-store"},
     )
+
+
+class InstructionRequest(BaseModel):
+    transcript: str
+    mode: str = "compact"
+
+
+@app.post("/api/protocol-instruction")
+async def api_protocol_instruction(req: InstructionRequest) -> Dict[str, Any]:
+    """
+    The exact state-protocol instruction the engine would inject for this input.
+
+    The website links here rather than showing a hardcoded sample, which used to
+    diverge from the real string -- the same "hardcoded number that does not
+    match reality" defect the audit found in the benchmarks.
+    """
+    messages, _ = parse_transcript(req.transcript)
+    if not messages:
+        return {"instruction": "", "keys": []}
+    engine = ContextGCEngine()
+    engine.process_session(messages, mode=req.mode)
+    keys = sorted(engine.dag.active_state)[:12]
+    return {"instruction": render_instruction(keys), "keys": keys}
 
 
 @app.get("/api/example")
@@ -198,7 +302,22 @@ def example() -> Dict[str, Any]:
             "user: Wait, my friend is at Gate 2 security entrance right now. Reroute there. Entry code 4921.",
             "assistant: Rerouted to Gate 2 security entrance, code 4921.",
             "user: Thanks.",
-        ])
+        ]),
+        "write_path_example": "\n".join([
+            "system: You are a delivery support agent.",
+            "user: Deliver ORD-9941 to Tower B, Flat 402. Severe peanut allergy.",
+            "assistant: Confirmed, routing to Tower B.\n<contextgc-state>{\"assert\":{\"order_id\":\"ORD-9941\",\"destination_address\":\"Tower B, Flat 402\"},\"pin\":{\"dietary_allergy\":\"peanut\"}}</contextgc-state>",
+            "user: The elevator is broken. Send it to the new place instead.",
+            "assistant: Moved to the Clubhouse security desk.\n<contextgc-state>{\"assert\":{\"destination_address\":\"Clubhouse security desk\"}}</contextgc-state>",
+            "user: Actually my friend is at Gate 2. Reroute there, code 4921.",
+            "assistant: Rerouted.\n<contextgc-state>{\"assert\":{\"destination_address\":\"Gate 2\",\"gate_code\":\"4921\"}}</contextgc-state>",
+            "user: Wait, the order was cancelled.",
+            "assistant: Cancelled.\n<contextgc-state>{\"revoke\":[\"gate_code\",\"order_id\"]}</contextgc-state>",
+            "user: OK.",
+        ]),
+        "protocol_help": render_instruction([
+            "destination_address", "gate_code", "order_id", "dietary_allergy",
+        ]),
     }
 
 
