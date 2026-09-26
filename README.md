@@ -205,6 +205,29 @@ This still catches gross regression; it is not a claim about unseen transcripts.
 labels and the loader settings that produced them are committed
 (`benchmarks/labels/`), so the number can be regenerated and argued with.
 
+### Using it in a loop
+
+The library is a compiler plus a wrapper. The wrapper is the part you wire in,
+and it is worth knowing that the state register is re-derived per call rather
+than carried in memory -- so a multi-turn agent does not need a session object
+to keep track of anything:
+
+```python
+from openai import OpenAI
+from contextgc import load_schema, patch_openai
+
+client = patch_openai(OpenAI(), schema=load_schema("coding"))
+# every client.chat.completions.create(...) call now compiles first,
+# and the response carries what it did as `.context_gc`
+```
+
+`tests/test_agent_loop.py` drives exactly this shape -- a growing history
+through the real wrapper -- and asserts the property that matters: across 40
+turns in which the agent moves between ten files and contradicts itself, the
+register always names the file the previous turn announced, never two at once,
+and no retirement ever strands a value. The same file also checks that a
+declaration arriving in a user or tool turn is stripped rather than believed.
+
 ### When it does *not* help
 
 Two behaviours worth knowing before you point this at a live agent. Both are
