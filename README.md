@@ -57,32 +57,32 @@ It acts as an inline, low-latency semantic garbage collector and defragmenter be
 
 ```mermaid
 flowchart TD
-    User([User / Developer / Agent Orchestrator]) -->|Multi-Turn Message Stream| Proxy[ContextGC Inline Proxy Engine]
+    User(["User / Developer / Agent Orchestrator"]) -->|Multi-Turn Message Stream| Proxy["ContextGC Inline Proxy Engine"]
 
-    subgraph MemoryEngine [ContextGC Core Engine (<3ms Latency)]
-        Proxy --> DAG[1. Neuro-Symbolic State DAG]
-        DAG -->|Detects State Overrides| Pruner[Dead-Branch Pruning]
+    subgraph MemoryEngine ["ContextGC Core Engine (Sub-3ms Latency)"]
+        Proxy --> DAG["1. Neuro-Symbolic State DAG"]
+        DAG -->|Detects State Overrides| Pruner["Dead-Branch Pruning"]
         
-        Proxy --> Sanitizer[2. Tool Sanitizer & Distiller]
-        Sanitizer -->|Collapses Verbose JSON & Stack Traces| Distill[Payload Distiller & Tombstoner]
+        Proxy --> Sanitizer["2. Tool Sanitizer & Distiller"]
+        Sanitizer -->|Collapses Verbose JSON & Stack Traces| Distill["Payload Distiller & Tombstoner"]
         
-        Proxy --> Anchor[3. Invariant Policy Anchor]
-        Anchor -->|Pins Safety & Business Invariants| Recency[Recency Attention Anchor]
+        Proxy --> Anchor["3. Invariant Policy Anchor"]
+        Anchor -->|Pins Safety & Business Invariants| Recency["Recency Attention Anchor"]
     end
 
-    Pruner -->|Evicted Dead Turns| VectorTier[4. Episodic Vector Tier]
+    Pruner -->|Evicted Dead Turns| VectorTier["4. Episodic Vector Tier"]
     
-    subgraph StorageCloud [Episodic Memory Archive]
-        VectorTier --> VectorTable[(AGENT_EPISODIC_ARCHIVE\nVECTOR 768)]
-        VectorTable --> FastSearch[Sub-ms Vector Similarity Recall]
+    subgraph StorageCloud ["Episodic Memory Archive"]
+        VectorTier --> VectorTable[("AGENT_EPISODIC_ARCHIVE<br/>VECTOR 768")]
+        VectorTable --> FastSearch["Sub-ms Vector Similarity Recall"]
     end
 
-    Pruner --> CleanPrompt[Bounded High-Signal Context\n< 900 Tokens | Sub-600ms Latency]
+    Pruner --> CleanPrompt["Bounded High-Signal Context<br/>Sub-900 Tokens | Sub-600ms Latency"]
     Distill --> CleanPrompt
     Recency --> CleanPrompt
 
-    CleanPrompt --> LLM[LLM Inference Engine\nOpenAI / Gemini / Anthropic]
-    LLM --> Response([Deterministic Safe Response])
+    CleanPrompt --> LLM["LLM Inference Engine<br/>OpenAI / Gemini / Anthropic"]
+    LLM --> Response(["Deterministic Safe Response"])
 
     FastSearch -.->|On Retrospective Query| CleanPrompt
 ```
