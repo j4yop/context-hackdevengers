@@ -101,6 +101,7 @@ def patch_openai(
     invariants: Optional[List[str]] = None,
     teach_protocol: bool = False,
     schema: Optional[Dict[str, Any]] = None,
+    session_id: Optional[str] = None,
 ) -> Any:
     """
     Wrap ``client.chat.completions.create`` so outgoing message histories are
@@ -114,6 +115,9 @@ def patch_openai(
             integration path silently compiled with nothing enabled. A whole
             schema file may be passed; ``{"entities": ...}`` and ``_comment``
             are handled for you.
+        session_id: namespaces the retired-turn archive and the recall tier.
+            Omitted before, so two wrapped clients in one process shared the
+            default session and could surface each other's retired turns.
 
     Set ``teach_protocol=True`` to have the agent declare its own state changes.
     The declared facts are authoritative and carry provenance, which is what
@@ -137,6 +141,7 @@ def patch_openai(
             invariants=invariants,
             teach_protocol=teach_protocol,
             schema=schema,
+            session_id=session_id,
         )
 
     @functools.wraps(original_create)
