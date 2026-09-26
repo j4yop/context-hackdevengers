@@ -31,6 +31,7 @@ def compile_messages(
     recall_query: Optional[str] = None,
     session_id: Optional[str] = None,
     teach_protocol: bool = False,
+    schema: Optional[Dict[str, Any]] = None,
 ) -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
     """
     Compile an OpenAI-format message history.
@@ -44,12 +45,17 @@ def compile_messages(
         recall_query: if set, search retired turns and re-inject the best match.
         teach_protocol: prepend the state-protocol instruction so the agent
             declares its own state changes. See :mod:`contextgc.state_protocol`.
+        schema: entity patterns to enable. Empty by default -- the read path has
+            no built-in domain, because the default it used to ship was measured
+            producing nonsense on real transcripts.
 
     Returns:
         ``(compiled_messages, telemetry)``. Every telemetry field is measured at
         runtime; see :meth:`ContextGCEngine.process_session`.
     """
-    engine = ContextGCEngine(session_id=session_id or "contextgc", invariants=invariants)
+    engine = ContextGCEngine(
+        session_id=session_id or "contextgc", invariants=invariants, schema=schema
+    )
     result = engine.process_session(
         messages, query_for_jit=recall_query, mode=mode, teach_protocol=teach_protocol
     )
@@ -62,6 +68,7 @@ def compile_transcript(
     invariants: Optional[List[str]] = None,
     recall_query: Optional[str] = None,
     teach_protocol: bool = False,
+    schema: Optional[Dict[str, Any]] = None,
 ) -> Tuple[List[Dict[str, Any]], Dict[str, Any], List[str]]:
     """
     Compile a pasted plain-text transcript.
@@ -83,7 +90,7 @@ def compile_transcript(
 
     compiled, telemetry = compile_messages(
         messages, mode=mode, invariants=invariants, recall_query=recall_query,
-        teach_protocol=teach_protocol,
+        teach_protocol=teach_protocol, schema=schema,
     )
     return compiled, telemetry, warnings
 

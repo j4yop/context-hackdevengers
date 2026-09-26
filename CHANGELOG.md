@@ -2,6 +2,81 @@
 
 All notable changes. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.3.0] — measured against real agent transcripts
+
+The previous release shipped claims. This one ships a harness and reports what it
+found, including three things that were wrong.
+
+### Measured
+
+40 real SWE-agent trajectories from `nebius/SWE-agent-trajectories` — 1,390
+turns, 1.96M characters, real model output and real tool output:
+
+| | value | n |
+|---|---|---|
+| facts extracted | 40 | 40 |
+| keys re-asserted | 118 | 40 |
+| token reduction | 58% | 40 |
+| tool payloads compacted | 371 | 40 |
+| turns retired | 191 | 40 |
+| retirement violations | 0 | 40 |
+| compile time p50 / p95 | 2.46 / 6.71 ms | 40 |
+| **precision (hand-labelled)** | **82%** | **11 judged** |
+
+n=11 is a smell test, not a statistic, and the report says so.
+
+### Fixed, because the measurement found them
+
+- **`ENTITY_PATTERNS` is now empty.** The default was a logistics schema applied
+  to every domain; on 60 real coding transcripts it produced 75 facts and every
+  sampled one was prose matched by accident (`destination_address = "of
+  parentheses"`). A schema is now opt-in per domain, via
+  `compile_messages(..., schema=...)` or `StateDAG.register_entity_schema`. The
+  old patterns are kept in `benchmarks/schemas/logistics.json` alongside the
+  measurement that condemns them.
+- **Tool-output detection is content-based, not convention-based.** The sanitizer
+  keyed on a `TOOL_OUTPUT` marker and on `role in (tool, function)`; **0% of
+  corpus messages carry that marker** and tool output is filed under `user`, so
+  371 real tool outputs were passed through untouched. Token reduction on the
+  same corpus went from 17% to 58%.
+- **State is no longer inferred from machine-generated output.** A path inside a
+  grep listing is not a statement about what the agent is editing, and the
+  pattern was promoting it. Search, listing and pytest-output markers are now
+  recognised.
+- **`compile_messages` gained a `schema` parameter.** The empty default made
+  opting in impossible without monkeypatching.
+- The harness records a crashing transcript instead of aborting the run, and
+  counts a transcript that cannot report its own length rather than dropping it.
+
+### Added
+
+- `benchmarks/` — corpus loader with provenance, measurement harness, shadow-mode
+  comparison, hand-label precision scoring, and a report renderer.
+- `python -m benchmarks run|shadow|sample|fetch`.
+- `benchmarks/schemas/` — `coding.json` (derived from what the corpus actually
+  contains), `logistics.json` (the old default, kept as a measured cautionary
+  example), `devtools.json`.
+- `benchmarks/labels/precision.json` — 20 hand labels with the reasoning for
+  each, so the precision figure is auditable rather than asserted.
+- `benchmarks/corpus/sample.txt` — a six-trajectory vendored slice for offline CI,
+  labelled with its real source so it is never reported as synthetic.
+- 19 tests for the harness itself, including that it refuses to report a
+  precision it did not measure, and that shadow mode cannot leak a declaration
+  into emitted context.
+
+### Known limitations
+
+- The write path is still unmeasured. `benchmarks shadow` exists and works, but
+  it needs a capture file from a real run with a real model, and none exists. The
+  command refuses rather than inventing a number.
+- Precision rests on 11 judged labels. Widening it is the highest-value next
+  step.
+- The corpus is one domain (Python bug-fixing). Nothing here establishes that the
+  mechanism transfers to other agent workloads.
+- Token reduction is the library's own `chars/4` estimator on both sides. It is a
+  ratio between two numbers from the same estimator, not a billing figure and not
+  a latency proxy.
+
 ## [0.2.0] — the write path, and a correction
 
 ### Added

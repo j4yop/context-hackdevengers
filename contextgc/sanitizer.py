@@ -36,6 +36,44 @@ class ToolSanitizer:
             blob = str(item).lower()
         return any(sig in blob for sig in cls.SAFETY_SIGNALS)
 
+    #: Markers that identify a message as machine-generated tool output.
+    #: Deliberately includes *content* signals rather than relying on a naming
+    #: convention, because real transcripts do not follow one: in the
+    #: SWE-agent corpus, 0% of messages carry a `TOOL_OUTPUT` tag and tool
+    #: output is filed under the `user` role. Keying on the convention meant the
+    #: sanitizer never fired on real data.
+    TOOL_OUTPUT_MARKERS = (
+        "TOOL_OUTPUT", "Traceback (most recent call last)", "<tool_response>",
+        "Command output", "Exit code:", "\n$ ", "```\nTraceback",
+        # Search and listing output. A grep hit is the single largest source of
+        # wrong facts in the coding corpus: the pattern sees a file path in
+        # "Found 14 matches for X in /path/to/file.py:" and concludes the agent
+        # is editing that file. It is reading a search listing.
+        "Found ", " matches for ", "matches in ", "End of search",
+        "test session starts", "collected ", "PASSED", "FAILED ",
+    )
+
+    @classmethod
+    def looks_like_tool_output(cls, content: str, role: str = "") -> bool:
+        """
+        True when a message is machine-generated output, whatever role it is filed under.
+
+        A stack trace is a stack trace regardless of the role the transcript
+        system assigned it. Requiring a marker or a ``tool`` role meant the
+        compactor ran on the hand-written fixture -- where the author had tagged
+        their own sludge -- and on nothing else.
+        """
+        if not content:
+            return False
+        if role in ("tool", "function"):
+            return True
+        if any(marker in content for marker in cls.TOOL_OUTPUT_MARKERS):
+            return True
+        # A wall of structured text with no prose sentence structure.
+        if len(content) > 1500 and content.count("\n") > 12 and '"' in content:
+            return True
+        return False
+
     @staticmethod
     def is_error_payload(content: str) -> bool:
         """Detects if a tool message contains an error or failure stack trace."""
