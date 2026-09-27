@@ -176,8 +176,13 @@ jobs:
         # one is noticed and the baseline is updated deliberately.
         run: |
           set -uo pipefail
-          found=$(ls captures/*.json 2>/dev/null | head -1 || true)
-          if [ -z "$found" ]; then
+          # The canonical capture, named rather than globbed. `ls captures/*.json
+          # | head -1` became wrong the moment a second capture was committed:
+          # it picked 7b-after-vocab-fix.json over run1.json purely by
+          # alphabetical order, and reported a regression in a number that had
+          # been superseded. A glob is not a selection policy.
+          found=captures/run1.json
+          if [ ! -f "$found" ]; then
             echo "::notice title=Write path unmeasured::no capture exists."
             echo "No model is reachable from CI, so no <contextgc-state> block a real"
             echo "model emitted has ever been recorded. The plumbing is covered by"
@@ -189,7 +194,12 @@ jobs:
             echo "  python -m benchmarks shadow --captures captures/run1.json --corpus synthetic --corpus-path benchmarks/corpus/sample.txt --schema contextgc/schemas/coding.json"
             exit 0
           fi
-          echo "capture present: $found"
+          others=$(ls captures/*.json 2>/dev/null | grep -cv "^$found$" || true)
+          echo "capture under test: $found"
+          if [ "${others:-0}" -gt 0 ]; then
+            echo "note: $others further capture(s) are kept as evidence for other"
+            echo "      claims and are deliberately not the one compared here."
+          fi
           # Printed for the record. A non-zero exit here is the known result,
           # not a new failure, so it must not fail the job.
           python -m benchmarks capture --verify --out "$found" || \
