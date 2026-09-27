@@ -42,6 +42,37 @@ from contextgc.transcript import parse_transcript
 
 WEB_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "web")
 
+#: The only files the site is allowed to serve, by the name they are requested
+#: under. A set of names rather than a directory listing, so a file added to
+#: ``web/`` later is unreachable until someone decides it should not be, and a
+#: path is never built from user input at all.
+WEB_PAGES = {
+    "index.html": "/",
+    "console.html": "/console",
+    "style.css": "/style.css",
+}
+
+
+def _web_page(name: str) -> Any:
+    """Serve one named page from ``web/``, or say exactly what is missing."""
+    if name not in WEB_PAGES:
+        raise HTTPException(status_code=404, detail=f"{name} is not a served page")
+    path = os.path.join(WEB_DIR, name)
+    if not os.path.exists(path):
+        raise HTTPException(
+            status_code=404,
+            detail=f"web/{name} not found; the site is served from {WEB_DIR}",
+        )
+    media = "text/css" if name.endswith(".css") else "text/html"
+    return FileResponse(
+        path,
+        media_type=f"{media}; charset=utf-8",
+        # The pages were split after this was last set, and a cached document
+        # naming a stylesheet that no longer exists is a blank page rather than
+        # a stale one. HTML is revalidated; the stylesheet is not.
+        headers={"Cache-Control": "no-cache"},
+    )
+
 #: Hard cap on a submitted transcript. Bounds memory and parse time.
 MAX_BODY_BYTES = 256 * 1024
 
@@ -429,10 +460,17 @@ async def chat_completions(req: Request) -> Any:
 
 @app.get("/")
 def index() -> Any:
-    path = os.path.join(WEB_DIR, "index.html")
-    if not os.path.exists(path):
-        raise HTTPException(status_code=404, detail="web/index.html not found")
-    return FileResponse(path, headers={"Cache-Control": "no-cache"})
+    return _web_page("index.html")
+
+
+@app.get("/console")
+def console() -> Any:
+    return _web_page("console.html")
+
+
+@app.get("/style.css")
+def stylesheet() -> Any:
+    return _web_page("style.css")
 
 
 @app.get("/favicon.ico")

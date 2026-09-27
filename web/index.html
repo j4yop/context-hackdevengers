@@ -4,173 +4,23 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>contextgc — stop your agent contradicting itself</title>
-<meta name="description" content="A deterministic context compiler for AI agent transcripts. Paste a conversation, get back a smaller one that no longer contains superseded facts. No API key, no model call, microseconds." />
+<meta name="description" content="A deterministic context compiler for AI agent transcripts. Retires superseded facts and compacts tool output before they reach the model. Measured on 180 real agent trajectories. No API key, no model call." />
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/style.css" />
 <style>
-  :root {
-    --bg:#fbfbfd; --panel:#fff; --panel-2:#f7f8fa; --line:#e4e7ec;
-    --line-2:#eef0f3; --ink:#101828; --ink-2:#475467; --ink-3:#8a94a6;
-    --accent:#2f5fe0; --accent-ink:#1c3f9e; --accent-bg:#eef3ff;
-    --good:#0f7a52; --good-bg:#e9f7f0; --good-line:#b6e3cd;
-    --warn:#8a5a00; --warn-bg:#fdf5e4; --warn-line:#f0dcae;
-    --bad:#b42318; --bad-bg:#fdefee; --bad-line:#f5c9c4;
-    --mono:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
-  }
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --bg:#0c0d10; --panel:#14161a; --panel-2:#191c21; --line:#262a31; --line-2:#1e2127;
-      --ink:#e8eaed; --ink-2:#a2aab8; --ink-3:#6b7482;
-      --accent:#7fa2ff; --accent-ink:#a8c0ff; --accent-bg:#16203a;
-      --good:#4ed7a0; --good-bg:#0f2620; --good-line:#1d4a3a;
-      --warn:#e8b765; --warn-bg:#2a2113; --warn-line:#4d3d1c;
-      --bad:#f28b82; --bad-bg:#2a1615; --bad-line:#4d2724;
-    }
-  }
-  * { box-sizing:border-box; }
-  body {
-    margin:0; background:var(--bg); color:var(--ink);
-    font-family:Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
-    font-size:15px; line-height:1.55; -webkit-font-smoothing:antialiased;
-  }
-  .wrap { max-width:1200px; margin:0 auto; padding:0 20px; }
-  a { color:var(--accent); }
-  code, pre, .mono { font-family:var(--mono); }
-  .num { font-family:var(--mono); font-variant-numeric:tabular-nums; }
-
-  header { border-bottom:1px solid var(--line); background:var(--panel); position:sticky; top:0; z-index:20; }
-  header .wrap { display:flex; align-items:center; gap:16px; height:58px; }
-  .logo { display:flex; align-items:center; gap:9px; font-weight:700; letter-spacing:-.02em; font-size:16px; }
-  .logo .mark { width:24px; height:24px; border-radius:6px; background:var(--ink); color:var(--panel);
-    display:grid; place-items:center; font-size:12px; font-weight:700; }
-  nav { margin-left:auto; display:flex; gap:4px; align-items:center; }
-  nav a { color:var(--ink-2); text-decoration:none; font-size:13.5px; font-weight:500; padding:6px 10px; border-radius:7px; }
-  nav a:hover { background:var(--panel-2); color:var(--ink); }
-
-  .hero { padding:56px 0 34px; }
-  .hero h1 { font-size:clamp(28px,4.4vw,44px); line-height:1.1; letter-spacing:-.033em; margin:0 0 16px; font-weight:700; max-width:19ch; }
-  .hero p { font-size:17.5px; color:var(--ink-2); max-width:62ch; margin:0 0 20px; }
-  .install { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
-  .install code { background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:7px 11px; font-size:13.5px; }
-  .install .pill { background:var(--good-bg); border:1px solid var(--good-line); color:var(--good);
-    border-radius:999px; padding:5px 11px; font-size:12.5px; font-weight:600; }
-
-  .grid { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1.05fr); gap:20px; align-items:start; }
-  @media (max-width:940px){ .grid { grid-template-columns:1fr; } }
-
-  .card { background:var(--panel); border:1px solid var(--line); border-radius:14px; }
-  .card > h2 { font-size:13px; text-transform:uppercase; letter-spacing:.07em; color:var(--ink-3);
-    font-weight:600; margin:0; padding:14px 18px; border-bottom:1px solid var(--line-2); }
-  .card > .body { padding:18px; }
-
-  textarea { width:100%; min-height:340px; resize:vertical; font-family:var(--mono); font-size:13px; line-height:1.6;
-    background:var(--panel-2); color:var(--ink); border:1px solid var(--line); border-radius:10px; padding:13px; }
-  textarea:focus { outline:2px solid var(--accent); outline-offset:-1px; background:var(--panel); }
-
-  .row { display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-top:12px; }
-  button { font-family:inherit; font-size:14px; font-weight:600; border-radius:9px; padding:9px 15px; cursor:pointer;
-    border:1px solid var(--line); background:var(--panel-2); color:var(--ink); }
-  button:hover:not(:disabled) { background:var(--line-2); }
-  button:disabled { opacity:.5; cursor:not-allowed; }
-  button.primary { background:var(--accent); border-color:var(--accent); color:#fff; }
-  button.primary:hover:not(:disabled) { filter:brightness(1.08); }
-  button.link { background:none; border:none; color:var(--accent); padding:4px 2px; font-weight:500; font-size:13.5px; }
-  button.link:hover { background:none; text-decoration:underline; }
-
-  .seg { display:inline-flex; background:var(--panel-2); border:1px solid var(--line); border-radius:9px; padding:3px; gap:2px; }
-  .seg button { border:none; background:none; padding:5px 11px; font-size:13px; border-radius:6px; color:var(--ink-2); }
-  .seg button[aria-pressed="true"] { background:var(--panel); color:var(--ink); box-shadow:0 1px 2px rgba(16,24,40,.08); }
-
-  label.opt { font-size:12.5px; color:var(--ink-2); font-weight:600; display:block; margin:14px 0 5px; }
-  input[type=text] { width:100%; padding:8px 11px; font-family:var(--mono); font-size:13px;
-    background:var(--panel-2); border:1px solid var(--line); border-radius:9px; color:var(--ink); }
-  input[type=text]:focus { outline:2px solid var(--accent); outline-offset:-1px; }
-
-  .stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(112px,100%),1fr)); gap:1px; background:var(--line-2);
-    border:1px solid var(--line); border-radius:12px; overflow:hidden; margin-bottom:16px; }
-  .stat { background:var(--panel); padding:13px 14px; }
-  .stat .k { font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:var(--ink-3); font-weight:600; }
-  .stat .v { font-family:var(--mono); font-size:21px; font-weight:600; margin-top:3px; letter-spacing:-.02em; }
-  .stat .n { font-size:11.5px; color:var(--ink-3); margin-top:1px; }
-  .v.good { color:var(--good); } .v.accent { color:var(--accent); }
-
-  table { width:100%; border-collapse:collapse; font-size:13px; }
-  th { text-align:left; font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--ink-3);
-    font-weight:600; padding:0 8px 7px; border-bottom:1px solid var(--line-2); }
-  td { padding:8px; border-bottom:1px solid var(--line-2); vertical-align:top; }
-  tr:last-child td { border-bottom:none; }
-  td.mono, th.mono { font-family:var(--mono); font-size:12.5px; }
-  .tag { display:inline-block; font-family:var(--mono); font-size:11px; font-weight:600; padding:2px 7px;
-    border-radius:999px; white-space:nowrap; max-width:100%; overflow-wrap:anywhere; }
-  .tag.imm { background:var(--good-bg); color:var(--good); border:1px solid var(--good-line); }
-  .tag.ret { background:var(--panel-2); color:var(--ink-2); border:1px solid var(--line); }
-  .tag.del { background:var(--bad-bg); color:var(--bad); border:1px solid var(--bad-line); }
-  .tag.decl { background:var(--accent-bg); color:var(--accent-ink); border:1px solid #c7d7fb; }
-  .tag.guess { background:var(--panel-2); color:var(--ink-3); border:1px dashed var(--line); }
-  .tag.warn { background:var(--warn-bg); color:var(--warn); border:1px solid var(--warn-line); }
-  .strike { text-decoration:line-through; color:var(--ink-3); }
-
-  .note { border-radius:10px; padding:11px 13px; font-size:13px; margin-bottom:12px; display:flex; gap:9px; align-items:flex-start; }
-  .note.bad { background:var(--bad-bg); border:1px solid var(--bad-line); color:var(--bad); }
-  .note.warn { background:var(--warn-bg); border:1px solid var(--warn-line); color:var(--warn); }
-  .note b { font-weight:700; }
-  .note code { font-size:12px; }
-
-  pre.out { background:var(--panel-2); border:1px solid var(--line); border-radius:10px; padding:13px;
-    font-size:12.5px; line-height:1.6; overflow-x:auto; max-height:400px; overflow-y:auto; margin:0;
-    white-space:pre-wrap; overflow-wrap:anywhere; word-break:break-word; max-width:100%; }
-  /* Long identifiers, URLs and diffs must wrap rather than widen the page. */
-  .mono, .num, td, th, p, li, label, span { overflow-wrap:anywhere; }
-  table { table-layout:fixed; width:100%; }
-  td, th { overflow-wrap:anywhere; word-break:break-word; min-width:0; }
-  td .tag { white-space:normal; }
-  header .wrap { min-width:0; }
-  nav { min-width:0; flex-wrap:wrap; }
-  .card, .card > .body, section, .stats > *, .how > * { min-width:0; }
-
-  .empty { color:var(--ink-3); font-size:13.5px; text-align:center; padding:34px 16px; }
-  .secttl { font-size:12px; text-transform:uppercase; letter-spacing:.07em; color:var(--ink-3);
-    font-weight:600; margin:22px 0 9px; }
-  .secttl:first-child { margin-top:0; }
-
-  details { border:1px solid var(--line); border-radius:10px; padding:0; margin-top:10px; background:var(--panel); }
-  details summary { cursor:pointer; padding:10px 13px; font-size:13.5px; font-weight:600; list-style:none; }
-  details summary::-webkit-details-marker { display:none; }
-  details summary::before { content:"+ "; color:var(--ink-3); font-family:var(--mono); }
-  details[open] summary::before { content:"− "; }
-  details > div { padding:0 13px 13px; }
-
-  .how { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(250px,100%),1fr)); gap:16px; }
-  .how section { background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:20px; }
-  .how h3 { font-size:15px; margin:0 0 7px; letter-spacing:-.01em; }
-  .how p { font-size:14px; color:var(--ink-2); margin:0 0 10px; }
-  .how pre { margin:0; font-size:12.5px; }
-
-  .limits { background:var(--warn-bg); border:1px solid var(--warn-line); border-radius:14px; padding:22px; }
-  .limits h2 { margin:0 0 10px; font-size:16px; color:var(--warn); letter-spacing:-.01em; }
-  .limits ul { margin:0; padding-left:20px; color:var(--ink-2); font-size:14px; }
-  .limits li { margin-bottom:7px; }
-  .limits code { font-size:12.5px; }
-
-  footer { border-top:1px solid var(--line); margin-top:56px; padding:26px 0 40px; color:var(--ink-3); font-size:13px; }
-  footer .wrap { display:flex; flex-wrap:wrap; gap:14px; align-items:center; }
-  footer a { color:var(--ink-2); text-decoration:none; } footer a:hover { text-decoration:underline; }
-  .spin { display:inline-block; width:13px; height:13px; border:2px solid rgba(255,255,255,.35);
-    border-top-color:#fff; border-radius:50%; animation:sp .7s linear infinite; vertical-align:-2px; }
-  @keyframes sp { to { transform:rotate(360deg); } }
-  .sr { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; }
+  /* Landing-only. Everything shared lives in style.css. */
 </style>
 </head>
 <body>
 
 <header>
   <div class="wrap">
-    <div class="logo"><span class="mark">cg</span> contextgc</div>
+    <a class="logo" href="/"><span class="mark">cg</span> contextgc</a>
     <nav>
-      <a href="#try">Try it</a>
-      <a href="#how">How it works</a>
-      <a href="#limits">Limits</a>
+      <a href="/" aria-current="page">Overview</a>
+      <a href="/console">Console</a>
       <a href="https://github.com/j4yop/context-hackdevengers" target="_blank" rel="noopener">GitHub</a>
     </nav>
   </div>
@@ -181,104 +31,124 @@
   <section class="hero">
     <h1>Stop your agent contradicting itself.</h1>
     <p>
-      Long agent sessions pile up superseded facts and bulky tool output, so the model has to
-      reconcile two different values for the same key — and you pay for every token of it.
-      contextgc compiles the transcript down to what's currently true. Deterministic, no API key,
-      no model call.
+      A long agent session accumulates facts that stopped being true, and tool output
+      nobody will read again. The model then has to reconcile two values for the same
+      key &mdash; and you pay for every token of it. contextgc compiles the transcript
+      down to what is currently true, deterministically, before it reaches the model.
     </p>
+    <div class="cta">
+      <a class="btn primary" href="/console">Open the console</a>
+      <a class="btn" href="#measured">See the measurements</a>
+    </div>
     <div class="install">
       <code>pip install contextgc</code>
       <span class="pill">0 dependencies</span>
+      <span class="pill">no model call</span>
       <span class="pill">MIT</span>
     </div>
+
+    <!-- A real compile, not a mock-up. The transcript and the register below were
+         produced by the shipped code against the travel schema: 39.6% fewer
+         tokens, turns 1 and 4 retired, and the `business` cabin class gone
+         because the user changed their mind two turns later. -->
+    <div class="demo">
+      <figure>
+        <figcaption>What the agent was sent</figcaption>
+        <pre class="out">system: You are an airline support agent.
+
+user: I need to change the cabin on reservation
+      0U4NPP. I am in economy class.
+<span class="gone">assistant: Confirming reservation 0U4NPP.
+  &lt;contextgc-state&gt;{"assert":{"active_reservation":
+  "0U4NPP","cabin_class":"economy"}}&lt;/contextgc-state&gt;</span>
+user: Upgrade me to business class.
+<span class="gone">assistant: Upgrading you now.
+  &lt;contextgc-state&gt;{"assert":{"cabin_class":
+  "business"}}&lt;/contextgc-state&gt;</span>
+user: Actually, keep it in economy, I changed
+      my mind.
+assistant: Reverting to economy.
+
+user: Thanks.</pre>
+      </figure>
+      <figure>
+        <figcaption>What the model receives <span class="arrow">&mdash; 39.6% smaller</span></figcaption>
+        <pre class="out">[ACTIVE_AGENT_STATE]
+  - active_reservation = "0U4NPP" (turn 2 [declared])
+  - cabin_class = "economy" (turn 6 [declared])
+
+system: You are an airline support agent.
+
+assistant: Confirming reservation 0U4NPP.
+
+user: Upgrade me to business class.
+
+user: Actually, keep it in economy, I changed
+      my mind.
+
+assistant: Reverting to economy.
+
+user: Thanks.</pre>
+      </figure>
+    </div>
+    <p style="font-size:13px;color:var(--ink-3);margin:10px 0 0">
+      The <code>business</code> upgrade is gone because the user reversed it, and the
+      register states the value that survived. Nothing was inferred and nothing was
+      invented &mdash; the agent said which key it had changed, as a side-effect of a turn
+      it was already making.
+    </p>
   </section>
 
-  <section id="try" class="grid" style="padding-bottom:8px">
-
-    <!-- ── input ─────────────────────────────────────────────── -->
-    <div class="card">
-      <h2>Your transcript</h2>
-      <div class="body">
-        <textarea id="src" spellcheck="false" placeholder="user: please deliver to Tower B, Flat 402
-assistant: confirmed
-user: actually change the address to Gate 2, code 4921
-assistant: updated
-
-…or paste an OpenAI JSON message array."></textarea>
-
-        <div class="row">
-          <button class="primary" id="go" onclick="run()">Compile</button>
-          <button class="link" onclick="loadExample('read')">example: read path</button>
-          <button class="link" onclick="loadExample('write')">example: write path</button>
-          <button class="link" onclick="clearAll()">clear</button>
-        </div>
-
-        <div class="row" style="margin-top:16px">
-          <div class="seg" role="group" aria-label="Compilation mode">
-            <button id="m-compact" aria-pressed="true" onclick="setMode('compact')">compact</button>
-            <button id="m-cache" aria-pressed="false" onclick="setMode('cache_friendly')">cache&nbsp;friendly</button>
-          </div>
-          <label style="display:flex;align-items:center;gap:7px;font-size:13px;color:var(--ink-2);margin-left:6px;cursor:pointer">
-            <input type="checkbox" id="teach" onchange="setTeach(this.checked)" style="width:auto;margin:0" />
-            teach the state protocol
-          </label>
-        </div>
-
-        <div id="teach-row" hidden style="margin-top:14px">
-          <div class="note" style="margin:0;background:var(--accent-bg);border-color:#c7d7fb;color:var(--accent-ink)">
-            <div>
-              <b>Write path on.</b> The system prompt now tells the agent to declare its own state
-              changes. Facts it declares are marked <b>declared</b> and are never overwritten by
-              anything a regex guessed. It costs a few tokens per turn and there is no extra model call.
-              <div style="margin-top:8px"><button class="link" onclick="showProtocol()">show the instruction that gets injected</button></div>
-            </div>
-          </div>
-        </div>
-
-        <label class="opt" for="schem">Entity schema
-          <span style="font-weight:400;color:var(--ink-3)">— required for state tracking; there is no default</span>
-        </label>
-        <select id="schem" onchange="SCHEMA=this.value; syncSchemaNote(); if($('src').value) run()"
-          style="width:100%;padding:8px 11px;font-size:13px;background:var(--panel-2);
-                 border:1px solid var(--line);border-radius:9px;color:var(--ink)">
-          <option value="">none — compaction only</option>
-        </select>
-        <div id="schema-note" class="note" style="margin-top:8px;background:var(--warn-bg);
-             border-color:var(--warn-line);color:var(--warn)">
-          <div><b>No schema selected.</b> contextgc ships an empty entity schema on purpose — the
-          default it replaced matched prose in unrelated domains. Without one you still get tool
-          compaction and turn retirement, but <b>no state is tracked</b>, because there is nothing
-          telling the compiler what a fact looks like.</div>
-        </div>
-
-        <label class="opt" for="inv">Invariants to pin <span style="font-weight:400;color:var(--ink-3)">(one per line, optional)</span></label>
-        <input type="text" id="inv" placeholder="refunds over 500 need supervisor approval" />
-
-        <label class="opt" for="rec">Recall a retired turn <span style="font-weight:400;color:var(--ink-3)">(optional)</span></label>
-        <input type="text" id="rec" placeholder="what was the original address" />
-      </div>
+  <!-- ── measured ────────────────────────────────────────────── -->
+  <section class="band" id="measured">
+    <h2>Measured on 180 real agent trajectories</h2>
+    <p class="lede">
+      Not a benchmark of the compiler grading itself. Three public corpora, real model
+      output, and a hand-labelled sample for the precision figure. Every number below
+      ships with the <code>n</code> it came from.
+    </p>
+    <div class="results">
+      <table>
+        <thead>
+          <tr>
+            <th>Corpus</th>
+            <th>Sample</th>
+            <th class="n">Token reduction</th>
+            <th class="n">Turns retired</th>
+            <th class="n">Payloads compacted</th>
+            <th class="n">Precision</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td data-label="Corpus"><b>Coding</b><br><span class="src">SWE-agent bug-fixing, 20 repos</span></td><td class="n" data-label="Sample">40 transcripts</td><td class="n" data-label="Token reduction">66.5%</td><td class="n" data-label="Turns retired">161</td><td class="n" data-label="Payloads compacted">668</td><td class="n" data-label="Precision">100% <span class="src">n=36, CI 90&ndash;100%</span></td></tr>
+          <tr><td data-label="Corpus"><b>Airline support</b><br><span class="src">APIGen-MT-5k, reservation tool use</span></td><td class="n" data-label="Sample">60 conversations</td><td class="n" data-label="Token reduction">59.0%</td><td class="n" data-label="Turns retired">9</td><td class="n" data-label="Payloads compacted">138</td><td class="n" data-label="Precision">100% <span class="src">n=72, CI 95&ndash;100%</span></td></tr>
+          <tr><td data-label="Corpus"><b>Retail support</b><br><span class="src">APIGen-MT-5k, order and exchange tool use</span></td><td class="n" data-label="Sample">80 conversations</td><td class="n" data-label="Token reduction">62.5%</td><td class="n" data-label="Turns retired">2</td><td class="n" data-label="Payloads compacted">275</td><td class="n" data-label="Precision">100% <span class="src">n=47, CI 92&ndash;100%</span></td></tr>
+        </tbody>
+      </table>
     </div>
-
-    <!-- ── output ────────────────────────────────────────────── -->
-    <div id="out" class="card">
-      <h2>Compiled context</h2>
-      <div class="body">
-        <div class="empty" id="empty">Paste a transcript on the left and press <b>Compile</b>.<br><br>
-          Everything here is computed from your input on the server. Nothing is pre-recorded.</div>
-        <div id="result" hidden></div>
-      </div>
-    </div>
-
+    <p style="font-size:13.5px;color:var(--ink-2);margin:12px 0 0;max-width:70ch">
+      Reduction transfers across all three; supersession does not. Coding re-asserts a
+      key 77 times across 40 transcripts, retail twice across 80 &mdash; so the two
+      support corpora gain most of their reduction from compacting tool output, not from
+      retiring turns. Reported separately because averaging them would hide it.
+    </p>
   </section>
 
-  <!-- ── how ─────────────────────────────────────────────────── -->
-  <section id="how" style="padding:44px 0 8px">
-    <div class="how">
+  <!-- ── how ────────────────────────────────────────────────── -->
+  <section class="band" id="how">
+    <h2>Four things it does</h2>
+    <p class="lede">
+      Each one is a total function over the transcript. There is no model in the loop,
+      so the same input always compiles to the same output.
+    </p>
+    <div class="steps">
       <section>
-        <h3>Or let the agent declare its own state</h3>
-        <p>Regexes cannot resolve "send it to the new place instead". So the agent can report
-        what it concluded, as a structured side-effect of the turn it was already making —
-        no extra model call, no extra latency.</p>
+        <div>
+          <h3>It lets the agent declare its own state</h3>
+          <p>Regexes cannot resolve &ldquo;send it to the new place instead&rdquo;. So the
+        agent reports what it concluded, as a structured side-effect of the turn it was
+        already making &mdash; no extra model call, no extra latency.</p>
+        </div>
         <pre class="out">&lt;contextgc-state&gt;{
   "assert": {"destination_address": "Gate 2"},
   "pin":    {"allergy": "peanut"},
@@ -286,430 +156,98 @@ assistant: updated
   "unsure": {"rider": "maybe west"}
 }&lt;/contextgc-state&gt;</pre>
       </section>
+      
       <section>
-        <h3>It tracks what each turn asserted</h3>
-        <p>Entity state is last-write-wins. When a key is re-asserted, the earlier turn is retired instead of competing with the newer one.</p>
+        <div>
+          <h3>It tracks what each turn asserted</h3>
+          <p>Entity state is last-write-wins. When a key is re-asserted, the earlier turn
+        is retired from the context instead of competing with the newer one.</p>
+        </div>
         <pre class="out">destination_address: "Gate 2"
 gate_code:          "4921"</pre>
       </section>
+      
       <section>
-        <h3>It never retires the evidence</h3>
-        <p>If a turn is superseded for one key but is still the only support for another, it stays in the context. Retiring it would hand the model a value with nothing behind it.</p>
-        <pre class="out">retired:            [1, 5]
-still required:     turn 2 supports refund_claim
-orphaned facts:     none</pre>
+        <div>
+          <h3>It never retires the evidence</h3>
+          <p>If a turn is superseded for one key but is still the only support for another,
+        it stays. Retiring it would hand the model a value with nothing behind it.</p>
+        </div>
+        <pre class="out">retired:        [1, 5]
+still required: turn 2 supports refund_claim
+orphaned facts: none</pre>
       </section>
+      
       <section>
-        <h3>It compacts tool output without losing the safety bits</h3>
-        <p>Bulk rows are sampled, but any row carrying an allergen, severity, PII, or expiry signal is always kept and the omission is reported.</p>
+        <div>
+          <h3>It compacts tool output, keeping the safety bits</h3>
+          <p>Bulk rows are sampled, but any row carrying an allergen, severity, PII or
+        expiry signal is always retained &mdash; and the omission is reported rather than
+        performed quietly.</p>
+        </div>
         <pre class="out">[inventory: 15 rows. Showing 4.
 SAFETY-FLAGGED ROWS RETAINED: [{"name":
  "Peanut Butter 500g", "warning":
  "PEANUT_ALLERGEN"}]  11 non-safety
  rows omitted (truncated=true).]</pre>
       </section>
+      
     </div>
   </section>
 
   <!-- ── limits ──────────────────────────────────────────────── -->
-  <section id="limits" style="padding:34px 0 8px">
+  <section class="band" id="limits">
+    <h2>What it does not do</h2>
+    <p class="lede">
+      The failure modes are documented because you will hit them, and a tool that only
+      lists its strengths is not one you can rely on.
+    </p>
     <div class="limits">
-      <h2>What this does not do</h2>
       <ul>
-        <li><b>It does not make models reliable.</b> It removes contradictions from the input. It cannot add judgement, and it does not stop a model ignoring a rule you pinned.</li>
-        <li><b>State tracking is regular expressions.</b> There is no coreference resolution, so a fact expressed only through pronouns ("send it to the new place instead") will not be tracked. Missed extractions are the main failure mode: the state is silently incomplete, not loudly wrong. Extend it with <code>StateDAG.register_entity_schema()</code> for your domain.</li>
-        <li><b>Token counts are <code>chars/4</code>, not a BPE tokenizer.</b> Treat them as a ratio, not a bill. Exact numbers need <code>tiktoken</code> against your real model.</li>
-        <li><b>Retired-turn recall is lexical</b> (token, subword and phrase overlap) — not semantic. "What did we decide about billing?" will not find a turn that only says "invoice".</li>
-        <li><b>Nothing here has been benchmarked against real agent traces yet.</b> The numbers on this page are measurements of <em>your</em> input, not published performance claims.</li>
+        <li><b>It does not make models reliable.</b> It removes contradictions from the
+        input. It cannot add judgement, and it will not stop a model ignoring a rule you
+        pinned.</li>
+        <li><b>Read-path state tracking is regular expressions.</b> There is no
+        coreference resolution, so a fact expressed only through pronouns will not be
+        tracked. Missed extraction is the main failure mode: the state is silently
+        incomplete rather than loudly wrong. Extend it with
+        <code>StateDAG.register_entity_schema()</code>.</li>
+        <li><b>The write path depends on the model cooperating.</b> Measured against
+        <code>qwen2.5:7b</code> on 6 real trajectories, 34% of declared keys named a
+        schema slot and the rest were keys nothing could check. Compliance was 90% &mdash;
+        which is not the same as being right. Set
+        <code>declaration_policy: "reject"</code> to drop what the schema cannot account
+        for.</li>
+        <li><b>Token counts are <code>chars/4</code>, not a BPE tokenizer.</b> Read them
+        as a ratio, not a bill. Exact figures need <code>tiktoken</code> against your
+        model.</li>
+        <li><b>Retired-turn recall is lexical</b> &mdash; token, subword and phrase
+        overlap, not semantics. &ldquo;What did we decide about billing?&rdquo; will not
+        find a turn that only says &ldquo;invoice&rdquo;.</li>
       </ul>
+    </div>
+  </section>
+
+  <section class="band">
+    <div class="cta-band">
+      <div>
+        <h2>Paste a transcript and see what changes</h2>
+        <p>No key, no account, nothing stored. The console compiles server-side and shows
+        the exact messages the model would receive, with the reasoning behind every
+        number.</p>
+      </div>
+      <a class="btn primary" href="/console">Open the console</a>
     </div>
   </section>
 
   <footer>
     <div class="wrap">
-      <span>contextgc — deterministic context compilation for AI agents</span>
-      <span style="margin-left:auto"><a href="https://github.com/j4yop/context-hackdevengers" target="_blank" rel="noopener">source</a> · MIT</span>
+      <span>contextgc &mdash; deterministic context compilation for AI agents</span>
+      <span style="margin-left:auto"><a href="/console">console</a> &middot;
+        <a href="https://github.com/j4yop/context-hackdevengers" target="_blank" rel="noopener">source</a> &middot; MIT</span>
     </div>
   </footer>
 </div>
 
-<script>
-let MODE = 'compact';
-let TEACH = false;
-let SCHEMA = '';
-let SCHEMAS = {};
-
-const $ = id => document.getElementById(id);
-const esc = s => String(s == null ? '' : s)
-  .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
-  .replace(/"/g,'&quot;').replace(/'/g,'&#039;');
-
-function setMode(m){
-  MODE = m;
-  $('m-compact').setAttribute('aria-pressed', String(m === 'compact'));
-  $('m-cache').setAttribute('aria-pressed', String(m === 'cache_friendly'));
-}
-
-function clearAll(){
-  $('src').value = ''; $('inv').value = ''; $('rec').value = '';
-  $('result').hidden = true; $('empty').hidden = false;
-}
-
-async function loadExample(kind){
-  if (!$('src').value || $('src').value.indexOf('Paste a transcript') === 0) {}
-  try{
-    const r = await fetch('/api/example');
-    const d = await r.json();
-    $('src').value = (kind === 'write' && d.write_path_example) ? d.write_path_example : d.transcript;
-    if (kind === 'write') setTeach(true);
-    // The example says which schema it was written against. Guessing from the
-    // text is how a stale example kept looking plausible: it inferred a schema
-    // whose patterns no longer matched anything, and the page showed an empty
-    // register without saying why.
-    const declared = d.entity_schema;
-    const g = (declared && SCHEMAS[declared]) ? declared : guessSchemaFor($('src').value);
-    if (g && SCHEMAS[g]) { SCHEMA = g; $('schem').value = g; }
-    syncSchemaNote();
-  }catch(e){
-    $('src').value = 'user: deliver to Tower B, Flat 402\nuser: actually change the address to Gate 2, code 4921\nuser: thanks';
-  }
-  run();
-}
-
-async function loadSchemas(){
-  try{
-    const r = await fetch('/api/schemas');
-    const d = await r.json();
-    SCHEMAS = Object.fromEntries((d.schemas||[]).map(s => [s.name, s]));
-    const sel = $('schem');
-    for (const s of (d.schemas||[])){
-      const o = document.createElement('option');
-      o.value = s.name;
-      o.textContent = s.name + '  (' + s.entities.length + ' slots)';
-      sel.appendChild(o);
-    }
-    // Default to a schema whose entities the example actually contains, so the
-    // first thing a visitor sees is a working state table rather than an
-    // empty one.
-    const guessed = guessSchemaFor($('src').value);
-    if (guessed && SCHEMAS[guessed]) { SCHEMA = guessed; sel.value = guessed; }
-    syncSchemaNote();
-  }catch(e){
-    $('schema-note').innerHTML = '<div><b>Could not load schemas.</b> State tracking is unavailable; compaction still works.</div>';
-  }
-}
-
-function guessSchemaFor(text){
-  const t = (text||'').toLowerCase();
-  if (/\.py|traceback|pytest|def |class /.test(t)) return 'coding';
-  if (/deliver to|order|address|gate code|refund/.test(t)) return 'logistics';
-  return '';
-}
-
-function syncSchemaNote(){
-  const note = $('schema-note');
-  if (!SCHEMA){
-    note.hidden = false;
-    note.className = 'note';
-    note.style.cssText = 'margin-top:8px;background:var(--warn-bg);border-color:var(--warn-line);color:var(--warn)';
-  } else {
-    const meta = SCHEMAS[SCHEMA];
-    note.hidden = false;
-    note.className = 'note';
-    note.style.cssText = 'margin-top:8px;background:var(--accent-bg);border-color:#c7d7fb;color:var(--accent-ink)';
-    note.innerHTML = '<div><b>Schema: <code>' + SCHEMA + '</code>.</b> Tracking ' +
-      (meta ? meta.entities.length : 0) + ' slot(s): <code>' +
-      (meta ? meta.entities.join('</code>, <code>') : '') + '</code>.' +
-      (meta && meta.summary ? '<br><span style="opacity:.8">' + esc(meta.summary) + '</span>' : '') +
-      '</div>';
-  }
-}
-
-function setTeach(on){
-  TEACH = !!on;
-  $('teach').checked = TEACH;
-  $('teach-row').hidden = !TEACH;
-}
-
-async function run(){
-  const src = $('src').value.trim();
-  if(!src){ $('src').focus(); return; }
-
-  const btn = $('go');
-  btn.disabled = true;
-  const prior = btn.textContent;
-  btn.innerHTML = '<span class="spin"></span> compiling';
-
-  const invariants = $('inv').value.split('\n').map(s => s.trim()).filter(Boolean);
-
-  try{
-    const res = await fetch('/api/compile', {
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({
-        transcript: src,
-        mode: MODE,
-        invariants,
-        recall_query: $('rec').value.trim() || null,
-        teach_protocol: TEACH,
-        entity_schema: SCHEMA || null
-      })
-    });
-    const data = await res.json();
-    if(!res.ok){
-      renderError(data);
-    } else {
-      render(data);
-    }
-  }catch(e){
-    renderError({ error: 'Could not reach the compile endpoint. Is the server running?' });
-  }finally{
-    btn.disabled = false;
-    btn.textContent = prior;
-  }
-}
-
-function renderError(data){
-  $('empty').hidden = true;
-  $('result').hidden = false;
-  const warns = (data.parse_warnings || []).map(w => `<li>${esc(w)}</li>`).join('');
-  $('result').innerHTML =
-    `<div class="note bad"><div><b>Could not compile.</b> ${esc(data.error || 'unknown error')}</div></div>` +
-    (warns ? `<div class="secttl">Parser notes</div><ul style="margin:0;padding-left:20px;font-size:13.5px;color:var(--ink-2)">${warns}</ul>` : '');
-}
-
-function render(data){
-  const t = data.telemetry;
-  $('empty').hidden = true;
-  $('result').hidden = false;
-
-  const pct = t.compression_ratio_pct;
-  const savedTone = pct > 0 ? 'good' : '';
-
-  /* ---- safety banners: the most important thing on the page ---- */
-  let banner = '';
-  if(t.orphaned_facts && t.orphaned_facts.length){
-    const rows = t.orphaned_facts.map(f =>
-      `<li><code>${esc(f.entity)} = ${esc(f.value)}</code> — only supported by retired turn ${f.supporting_turn}</li>`).join('');
-    banner += `<div class="note bad"><div><b>Orphaned facts detected.</b> These values would be
-      injected with no supporting turn left in the context. This is a bug in the compiler;
-      please report the input.
-      <ul style="margin:6px 0 0;padding-left:18px">${rows}</ul></div></div>`;
-  }
-  (data.parse_warnings || []).forEach(w => {
-    banner += `<div class="note warn"><div><b>Parser note.</b> ${esc(w)}</div></div>`;
-  });
-
-  // Conflicts are the signal that actually correlates with a wrong state.
-  (t.conflicts || []).forEach(c => {
-    banner += `<div class="note bad"><div><b>Conflict on <code>${esc(c.entity)}</code>.</b>
-      The agent declared <code>${esc(c.declared)}</code> at turn ${c.declared_turn},
-      but the text still says <code>${esc(c.inferred)}</code> at turn ${c.inferred_turn}.
-      The declaration wins, because the agent had the whole conversation when it
-      answered. Check which one is right.</div></div>`;
-  });
-
-  const offSchema = (t.declarations && t.declarations.off_schema_keys) || 0;
-  if (offSchema > 0){
-    const policy = (t.declarations && t.declarations.declaration_policy) || 'flag';
-    banner += `<div class="note warn"><div><b>${offSchema} declared key(s) are not in the
-      schema.</b> Nothing here can tell you whether they are true &mdash; no read-path
-      pattern exists for them, so they were never checkable. ${policy === 'reject'
-      ? 'They were dropped.'
-      : 'They were kept, because an agent can see facts in tool output that a pattern structurally cannot. Set <code>declaration_policy: "reject"</code> to drop them instead.'}
-      <ul style="margin:5px 0 0;padding-left:18px">${(t.rejected_writes || [])
-        .filter(r => r.kind === 'off_schema_declaration')
-        .slice(0, 6).map(r => `<li>turn ${r.turn}: <code>${esc(r.entity)}</code></li>`).join('')}</ul>
-      </div></div>`;
-  }
-
-  const rejected = t.rejected_writes || [];
-  if (rejected.length){
-    banner += `<div class="note warn"><div><b>${rejected.length} write(s) refused.</b>
-      <ul style="margin:5px 0 0;padding-left:18px">${rejected.slice(0, 6).map(r =>
-        `<li>turn ${r.turn}: ${esc(r.reason || r.kind)}</li>`).join('')}</ul></div></div>`;
-  }
-
-  if (t.context_grew){
-    banner += `<div class="note warn"><div><b>The compiled context is ${t.token_growth}
-      tokens larger than the input.</b> The state register costs more than it saves on a
-      transcript this short. That is real, and it is why the reduction figure reads 0%.</div></div>`;
-  }
-
-  /* ---- headline stats ---- */
-  const stats = `
-    <div class="stats">
-      <div class="stat"><div class="k">Tokens before</div><div class="v num">${t.raw_token_count.toLocaleString()}</div><div class="n">estimated</div></div>
-      <div class="stat"><div class="k">Tokens after</div><div class="v num accent">${t.compiled_token_count.toLocaleString()}</div><div class="n">estimated</div></div>
-      <div class="stat"><div class="k">Reduction</div><div class="v num ${savedTone}">${pct}%</div><div class="n">${t.tokens_saved.toLocaleString()} saved</div></div>
-      <div class="stat"><div class="k">Compile time</div><div class="v num">${t.compile_time_ms}<span style="font-size:13px">ms</span></div><div class="n">measured</div></div>
-      <div class="stat"><div class="k">Declared</div><div class="v num ${t.declarations.declared_share === 1 ? 'good' : ''}">${
-        t.declarations.authority_ratio === null ? '—' : Math.round(t.declarations.authority_ratio * 100) + '%'
-      }</div><div class="n">${t.declarations.turns_with_block || 0} turn(s) declared</div></div>
-    </div>`;
-
-  /* ---- current state ---- */
-  const active = t.dag.active;
-  const activeTable = active.length ? `
-    <table>
-      <thead><tr><th>Fact</th><th>Current value</th><th>From</th></tr></thead>
-      <tbody>${active.map(n => `
-        <tr>
-          <td class="mono">${esc(n.entity)}</td>
-          <td class="mono">${esc(n.value)}</td>
-          <td>${n.source === 'declared'
-              ? (n.confidence === 'unsettled'
-                  ? '<span class="tag warn">declared / unsure</span>'
-                  : (n.is_immutable
-                      ? '<span class="tag imm">declared / pinned</span>'
-                      : '<span class="tag decl">declared</span>'))
-              : (n.is_immutable
-                  ? '<span class="tag imm">inferred / pinned</span>'
-                  : '<span class="tag guess" title="matched by a pattern, not declared by the agent">inferred</span>')}</td>
-        </tr>`).join('')}</tbody>
-    </table>` : `<div class="empty" style="padding:18px">${
-        SCHEMA
-          ? 'No <code>' + esc(SCHEMA) + '</code> slot matched here. That is a real result: the schema looks for particular phrasing and this text does not use it.'
-          : 'No state tracked, because no entity schema is selected. Pick one above &mdash; contextgc ships no default, by design.'
-      }</div>`;
-
-  const revoked = t.dag.revoked || [];
-  const revokedBlock = revoked.length ? `
-    <table>
-      <thead><tr><th>Voided</th><th>Was</th><th>Why</th></tr></thead>
-      <tbody>${revoked.map(r => `
-        <tr>
-          <td class="mono">${esc(r.entity)}</td>
-          <td class="mono strike">${esc(r.was == null ? '—' : r.was)}</td>
-          <td style="font-size:12.5px;color:var(--ink-2)">${esc(r.reason)}</td>
-        </tr>`).join('')}</tbody>
-    </table>` : '';
-
-  /* ---- what changed ---- */
-  const sup = t.dag.superseded;
-  const supTable = sup.length ? `
-    <table>
-      <thead><tr><th>Fact</th><th>Was</th><th>Now</th></tr></thead>
-      <tbody>${sup.map(n => `
-        <tr>
-          <td class="mono">${esc(n.entity)}</td>
-          <td class="mono strike">${esc(n.value)}</td>
-          <td class="mono">turn ${n.superseded_by}</td>
-        </tr>`).join('')}</tbody>
-    </table>` : `<div class="empty" style="padding:18px">${
-        SCHEMA
-          ? 'Nothing was superseded &mdash; no fact was re-asserted in this transcript.'
-          : 'Nothing was superseded. State tracking is off, so no fact can be re-asserted. Select a schema above.'
-      }</div>`;
-
-  /* ---- retired turns ---- */
-  const retired = t.retired_turn_indices || [];
-  const retiredBlock = retired.length ? `
-    <table>
-      <thead><tr><th>Turn</th><th>Outcome</th></tr></thead>
-      <tbody>${retired.map(i => `
-        <tr><td class="mono">${i}</td>
-        <td><span class="tag del">retired</span> superseded state removed from context</td></tr>`).join('')}</tbody>
-    </table>` : '<div class="empty" style="padding:18px">No turns were retired. Retirement is driven by superseded state, so it needs a schema to do anything.</div>';
-
-  /* ---- the actual output ---- */
-  const compiledText = data.compiled_messages
-    .map(m => `[${m.role}${m.tool_call_id ? ' tool_call_id=' + m.tool_call_id : ''}]\n${m.content}`)
-    .join('\n\n');
-
-  const prefixNote = MODE === 'cache_friendly'
-    ? `<div class="note warn"><div><b>cache_friendly mode.</b>
-         ${t.kv_cache_prefix_messages_preserved} of your ${t.raw_messages_count} input messages
-         were emitted byte-identical, so a prefix cache keyed on them still hits.
-         Verified against the emitted output, not assumed from the mode.</div></div>`
-    : '';
-
-  $('result').innerHTML = `
-    ${banner}
-    ${stats}
-    ${prefixNote}
-
-    <div class="secttl">Current state — what the model is told is true</div>
-    ${activeTable}
-
-    ${revoked.length ? `<div class="secttl">Voided — removed, not replaced</div>${revokedBlock}` : ''}
-
-    <div class="secttl">What changed</div>
-    ${supTable}
-
-    <div class="secttl">Retired turns</div>
-    ${retiredBlock}
-
-    <div class="row" style="margin-top:18px">
-      <button class="link" onclick="copyOut()">copy compiled context</button>
-      <span style="font-size:12.5px;color:var(--ink-3)">${t.compiled_messages_count ?? data.compiled_messages.length} messages, ${t.tool_payloads_compacted} tool payload(s) compacted</span>
-    </div>
-
-    <div class="secttl">The compiled context</div>
-    <pre class="out" id="compiled">${esc(compiledText)}</pre>
-
-    <details id="proto-details" hidden>
-      <summary>The instruction injected into the system prompt</summary>
-      <div><pre class="out" id="proto-text"></pre></div>
-    </details>
-
-    <details>
-      <summary>Raw telemetry (JSON)</summary>
-      <div><pre class="out">${esc(JSON.stringify(t, null, 2))}</pre></div>
-    </details>`;
-}
-
-async function showProtocol(){
-  const details = $('proto-details');
-  if (!details.open){
-    // Ask the server for the instruction it would build from *this* transcript,
-    // rather than a hardcoded sample. Previously this fetched a fixed string
-    // that diverged from the real one -- the same defect the audit found in the
-    // metrics.
-    try{
-      const res = await fetch('/api/protocol-instruction', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ transcript: $('src').value, mode: MODE })
-      });
-      const d = await res.json();
-      $('proto-text').textContent = d.instruction || '(no instruction -- untrusted roles only)';
-    }catch(e){
-      $('proto-text').textContent = '(could not reach the server)';
-    }
-  }
-  details.hidden = false;
-  details.open = !details.open;
-}
-
-function copyOut(){
-  const el = $('compiled');
-  if(!el) return;
-  navigator.clipboard.writeText(el.textContent).then(() => {
-    const b = event.target; const p = b.textContent;
-    b.textContent = 'copied';
-    setTimeout(() => b.textContent = p, 1400);
-  });
-}
-
-$('src').addEventListener('keydown', e => {
-  if((e.metaKey || e.ctrlKey) && e.key === 'Enter') run();
-});
-
-/**
- * Start the page.
- *
- * Order matters: schemas must load before anything can compile, because state
- * tracking needs one and there is no default. An earlier version lost this boot
- * sequence entirely and the page rendered inert -- no fetch, no first result --
- * which is exactly the kind of failure a static syntax check cannot see.
- */
-async function boot() {
-  await loadSchemas();
-  if ($('src').value.trim()) run();
-}
-
-boot();
-</script>
 </body>
 </html>

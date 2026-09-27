@@ -909,11 +909,17 @@ Responses carry `X-ContextGC-Telemetry: raw=…; compiled=…; saved=…%; compi
 git clone https://github.com/j4yop/context-hackdevengers
 cd context-hackdevengers
 pip install -e ".[dev]"
-pytest -q                      # 225 tests
+pytest -q                      # 289 tests
 uvicorn server.main:app --reload
 ```
 
 Zero runtime dependencies. `server/` and the test tooling are optional extras.
+
+Two pages, two jobs: `/` is the overview and `/console` is the tool. They share
+one stylesheet (`web/style.css`) deliberately — duplicating the tokens is how two
+pages drift into looking like two products. `web/console.html` was extracted from
+the old single page rather than rewritten, so no control could go missing in the
+split, and `tests/browser/page.mjs` drives both surfaces plus dark mode.
 
 The test suite asserts the claims at tolerances tight enough to fail: the
 `< 10ms` compile ceiling is enforced on a 60-turn transcript, growth is asserted

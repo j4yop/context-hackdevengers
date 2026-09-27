@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Console &mdash; contextgc</title>
+<meta name="description" content="Compile an agent transcript and read the exact context the model would receive. Deterministic, stateless, no API key and no model call." />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/style.css" />
+<style>
+  /* Console-only. Everything shared lives in style.css. */
+  .pagehead { display:flex; flex-wrap:wrap; gap:16px; align-items:flex-end;
+    justify-content:space-between; padding:30px 0 22px; }
+  .pagehead h1 { font-size:clamp(23px,3vw,29px); letter-spacing:-.028em; margin:0 0 5px; font-weight:700; }
+  .pagehead p { margin:0; color:var(--ink-2); font-size:14.5px; max-width:56ch; }
+  .pagehead .btn { flex-shrink:0; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <a class="logo" href="/"><span class="mark">cg</span> contextgc</a>
+    <nav>
+      <a href="/">Overview</a>
+      <a href="/console" aria-current="page">Console</a>
+      <a href="https://github.com/j4yop/context-hackdevengers" target="_blank" rel="noopener">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <div class="pagehead">
+    <div>
+      <h1>Console</h1>
+      <p>Paste a transcript, compile it, read exactly what the model would receive.
+         Stateless &mdash; nothing is stored and no model is called.</p>
+    </div>
+    <a class="btn" href="/">Back to overview</a>
+  </div>
+
+  <section class="grid">
+
+    <!-- ── input ─────────────────────────────────────────────── -->
+    <div class="card">
+      <h2>Your transcript</h2>
+      <div class="body">
+        <textarea id="src" spellcheck="false" placeholder="user: please deliver to Tower B, Flat 402
+assistant: confirmed
+user: actually change the address to Gate 2, code 4921
+assistant: updated
+
+…or paste an OpenAI JSON message array."></textarea>
+
+        <div class="row">
+          <button class="primary" id="go" onclick="run()">Compile</button>
+          <button class="link" onclick="loadExample('read')">example: read path</button>
+          <button class="link" onclick="loadExample('write')">example: write path</button>
+          <button class="link" onclick="clearAll()">clear</button>
+        </div>
+
+        <div class="row" style="margin-top:16px">
+          <div class="seg" role="group" aria-label="Compilation mode">
+            <button id="m-compact" aria-pressed="true" onclick="setMode('compact')">compact</button>
+            <button id="m-cache" aria-pressed="false" onclick="setMode('cache_friendly')">cache&nbsp;friendly</button>
+          </div>
+          <label style="display:flex;align-items:center;gap:7px;font-size:13px;color:var(--ink-2);margin-left:6px;cursor:pointer">
+            <input type="checkbox" id="teach" onchange="setTeach(this.checked)" style="width:auto;margin:0" />
+            teach the state protocol
+          </label>
+        </div>
+
+        <div id="teach-row" hidden style="margin-top:14px">
+          <div class="note" style="margin:0;background:var(--accent-bg);border-color:#c7d7fb;color:var(--accent-ink)">
+            <div>
+              <b>Write path on.</b> The system prompt now tells the agent to declare its own state
+              changes. Facts it declares are marked <b>declared</b> and are never overwritten by
+              anything a regex guessed. It costs a few tokens per turn and there is no extra model call.
+              <div style="margin-top:8px"><button class="link" onclick="showProtocol()">show the instruction that gets injected</button></div>
+            </div>
+          </div>
+        </div>
+
+        <label class="opt" for="schem">Entity schema
+          <span style="font-weight:400;color:var(--ink-3)">— required for state tracking; there is no default</span>
+        </label>
+        <select id="schem" onchange="SCHEMA=this.value; syncSchemaNote(); if($('src').value) run()"
+          style="width:100%;padding:8px 11px;font-size:13px;background:var(--panel-2);
+                 border:1px solid var(--line);border-radius:9px;color:var(--ink)">
+          <option value="">none — compaction only</option>
+        </select>
+        <div id="schema-note" class="note" style="margin-top:8px;background:var(--warn-bg);
+             border-color:var(--warn-line);color:var(--warn)">
+          <div><b>No schema selected.</b> contextgc ships an empty entity schema on purpose — the
+          default it replaced matched prose in unrelated domains. Without one you still get tool
+          compaction and turn retirement, but <b>no state is tracked</b>, because there is nothing
+          telling the compiler what a fact looks like.</div>
+        </div>
+
+        <label class="opt" for="inv">Invariants to pin <span style="font-weight:400;color:var(--ink-3)">(one per line, optional)</span></label>
+        <input type="text" id="inv" placeholder="refunds over 500 need approval" />
+
+        <label class="opt" for="rec">Recall a retired turn <span style="font-weight:400;color:var(--ink-3)">(optional)</span></label>
+        <input type="text" id="rec" placeholder="what was the original address" />
+      </div>
+    </div>
+
+    <!-- ── output ────────────────────────────────────────────── -->
+    <div id="out" class="card">
+      <h2>Compiled context</h2>
+      <div class="body">
+        <div class="empty" id="empty">
+          <div>Paste a transcript above and press <b>Compile</b>.</div>
+          <div style="max-width:38ch">Everything here is computed from your input on the
+            server. Nothing is pre-recorded.</div>
+          <button class="btn" onclick="loadExample('write')">Load the write-path example</button>
+          <div style="font-size:12.5px">It is the clearest demonstration: an agent declares
+            what it changed, then changes its mind.</div>
+        </div>
+        <div id="result" hidden></div>
+      </div>
+    </div>
+
+  </section>
+
+  <!-- ── how ─────────────────────────────────────────────────── -->
+  <footer>
+    <div class="wrap">
+      <span>contextgc &mdash; deterministic context compilation for AI agents</span>
+      <span style="margin-left:auto"><a href="/">overview</a> &middot;
+        <a href="https://github.com/j4yop/context-hackdevengers" target="_blank" rel="noopener">source</a> &middot; MIT</span>
+    </div>
+  </footer>
+</div>
+
+<script>
+let MODE = 'compact';
+let TEACH = false;
+let SCHEMA = '';
+let SCHEMAS = {};
+
+const $ = id => document.getElementById(id);
+const esc = s => String(s == null ? '' : s)
+  .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+  .replace(/"/g,'&quot;').replace(/'/g,'&#039;');
+
+function setMode(m){
+  MODE = m;
+  $('m-compact').setAttribute('aria-pressed', String(m === 'compact'));
+  $('m-cache').setAttribute('aria-pressed', String(m === 'cache_friendly'));
+}
+
+function clearAll(){
+  $('src').value = ''; $('inv').value = ''; $('rec').value = '';
+  $('result').hidden = true; $('empty').hidden = false;
+}
+
+async function loadExample(kind){
+  if (!$('src').value || $('src').value.indexOf('Paste a transcript') === 0) {}
+  try{
+    const r = await fetch('/api/example');
+    const d = await r.json();
+    $('src').value = (kind === 'write' && d.write_path_example) ? d.write_path_example : d.transcript;
+    if (kind === 'write') setTeach(true);
+    // The example says which schema it was written against. Guessing from the
+    // text is how a stale example kept looking plausible: it inferred a schema
+    // whose patterns no longer matched anything, and the page showed an empty
+    // register without saying why.
+    const declared = d.entity_schema;
+    const g = (declared && SCHEMAS[declared]) ? declared : guessSchemaFor($('src').value);
+    if (g && SCHEMAS[g]) { SCHEMA = g; $('schem').value = g; }
+    syncSchemaNote();
+  }catch(e){
+    $('src').value = 'user: deliver to Tower B, Flat 402\nuser: actually change the address to Gate 2, code 4921\nuser: thanks';
+  }
+  run();
+}
+
+async function loadSchemas(){
+  try{
+    const r = await fetch('/api/schemas');
+    const d = await r.json();
+    SCHEMAS = Object.fromEntries((d.schemas||[]).map(s => [s.name, s]));
+    const sel = $('schem');
+    for (const s of (d.schemas||[])){
+      const o = document.createElement('option');
+      o.value = s.name;
+      o.textContent = s.name + '  (' + s.entities.length + ' slots)';
+      sel.appendChild(o);
+    }
+    // Default to a schema whose entities the example actually contains, so the
+    // first thing a visitor sees is a working state table rather than an
+    // empty one.
+    const guessed = guessSchemaFor($('src').value);
+    if (guessed && SCHEMAS[guessed]) { SCHEMA = guessed; sel.value = guessed; }
+    syncSchemaNote();
+  }catch(e){
+    $('schema-note').innerHTML = '<div><b>Could not load schemas.</b> State tracking is unavailable; compaction still works.</div>';
+  }
+}
+
+function guessSchemaFor(text){
+  const t = (text||'').toLowerCase();
+  if (/\.py|traceback|pytest|def |class /.test(t)) return 'coding';
+  if (/deliver to|order|address|gate code|refund/.test(t)) return 'logistics';
+  return '';
+}
+
+function syncSchemaNote(){
+  const note = $('schema-note');
+  if (!SCHEMA){
+    note.hidden = false;
+    note.className = 'note';
+    note.style.cssText = 'margin-top:8px;background:var(--warn-bg);border-color:var(--warn-line);color:var(--warn)';
+  } else {
+    const meta = SCHEMAS[SCHEMA];
+    note.hidden = false;
+    note.className = 'note';
+    note.style.cssText = 'margin-top:8px;background:var(--accent-bg);border-color:#c7d7fb;color:var(--accent-ink)';
+    note.innerHTML = '<div><b>Schema: <code>' + SCHEMA + '</code>.</b> Tracking ' +
+      (meta ? meta.entities.length : 0) + ' slot(s): <code>' +
+      (meta ? meta.entities.join('</code>, <code>') : '') + '</code>.' +
+      (meta && meta.summary ? '<br><span style="opacity:.8">' + esc(meta.summary) + '</span>' : '') +
+      '</div>';
+  }
+}
+
+function setTeach(on){
+  TEACH = !!on;
+  $('teach').checked = TEACH;
+  $('teach-row').hidden = !TEACH;
+}
+
+async function run(){
+  const src = $('src').value.trim();
+  if(!src){ $('src').focus(); return; }
+
+  const btn = $('go');
+  btn.disabled = true;
+  const prior = btn.textContent;
+  btn.innerHTML = '<span class="spin"></span> compiling';
+
+  const invariants = $('inv').value.split('\n').map(s => s.trim()).filter(Boolean);
+
+  try{
+    const res = await fetch('/api/compile', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        transcript: src,
+        mode: MODE,
+        invariants,
+        recall_query: $('rec').value.trim() || null,
+        teach_protocol: TEACH,
+        entity_schema: SCHEMA || null
+      })
+    });
+    const data = await res.json();
+    if(!res.ok){
+      renderError(data);
+    } else {
+      render(data);
+    }
+  }catch(e){
+    renderError({ error: 'Could not reach the compile endpoint. Is the server running?' });
+  }finally{
+    btn.disabled = false;
+    btn.textContent = prior;
+  }
+}
+
+function renderError(data){
+  $('empty').hidden = true;
+  $('result').hidden = false;
+  const warns = (data.parse_warnings || []).map(w => `<li>${esc(w)}</li>`).join('');
+  $('result').innerHTML =
+    `<div class="note bad"><div><b>Could not compile.</b> ${esc(data.error || 'unknown error')}</div></div>` +
+    (warns ? `<div class="secttl">Parser notes</div><ul style="margin:0;padding-left:20px;font-size:13.5px;color:var(--ink-2)">${warns}</ul>` : '');
+}
+
+function render(data){
+  const t = data.telemetry;
+  $('empty').hidden = true;
+  $('result').hidden = false;
+
+  const pct = t.compression_ratio_pct;
+  const savedTone = pct > 0 ? 'good' : '';
+
+  /* ---- safety banners: the most important thing on the page ---- */
+  let banner = '';
+  if(t.orphaned_facts && t.orphaned_facts.length){
+    const rows = t.orphaned_facts.map(f =>
+      `<li><code>${esc(f.entity)} = ${esc(f.value)}</code> — only supported by retired turn ${f.supporting_turn}</li>`).join('');
+    banner += `<div class="note bad"><div><b>Orphaned facts detected.</b> These values would be
+      injected with no supporting turn left in the context. This is a bug in the compiler;
+      please report the input.
+      <ul style="margin:6px 0 0;padding-left:18px">${rows}</ul></div></div>`;
+  }
+  (data.parse_warnings || []).forEach(w => {
+    banner += `<div class="note warn"><div><b>Parser note.</b> ${esc(w)}</div></div>`;
+  });
+
+  // Conflicts are the signal that actually correlates with a wrong state.
+  (t.conflicts || []).forEach(c => {
+    banner += `<div class="note bad"><div><b>Conflict on <code>${esc(c.entity)}</code>.</b>
+      The agent declared <code>${esc(c.declared)}</code> at turn ${c.declared_turn},
+      but the text still says <code>${esc(c.inferred)}</code> at turn ${c.inferred_turn}.
+      The declaration wins, because the agent had the whole conversation when it
+      answered. Check which one is right.</div></div>`;
+  });
+
+  const offSchema = (t.declarations && t.declarations.off_schema_keys) || 0;
+  if (offSchema > 0){
+    const policy = (t.declarations && t.declarations.declaration_policy) || 'flag';
+    banner += `<div class="note warn"><div><b>${offSchema} declared key(s) are not in the
+      schema.</b> Nothing here can tell you whether they are true &mdash; no read-path
+      pattern exists for them, so they were never checkable. ${policy === 'reject'
+      ? 'They were dropped.'
+      : 'They were kept, because an agent can see facts in tool output that a pattern structurally cannot. Set <code>declaration_policy: "reject"</code> to drop them instead.'}
+      <ul style="margin:5px 0 0;padding-left:18px">${(t.rejected_writes || [])
+        .filter(r => r.kind === 'off_schema_declaration')
+        .slice(0, 6).map(r => `<li>turn ${r.turn}: <code>${esc(r.entity)}</code></li>`).join('')}</ul>
+      </div></div>`;
+  }
+
+  const rejected = t.rejected_writes || [];
+  if (rejected.length){
+    banner += `<div class="note warn"><div><b>${rejected.length} write(s) refused.</b>
+      <ul style="margin:5px 0 0;padding-left:18px">${rejected.slice(0, 6).map(r =>
+        `<li>turn ${r.turn}: ${esc(r.reason || r.kind)}</li>`).join('')}</ul></div></div>`;
+  }
+
+  if (t.context_grew){
+    banner += `<div class="note warn"><div><b>The compiled context is ${t.token_growth}
+      tokens larger than the input.</b> The state register costs more than it saves on a
+      transcript this short. That is real, and it is why the reduction figure reads 0%.</div></div>`;
+  }
+
+  /* ---- headline stats ---- */
+  const stats = `
+    <div class="stats">
+      <div class="stat"><div class="k">Tokens before</div><div class="v num">${t.raw_token_count.toLocaleString()}</div><div class="n">estimated</div></div>
+      <div class="stat"><div class="k">Tokens after</div><div class="v num accent">${t.compiled_token_count.toLocaleString()}</div><div class="n">estimated</div></div>
+      <div class="stat"><div class="k">Reduction</div><div class="v num ${savedTone}">${pct}%</div><div class="n">${t.tokens_saved.toLocaleString()} saved</div></div>
+      <div class="stat"><div class="k">Compile time</div><div class="v num">${t.compile_time_ms}<span style="font-size:13px">ms</span></div><div class="n">measured</div></div>
+      <div class="stat"><div class="k">Declared</div><div class="v num ${t.declarations.declared_share === 1 ? 'good' : ''}">${
+        t.declarations.declared_share == null ? '—' : Math.round(t.declarations.declared_share * 100) + '%'
+      }</div><div class="n" title="Provenance mix, not confidence: a declared fact always outranks an inferred one, so this rises when the model's answer wins a conflict.">${t.declarations.turns_with_block || 0} declared</div></div>
+    </div>`;
+
+  /* ---- current state ---- */
+  const active = t.dag.active;
+  const activeTable = active.length ? `
+    <table>
+      <thead><tr><th>Fact</th><th>Current value</th><th>From</th></tr></thead>
+      <tbody>${active.map(n => `
+        <tr>
+          <td class="mono">${esc(n.entity)}</td>
+          <td class="mono">${esc(n.value)}</td>
+          <td>${n.source === 'declared'
+              ? (n.confidence === 'unsettled'
+                  ? '<span class="tag warn">declared / unsure</span>'
+                  : (n.is_immutable
+                      ? '<span class="tag imm">declared / pinned</span>'
+                      : '<span class="tag decl">declared</span>'))
+              : (n.is_immutable
+                  ? '<span class="tag imm">inferred / pinned</span>'
+                  : '<span class="tag guess" title="matched by a pattern, not declared by the agent">inferred</span>')}</td>
+        </tr>`).join('')}</tbody>
+    </table>` : `<div class="empty" style="padding:18px">${
+        SCHEMA
+          ? 'No <code>' + esc(SCHEMA) + '</code> slot matched here. That is a real result: the schema looks for particular phrasing and this text does not use it.'
+          : 'No state tracked, because no entity schema is selected. Pick one above &mdash; contextgc ships no default, by design.'
+      }</div>`;
+
+  const revoked = t.dag.revoked || [];
+  const revokedBlock = revoked.length ? `
+    <table>
+      <thead><tr><th>Voided</th><th>Was</th><th>Why</th></tr></thead>
+      <tbody>${revoked.map(r => `
+        <tr>
+          <td class="mono">${esc(r.entity)}</td>
+          <td class="mono strike">${esc(r.was == null ? '—' : r.was)}</td>
+          <td style="font-size:12.5px;color:var(--ink-2)">${esc(r.reason)}</td>
+        </tr>`).join('')}</tbody>
+    </table>` : '';
+
+  /* ---- what changed ---- */
+  const sup = t.dag.superseded;
+  const supTable = sup.length ? `
+    <table>
+      <thead><tr><th>Fact</th><th>Was</th><th>Now</th></tr></thead>
+      <tbody>${sup.map(n => `
+        <tr>
+          <td class="mono">${esc(n.entity)}</td>
+          <td class="mono strike">${esc(n.value)}</td>
+          <td class="mono">turn ${n.superseded_by}</td>
+        </tr>`).join('')}</tbody>
+    </table>` : `<div class="empty" style="padding:18px">${
+        SCHEMA
+          ? 'Nothing was superseded &mdash; no fact was re-asserted in this transcript.'
+          : 'Nothing was superseded. State tracking is off, so no fact can be re-asserted. Select a schema above.'
+      }</div>`;
+
+  /* ---- retired turns ---- */
+  const retired = t.retired_turn_indices || [];
+  const retiredBlock = retired.length ? `
+    <table>
+      <thead><tr><th>Turn</th><th>Outcome</th></tr></thead>
+      <tbody>${retired.map(i => `
+        <tr><td class="mono">${i}</td>
+        <td><span class="tag del">retired</span> superseded state removed from context</td></tr>`).join('')}</tbody>
+    </table>` : '<div class="empty" style="padding:18px">No turns were retired. Retirement is driven by superseded state, so it needs a schema to do anything.</div>';
+
+  /* ---- the actual output ---- */
+  const compiledText = data.compiled_messages
+    .map(m => `[${m.role}${m.tool_call_id ? ' tool_call_id=' + m.tool_call_id : ''}]\n${m.content}`)
+    .join('\n\n');
+
+  const prefixNote = MODE === 'cache_friendly'
+    ? `<div class="note warn"><div><b>cache_friendly mode.</b>
+         ${t.kv_cache_prefix_messages_preserved} of your ${t.raw_messages_count} input messages
+         were emitted byte-identical, so a prefix cache keyed on them still hits.
+         Verified against the emitted output, not assumed from the mode.</div></div>`
+    : '';
+
+  $('result').innerHTML = `
+    ${banner}
+    ${stats}
+    ${prefixNote}
+
+    <div class="secttl">Current state — what the model is told is true</div>
+    ${activeTable}
+
+    ${revoked.length ? `<div class="secttl">Voided — removed, not replaced</div>${revokedBlock}` : ''}
+
+    <div class="secttl">What changed</div>
+    ${supTable}
+
+    <div class="secttl">Retired turns</div>
+    ${retiredBlock}
+
+    <div class="row" style="margin-top:18px">
+      <button class="link" onclick="copyOut()">copy compiled context</button>
+      <span style="font-size:12.5px;color:var(--ink-3)">${t.compiled_messages_count ?? data.compiled_messages.length} messages, ${t.tool_payloads_compacted} tool payload(s) compacted</span>
+    </div>
+
+    <div class="secttl">The compiled context</div>
+    <pre class="out" id="compiled">${esc(compiledText)}</pre>
+
+    <details id="proto-details" hidden>
+      <summary>The instruction injected into the system prompt</summary>
+      <div><pre class="out" id="proto-text"></pre></div>
+    </details>
+
+    <details>
+      <summary>Raw telemetry (JSON)</summary>
+      <div><pre class="out">${esc(JSON.stringify(t, null, 2))}</pre></div>
+    </details>`;
+}
+
+async function showProtocol(){
+  const details = $('proto-details');
+  if (!details.open){
+    // Ask the server for the instruction it would build from *this* transcript,
+    // rather than a hardcoded sample. Previously this fetched a fixed string
+    // that diverged from the real one -- the same defect the audit found in the
+    // metrics.
+    try{
+      const res = await fetch('/api/protocol-instruction', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ transcript: $('src').value, mode: MODE })
+      });
+      const d = await res.json();
+      $('proto-text').textContent = d.instruction || '(no instruction -- untrusted roles only)';
+    }catch(e){
+      $('proto-text').textContent = '(could not reach the server)';
+    }
+  }
+  details.hidden = false;
+  details.open = !details.open;
+}
+
+function copyOut(){
+  const el = $('compiled');
+  if(!el) return;
+  navigator.clipboard.writeText(el.textContent).then(() => {
+    const b = event.target; const p = b.textContent;
+    b.textContent = 'copied';
+    setTimeout(() => b.textContent = p, 1400);
+  });
+}
+
+$('src').addEventListener('keydown', e => {
+  if((e.metaKey || e.ctrlKey) && e.key === 'Enter') run();
+});
+
+/**
+ * Start the page.
+ *
+ * Order matters: schemas must load before anything can compile, because state
+ * tracking needs one and there is no default. An earlier version lost this boot
+ * sequence entirely and the page rendered inert -- no fetch, no first result --
+ * which is exactly the kind of failure a static syntax check cannot see.
+ */
+async function boot() {
+  await loadSchemas();
+  if ($('src').value.trim()) run();
+}
+
+boot();
+</script>
+</body>
+</html>
