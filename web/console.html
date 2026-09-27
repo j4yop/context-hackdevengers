@@ -74,7 +74,7 @@ assistant: updated
         </div>
 
         <div id="teach-row" hidden style="margin-top:14px">
-          <div class="note" style="margin:0;background:var(--accent-bg);border-color:#c7d7fb;color:var(--accent-ink)">
+          <div class="note" style="margin:0;background:var(--accent-bg);border-color:var(--accent-line);color:var(--accent-ink)">
             <div>
               <b>Write path on.</b> The system prompt now tells the agent to declare its own state
               changes. Facts it declares are marked <b>declared</b> and are never overwritten by
@@ -226,7 +226,7 @@ function syncSchemaNote(){
     const unmeasured = meta && meta.measured === false;
     note.style.cssText = unmeasured
       ? 'margin-top:8px;background:var(--warn-bg);border-color:var(--warn-line);color:var(--warn)'
-      : 'margin-top:8px;background:var(--accent-bg);border-color:#c7d7fb;color:var(--accent-ink)';
+      : 'margin-top:8px;background:var(--accent-bg);border-color:var(--accent-line);color:var(--accent-ink)';
     note.innerHTML = '<div><b>Schema: <code>' + SCHEMA + '</code>.</b> Tracking ' +
       (meta ? meta.entities.length : 0) + ' slot(s): <code>' +
       (meta ? meta.entities.join('</code>, <code>') : '') + '</code>.' +

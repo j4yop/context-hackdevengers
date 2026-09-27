@@ -1418,3 +1418,73 @@ def test_the_dependency_gate_would_catch_a_dependency():
     assert out.stdout.strip() == "CLEAN", (
         f"the corrected gate rejected a clean install: {out.stdout!r}"
     )
+
+
+# ===========================================================================
+# the design record must describe the code, not the intention
+# ===========================================================================
+#
+# DESIGN.md was written by reading the stylesheet, and the first draft claimed
+# "no inline colour in either page" while the console carried a hardcoded
+# `#c7d7fb` border beside a dark-theme surface. Documentation of a design system
+# is only worth having if it is checked against the stylesheet, because a token
+# table that has drifted is worse than none: it tells the next person the dark
+# theme is covered when it is not.
+
+def test_no_page_hardcodes_a_colour_that_belongs_in_a_token():
+    """
+    Semantic colours are declared once on :root. A hex in a page is a token that
+    failed to be created -- and it will not flip with the theme.
+    """
+    import pathlib
+    import re
+
+    for name in ("index.html", "console.html"):
+        html = pathlib.Path("web") / name
+        text = html.read_text()
+        found = re.findall(r"(?:^|[\s\"';])(?:color|background(?:-color)?|border-color)\s*:\s*#", text)
+        assert not found, (
+            f"{html} hardcodes {len(found)} colour(s). They will not follow the "
+            f"theme; add a token to web/style.css and use var() instead."
+        )
+
+
+def test_every_colour_token_used_in_a_page_is_declared():
+    import pathlib
+    import re
+
+    css = pathlib.Path("web/style.css").read_text()
+    declared = set(re.findall(r"--([\w-]+)\s*:", css))
+    used = set()
+    for name in ("index.html", "console.html"):
+        used |= set(re.findall(r"var\(--([\w-]+)\)", (pathlib.Path("web") / name).read_text()))
+    # Tokens the pages read must exist, or the page silently inherits nothing.
+    missing = used - declared
+    assert not missing, f"the pages reference undeclared tokens: {sorted(missing)}"
+
+
+def test_the_dark_theme_defines_every_token_the_light_theme_does():
+    """
+    A token added to :root and not overridden leaves a light value sitting in a
+    dark theme -- which is how the primary button was white-on-light-blue at
+    2.5:1 and the accent note kept a daylight border in a night surface.
+    """
+    import pathlib
+    import re
+
+    css = pathlib.Path("web/style.css").read_text()
+    light_block = re.search(r":root\s*\{(.*?)\n  \}", css, re.S).group(1)
+    dark_block = re.search(
+        r"prefers-color-scheme: dark\)\s*\{\s*:root\s*\{(.*?)\n    \}", css, re.S
+    ).group(1)
+    light = dict(re.findall(r"--([\w-]+)\s*:\s*([^;]+);", light_block))
+    dark = dict(re.findall(r"--([\w-]+)\s*:\s*([^;]+);", dark_block))
+    # --mono is a font stack, not a colour; it is identical in both by design.
+    unoverridden = {
+        k for k, v in light.items()
+        if k not in dark and not k.endswith("mono")
+    }
+    assert not unoverridden, (
+        f"these tokens are not overridden for the dark theme: {sorted(unoverridden)}. "
+        f"Either add a dark value or, if the light one is theme-independent, say so."
+    )
