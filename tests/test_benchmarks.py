@@ -1929,3 +1929,128 @@ def test_a_capture_from_an_older_prompt_is_not_resumed():
         )
     finally:
         path.unlink(missing_ok=True)
+
+
+# ===========================================================================
+# a value contract may never be stricter than the tracker that guards it
+# ===========================================================================
+#
+# The value gate decides whether a *declared* value is plausible for its slot.
+# Its failure mode is not leniency but over-strictness: a contract that rejects
+# a correct value silently drops a good declaration, and the read path's own
+# output is the only free ground truth available for checking that.
+#
+# Measured while building it: a case-sensitive contract rejected 3 of 111 travel
+# extractions the read path produced itself, including cabin_class="Business",
+# because the read path matches case-insensitively. This test is what caught it,
+# and it is the reason `flag` is safe as the default policy.
+
+def test_no_value_contract_rejects_a_value_the_read_path_produced():
+    """
+    The guard that makes `flag` a safe default for the value gate.
+
+    Only the JSON corpora run unconditionally. The coding shard is parquet, and
+    reading it needs pandas and pyarrow, which the plain `test` jobs do not
+    install -- so coding is included when the shard is cached (locally, and in
+    the `benchmark` job) and skipped otherwise, following the precedent already
+    set for the known-failures test. The two JSON corpora still contribute ~70
+    values in CI, which is what caught the case-sensitivity bug.
+    """
+    import os
+
+    from benchmarks.corpus import cached_shard, load_apigen_mt, load_swe_agent
+    from contextgc import load_schema
+    from contextgc.client import compile_messages
+    from contextgc.gc_engine import _value_matches
+
+    plan = [("travel", "airline", 20), ("logistics", "retail", 20)]
+    shard = cached_shard()
+    if shard and os.path.exists(shard):
+        plan.insert(0, ("coding", None, 12))
+
+    offenders = []
+    checked = 0
+    for name, domain, limit in plan:
+        schema = load_schema(name)
+        if not schema.value_contracts:
+            continue
+        if domain is None:
+            transcripts = load_swe_agent(limit=limit, per_repo=1, path=shard)
+        else:
+            transcripts = load_apigen_mt(domain=domain, limit=limit)
+        for transcript in transcripts:
+            _, telemetry = compile_messages(transcript.messages, schema=schema)
+            for slot, value in telemetry.get("active_state_slots", {}).items():
+                contract = schema.value_contracts.get(slot)
+                if contract is None:
+                    continue
+                checked += 1
+                if not _value_matches(contract, str(value)):
+                    offenders.append((name, slot, value))
+    assert checked > 20, (
+        f"only {checked} values checked; the corpus scan is not exercising the "
+        f"contracts, so this test is decoration"
+    )
+    assert not offenders, (
+        f"a value contract rejects {len(offenders)} of {checked} values the read "
+        f"path produced itself: {offenders[:6]}. A contract must never be "
+        f"stricter than the pattern it guards."
+    )
+
+
+def test_a_wrong_shaped_declaration_is_reported_and_can_be_dropped():
+    """
+    The failure mode the 14B capture exposed: a real schema key carrying a value
+    of the wrong shape, which passes every key-level check and then wins over a
+    correct read-path value because a declared fact always wins.
+    """
+    from contextgc import compile_messages, load_schema
+
+    schema = load_schema("coding")
+    messages = [
+        {"role": "user", "content": "fix it"},
+        {"role": "assistant", "content":
+            'x\n<contextgc-state>{"assert": {"failing_test": "HTTPError: 403 Forbidden",'
+            ' "current_file": "/a/b/memset.py"}}</contextgc-state>'},
+        {"role": "user", "content": "go"},
+    ]
+    _out, flagged = compile_messages(messages, schema=schema, value_policy="flag")
+    kinds = [r for r in flagged["rejected_writes"] if r["kind"] == "value_shape_rejected"]
+    assert [r["entity"] for r in kinds] == ["failing_test"], kinds
+    assert kinds[0]["dropped"] is False
+    assert "failing_test" in flagged["active_state_slots"], (
+        "under 'flag' the value is kept and reported; dropping it silently would "
+        "lose a fact that might be right under a name the contract is too strict about"
+    )
+
+    _out, rejected = compile_messages(messages, schema=schema, value_policy="reject")
+    assert "failing_test" not in rejected["active_state_slots"]
+    assert "current_file" in rejected["active_state_slots"], (
+        "the well-shaped value in the same declaration was dropped too"
+    )
+
+
+def test_a_schema_with_no_contracts_is_not_gated():
+    """Absence is not permission to guess."""
+    from contextgc import compile_messages
+
+    _out, telemetry = compile_messages(
+        [{"role": "user", "content": "x"},
+         {"role": "assistant", "content": 'x\n<contextgc-state>{"assert": {"k": "anything"}}</contextgc-state>'},
+         {"role": "user", "content": "y"}],
+        value_policy="reject",
+    )
+    assert telemetry["declarations"]["value_shape_rejected"] == 0
+    assert telemetry["declarations"]["slots_with_a_value_contract"] == []
+    assert telemetry["active_state_slots"] == {"k": "anything"}
+
+
+def test_a_broken_contract_rejects_nothing_rather_than_raising():
+    """
+    A typo in a contract must not take down a compile. It is a schema author's
+    bug, not a transcript's, and `test_no_value_contract_rejects_a_value_the_
+    read_path_produced` is what makes it visible.
+    """
+    from contextgc.gc_engine import _value_matches
+
+    assert _value_matches("([unclosed", "anything") is True

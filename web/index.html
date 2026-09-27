@@ -216,7 +216,9 @@ SAFETY-FLAGGED ROWS RETAINED: [{"name":
         14B model names a schema slot 96% of the time and emits well-formed JSON every
         turn &mdash; and every resulting addition is still a value of the wrong shape:
         three literal <code>None</code>s, and error messages where a test identifier
-        belongs. Checking the key is not checking the value.</li>
+        belongs. Checking the key is not checking the value &mdash; so a schema may now
+        state a value contract per slot, which drops 24 of the 55 declarations in that
+        capture. It removes an invisible failure; it does not prove the rest.</li>
         <li><b>Token counts are <code>chars/4</code>, not a BPE tokenizer.</b> Read them
         as a ratio, not a bill. Exact figures need <code>tiktoken</code> against your
         model.</li>

@@ -33,6 +33,7 @@ def compile_messages(
     teach_protocol: bool = False,
     schema: Optional[Dict[str, Any]] = None,
     declaration_policy: str = "flag",
+    value_policy: str = "flag",
 ) -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
     """
     Compile an OpenAI-format message history.
@@ -61,7 +62,7 @@ def compile_messages(
     """
     engine = ContextGCEngine(
         session_id=session_id or "contextgc", invariants=invariants, schema=schema,
-        declaration_policy=declaration_policy,
+        declaration_policy=declaration_policy, value_policy=value_policy,
     )
     result = engine.process_session(
         messages, query_for_jit=recall_query, mode=mode, teach_protocol=teach_protocol
@@ -77,6 +78,7 @@ def compile_transcript(
     teach_protocol: bool = False,
     schema: Optional[Dict[str, Any]] = None,
     declaration_policy: str = "flag",
+    value_policy: str = "flag",
 ) -> Tuple[List[Dict[str, Any]], Dict[str, Any], List[str]]:
     """
     Compile a pasted plain-text transcript.
@@ -99,7 +101,7 @@ def compile_transcript(
     compiled, telemetry = compile_messages(
         messages, mode=mode, invariants=invariants, recall_query=recall_query,
         teach_protocol=teach_protocol, schema=schema,
-        declaration_policy=declaration_policy,
+        declaration_policy=declaration_policy, value_policy=value_policy,
     )
     return compiled, telemetry, warnings
 

@@ -58,6 +58,58 @@ def _strip_tool_calls(tool_calls: Any) -> Any:
 #: re-compile replaces it instead of stacking a second, contradictory copy.
 
 
+def _value_matches(contract: str, value: str) -> bool:
+    """
+    Whether a declared value satisfies its slot's contract.
+
+    A *search*, not a full match, and case-insensitive. Both choices were forced
+    by measurement rather than taste:
+
+    * search -- a contract written to match a bare value rejects a leading `/`
+      (an absolute path is perfectly good) and pytest's `::` node separator.
+      Requiring the whole string to match would throw away correct values.
+    * case-insensitive -- the read path matches case-insensitively, so a stricter
+      contract rejected 3 of 111 travel extractions that the tracker produced
+      itself, including `cabin_class = "Business"`.
+
+    A contract that cannot compile rejects nothing rather than raising into the
+    compile path: a broken schema should not take down a transcript, and the
+    self-consistency test in the suite is what makes a broken contract visible.
+    """
+    try:
+        return bool(re.search(contract, value, re.IGNORECASE))
+    except re.error:
+        return True
+
+
+def _normalise_values(schema: Optional[Dict[str, Any]]) -> Dict[str, str]:
+    """
+    The per-slot *value* contracts, from a schema file's ``values`` block.
+
+    A separate block from ``entities`` because the two answer different
+    questions. ``entities`` says what a slot is and how to find it in text; the
+    read path's values come out of that pattern by construction. ``values`` says
+    what a *declared* value for that slot may look like, which is the one thing
+    a pattern written to match prose cannot express -- and therefore the one
+    thing nothing was checking.
+
+    A slot with no contract is simply not gated. Absence is not permission to
+    guess: a schema author states a contract only when they can.
+    """
+    if not schema or not isinstance(schema, dict):
+        return {}
+    # A `Schema` carries its contracts alongside the patterns; a raw schema file
+    # (which the benchmark CLI and the server both read) has them under
+    # `"values"`. Both reach here and neither is the common case.
+    block = getattr(schema, "value_contracts", None) or schema.get("values")
+    if not isinstance(block, dict):
+        return {}
+    return {
+        str(k): v for k, v in block.items()
+        if isinstance(v, str) and not str(k).startswith("_")
+    }
+
+
 def _normalise_schema(schema: Optional[Dict[str, Any]]) -> Dict[str, Any]:
     """
     Accept either a bare slot mapping or a whole schema file.
@@ -116,6 +168,7 @@ class ContextGCEngine:
         invariants: Optional[List[str]] = None,
         schema: Optional[Dict[str, Any]] = None,
         declaration_policy: str = "flag",
+        value_policy: str = "flag",
     ):
         """
         Args:
@@ -146,9 +199,16 @@ class ContextGCEngine:
                 "declaration_policy must be 'flag', 'reject' or 'off', got "
                 f"{declaration_policy!r}"
             )
+        if value_policy not in ("flag", "reject", "off"):
+            raise ValueError(
+                f"value_policy must be 'flag', 'reject' or 'off', got {value_policy!r}"
+            )
         self.session_id = session_id
+        self._raw_schema = schema if isinstance(schema, dict) else {}
         self.schema = _normalise_schema(schema)
+        self.value_contracts = _normalise_values(schema)
         self.declaration_policy = declaration_policy
+        self.value_policy = value_policy
         self.dag = self._new_dag()
         self.sanitizer = ToolSanitizer()
         self.vector_tier = VectorMemoryTier(session_id)
@@ -254,6 +314,68 @@ class ContextGCEngine:
         if not self.schema:
             return None
         return set(self.schema) | set(dag.immutable_entities) | set(dag.entity_patterns)
+
+    def _gate_value_shape(
+        self,
+        declaration: StateDeclaration,
+        turn_index: int,
+        rejections: List[Dict[str, Any]],
+    ) -> StateDeclaration:
+        """
+        Hold declared *values* to the schema's contract for their slot.
+
+        A key check is necessary and not sufficient, and the second capture
+        proved it. With the vocabulary fixed, a 14B model names a real schema
+        slot 96% of the time and still supplies garbage: the literal string
+        `None`, and `HTTPError: 403 Forbidden` in `failing_test`, whose patterns
+        are meant to yield a test identifier. Those pass every key-level check
+        this project had, and then win over a correct read-path value -- because
+        a declared fact always wins. That is the worst case available: a
+        confidently wrong value displacing a right one.
+
+        Only *declared* values are gated. The read path's values come out of the
+        slot's own pattern, so gating them would be circular and could only
+        cause harm. A contract is therefore never applied to a value the tracker
+        produced itself, and a test enforces exactly that over the corpora.
+        """
+        if self.value_policy == "off" or not self.value_contracts:
+            return declaration
+
+        off_shape: Set[str] = set()
+
+        def partition(group: Dict[str, str]) -> Dict[str, str]:
+            kept: Dict[str, str] = {}
+            for key, value in group.items():
+                contract = self.value_contracts.get(key)
+                if contract is None or _value_matches(contract, value):
+                    kept[key] = value
+                    continue
+                off_shape.add(key)
+                rejections.append({
+                    "entity": key,
+                    "turn": turn_index,
+                    "kind": "value_shape_rejected",
+                    "reason": (
+                        f"{value!r} is not a plausible {key} under this "
+                        f"schema's value contract"
+                    ),
+                    "dropped": self.value_policy == "reject",
+                })
+                # Under "flag" the value is kept. Skipping it here made the
+                # default policy a hard gate wearing a flag's name -- the exact
+                # bug the key gate above had, reintroduced in the code written
+                # to fix the same class of problem a second time.
+                if self.value_policy == "flag":
+                    kept[key] = value
+            return kept
+
+        gated = StateDeclaration()
+        gated.asserts = partition(declaration.asserts)
+        gated.pins = partition(declaration.pins)
+        gated.unsure = partition(declaration.unsure)
+        gated.revokes = list(declaration.revokes)
+        gated.malformed = declaration.malformed
+        return gated
 
     def _apply_declaration_policy(
         self,
@@ -431,6 +553,9 @@ class ContextGCEngine:
             declaration, off_here = self._apply_declaration_policy(
                 declaration, self.dag, idx, rejections
             )
+            # After the key gate: a key the schema does not define has no
+            # contract to check its value against.
+            declaration = self._gate_value_shape(declaration, idx, rejections)
             # Counted from the keys the policy actually saw, not from the length
             # of the rejection list: a key appearing in two verbs is two
             # declarations the schema could not account for, not one.
@@ -776,6 +901,12 @@ class ContextGCEngine:
                     # of asserted facts and no sign that 19 of 19 were invented.
                     "off_schema_keys": off_schema_keys,
                     "declaration_policy": self.declaration_policy,
+                    "value_shape_rejected": sum(
+                        1 for r in rejections
+                        if r.get("kind") == "value_shape_rejected"
+                    ),
+                    "value_policy": self.value_policy,
+                    "slots_with_a_value_contract": sorted(self.value_contracts),
                 },
                 # The agent asserted a key one way and a pattern matched it
                 # another. This is the signal that correlates with a wrong state,

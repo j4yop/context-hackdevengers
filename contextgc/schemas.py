@@ -22,7 +22,7 @@ the comment left behind.
 
 import json
 import os
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 #: Directory holding the shipped schemas, inside the package.
 SCHEMA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "schemas")
@@ -101,7 +101,28 @@ def schema_summary(name: str) -> Dict[str, Any]:
     }
 
 
-def load_schema(name: str) -> Dict[str, Any]:
+class Schema(dict):
+    """
+    ``{slot: [pattern, ...]}`` -- and the file's ``values`` contracts alongside.
+
+    A dict subclass rather than a new shape, because every caller in this
+    project already treats a schema as a plain mapping: ``schema.get(...)``,
+    ``in``, ``items()``, and ``_normalise_schema`` all keep working unchanged.
+    Adding a second return value or a wrapper object would have meant touching
+    the engine, the server, the benchmark CLI and the capture harness for
+    something that is one optional key in a file.
+    """
+
+    #: ``{slot: regex}`` describing what a *declared* value for that slot may
+    #: look like. Empty for a schema that has not stated any.
+    value_contracts: Dict[str, str]
+
+    def __init__(self, entities: Dict[str, Any], value_contracts: Optional[Dict[str, str]] = None):
+        super().__init__(entities)
+        self.value_contracts = dict(value_contracts or {})
+
+
+def load_schema(name: str) -> Schema:
     """
     Load a shipped schema, ready to pass to ``compile_messages(schema=...)``.
 
@@ -120,4 +141,4 @@ def load_schema(name: str) -> Dict[str, Any]:
 
     with open(schema_path(name), encoding="utf-8") as handle:
         raw = json.load(handle)
-    return _normalise_schema(raw)
+    return Schema(_normalise_schema(raw), (raw.get("values") or {}))

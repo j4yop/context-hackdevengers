@@ -145,6 +145,19 @@ class CompileRequest(BaseModel):
     entity_schema: Optional[str] = Field(
         None, description="Name of a shipped entity schema. Required for state tracking to do anything."
     )
+    value_policy: str = Field(
+        "flag",
+        pattern="^(flag|reject|off)$",
+        description=(
+            "What to do with a declared key the schema DOES define whose value "
+            "does not match that slot's value contract. A key check is necessary "
+            "and not sufficient: measured against qwen2.5:14b, 24 of 55 "
+            "declarations named a real slot and supplied a value of the wrong "
+            "shape -- the literal 'None', and error messages in a slot meant for "
+            "a test identifier -- and those then win over a correct read-path "
+            "value. Only applies to schemas that state a 'values' block."
+        ),
+    )
     declaration_policy: str = Field(
         "flag",
         pattern="^(flag|reject|off)$",
@@ -163,6 +176,14 @@ class MessagesRequest(BaseModel):
     recall_query: Optional[str] = None
     teach_protocol: bool = False
     entity_schema: Optional[str] = None
+    value_policy: str = Field(
+        "flag",
+        pattern="^(flag|reject|off)$",
+        description=(
+            "What to do with a declared value that does not match its slot's "
+            "value contract. Only applies to schemas that state a 'values' block."
+        ),
+    )
     declaration_policy: str = Field(
         "flag",
         pattern="^(flag|reject|off)$",
@@ -212,15 +233,19 @@ def _entities_for(name: Optional[str]) -> Optional[Dict[str, Any]]:
     entry = SCHEMAS.get(name)
     if entry is None:
         raise HTTPException(status_code=404, detail=f"unknown schema {name!r}; have {sorted(SCHEMAS)}")
-    from contextgc.schemas import schema_path
+    from contextgc.schemas import load_schema, schema_path
 
     path = schema_path(name)
     with open(path, encoding="utf-8") as handle:
         raw = json.load(handle)
-    entities = dict(raw.get("entities", {}))
+    # `load_schema` rather than a hand-rolled dict, because it returns a Schema
+    # carrying the value contracts. This rebuilt the entities mapping by hand and
+    # dropped them, so the value gate never fired through the API at all --
+    # `value_policy: "reject"` returned the garbage value it was asked to remove.
+    schema = load_schema(name)
     if raw.get("__immutable__"):
-        entities["__immutable__"] = tuple(raw["__immutable__"])
-    return entities
+        schema["__immutable__"] = tuple(raw["__immutable__"])
+    return schema
 
 
 @app.get("/api/schemas")
@@ -267,6 +292,7 @@ async def api_compile(req: CompileRequest, request: Request) -> JSONResponse:
         teach_protocol=req.teach_protocol,
         schema=_entities_for(req.entity_schema),
         declaration_policy=req.declaration_policy,
+        value_policy=req.value_policy,
     )
 
     if "error" in telemetry:
@@ -302,6 +328,7 @@ async def api_compile_messages(req: MessagesRequest, request: Request) -> JSONRe
         teach_protocol=req.teach_protocol,
         schema=_entities_for(req.entity_schema),
         declaration_policy=req.declaration_policy,
+        value_policy=req.value_policy,
     )
     return JSONResponse(
         content={"compiled_messages": compiled, "telemetry": telemetry},
