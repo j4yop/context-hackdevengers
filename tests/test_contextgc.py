@@ -1179,3 +1179,81 @@ def test_example_declaration_blocks_survive_text_parsing():
     assert all("<contextgc-state>" in m["content"] for m in assistants), (
         "a declaration block ended up on a non-assistant turn"
     )
+
+
+# --- what the compactor actually covers ---------------------------------------
+#
+# Characterised by measuring every payload shape in the three corpora, because
+# "it compacted 668 payloads" says nothing about which payloads and says less
+# about the ones it walked past.
+
+@pytest.mark.parametrize("label,payload,expect_saved", [
+    ("top-level array of records",
+     [{"sku": f"SKU-{i}", "name": f"item {i}", "price": 10.0 + i} for i in range(50)],
+     True),
+    ("dict wrapping a list under a common key",
+     {"items": [{"sku": f"SKU-{i}", "price": 1.0 * i} for i in range(25)]},
+     True),
+    ("dict wrapping a list under an UNGUESSED key",
+     {"results": [{"flight_number": f"HAT{i:03d}", "cabin": "economy"} for i in range(40)]},
+     True),
+    ("dict wrapping a map of RECORDS",
+     {"passengers": {f"p{i}": {"name": f"P {i}", "seat": f"{i}A"} for i in range(6)},
+      "status": "x"},
+     True),
+    ("dict wrapping a map of strings -- no repeated fields to summarise",
+     {"address": {f"line{i}": f"{i} Main St" for i in range(6)}, "status": "x"},
+     False),
+    ("a single record, with nothing to compress",
+     {"reservation_id": "0U4NPP", "cabin": "economy", "price": 121.0},
+     False),
+])
+def test_which_payload_shapes_compact(label, payload, expect_saved):
+    import json as _json
+
+    from contextgc.sanitizer import ToolSanitizer
+
+    raw = _json.dumps(payload)
+    assert ToolSanitizer.looks_like_tool_output(raw, "user"), f"{label} not detected"
+    _, before, after = ToolSanitizer.distill_tool_payload(raw)
+    saved = before - after
+    assert (saved > 0) is expect_saved, (
+        f"{label}: expected {'a saving' if expect_saved else 'no saving'}, "
+        f"got {before} -> {after}"
+    )
+
+
+def test_a_tool_calls_arguments_are_never_compressed():
+    """
+    A tool *call* is the agent stating what it did. Compressing it would obscure
+    the action rather than the output it describes, so `arguments` is exempt
+    however large it is.
+    """
+    import json as _json
+
+    from contextgc.sanitizer import ToolSanitizer
+
+    call = _json.dumps({
+        "name": "get_reservation",
+        "arguments": {f"field_{i}": i for i in range(40)},
+    })
+    _, before, after = ToolSanitizer.distill_tool_payload(call)
+    assert after == before, f"a tool call was compressed: {before} -> {after}"
+
+
+def test_text_payloads_still_compact():
+    """The corpora that matter most here are text, not JSON, and must not regress."""
+    from contextgc.sanitizer import ToolSanitizer
+
+    listing = "Found 14 matches for dispatch in /repo/dispatcher.py:\n" + "\n".join(
+        f"  line {i}: def handler_{i}(request): return _dispatch({i})" for i in range(1, 15)
+    )
+    _, before, after = ToolSanitizer.distill_tool_payload(listing)
+    assert after < before * 0.7, f"listing barely compacted: {before} -> {after}"
+
+    failure = "\n".join(
+        f"FAILED tests/test_api.py::test_handler_{i} - AssertionError: expected 200 got 500"
+        for i in range(20)
+    )
+    _, b2, a2 = ToolSanitizer.distill_tool_payload(failure)
+    assert a2 < b2 * 0.2, f"test output barely compacted: {b2} -> {a2}"

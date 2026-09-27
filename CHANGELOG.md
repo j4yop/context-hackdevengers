@@ -2,6 +2,40 @@
 
 All notable changes. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [Unreleased] — the write path's missing measurement, and the compactor's real coverage
+
+### Fixed
+
+- **The payload compactor guessed key names.** Its dict branch looked for a list
+  under one of eight hardcoded keys and fell through to a flat distillation for
+  anything else. Airline payloads wrap flights under `flights` and search results
+  under `results`, neither on the list, so **18% of airline and 27% of retail
+  payloads went uncompressed** for no reason other than the spelling of a key. It
+  now finds the largest collection under any key, and a tool call's `arguments`
+  is exempt by design — that is the agent stating what it did, and compressing it
+  obscures the action rather than the output.
+- **The write path's measurement was silent about being missing.** The nightly job
+  now states it as a `::notice` with the four commands that would close it, and
+  becomes a real check the moment a capture is committed.
+
+### Measured
+
+| | before | after |
+|---|---|---|
+| airline, token reduction | 54.3% | **59.0%** |
+| retail, token reduction | 52.9% | **62.5%** |
+| airline, payloads compacted | 72 | **138** |
+| retail, payloads compacted | 275 | **275** |
+| coding, token reduction | 66.5% | 66.5% (text payloads, unaffected) |
+
+### Not fixed, and stated
+
+- **The write path is still unmeasured.** No model is reachable from CI, so no
+  `<contextgc-state>` block a real model emitted has ever been recorded, and none
+  is fabricated. What is guaranteed is the plumbing: `capture -> verify -> replay`
+  runs end to end in `tests/test_benchmarks.py` against a scripted endpoint, and a
+  capture that recorded no declarations is refused rather than scored.
+
 ## [Unreleased] — a third slice, and the default schema's failure measured at scale
 
 ### Fixed

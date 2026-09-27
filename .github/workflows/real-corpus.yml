@@ -160,6 +160,29 @@ jobs:
                 f"all in {sorted(slots)}")
           PY
 
+      - name: Report whether the write path has ever been measured
+        # The write path is the one claim with no number behind it. Nothing here
+        # can fix that without a model, so the job states it rather than passing
+        # in silence -- and the moment a capture is committed this becomes a real
+        # check on it instead of a reminder.
+        run: |
+          set -uo pipefail
+          found=$(ls captures/*.json 2>/dev/null | head -1 || true)
+          if [ -z "$found" ]; then
+            echo "::notice title=Write path unmeasured::no capture exists."
+            echo "No model is reachable from CI, so no <contextgc-state> block a real"
+            echo "model emitted has ever been recorded. The plumbing is covered by"
+            echo "tests/test_benchmarks.py (capture -> verify -> replay) so this is a"
+            echo "missing measurement, not a broken harness. To close it:"
+            echo "  pip install openai"
+            echo "  python -m benchmarks capture --transcript <file> --out captures/run1.json --schema coding"
+            echo "  python -m benchmarks capture --verify --out captures/run1.json"
+            echo "  python -m benchmarks shadow --captures captures/run1.json --corpus swe-agent --schema coding"
+            exit 0
+          fi
+          echo "capture present: $found"
+          python -m benchmarks capture --verify --out "$found"
+
       - name: The known failures must still be known failures
         # Runs the two confirmed different-sentence errors. If a change fixes
         # them this fails on purpose: the entry should be deleted deliberately.

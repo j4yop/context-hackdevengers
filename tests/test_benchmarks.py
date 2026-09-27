@@ -849,3 +849,166 @@ def test_a_complete_capture_verifies_clean():
                    "content": '<contextgc-state>{"assert": {"a": "1"}}</contextgc-state>'}],
     }
     assert cap.verify(payload) == []
+
+
+# --- the write path is unmeasured, and the plumbing is proven anyway ----------
+#
+# No model is reachable from CI, so no genuine capture exists and none is
+# fabricated here. What can be guaranteed is that the moment a real model *is*
+# reachable the measurement works, and that its absence is reported rather than
+# quietly passing. A capture is a record of what a real model said; a synthetic
+# one measures this harness, not the write path.
+
+class _FakeCompletions:
+    """A scripted OpenAI-compatible endpoint, in-process."""
+
+    def __init__(self, replies):
+        self._replies = list(replies)
+        self.calls = []
+
+    def create(self, **kwargs):
+        from contextgc import compile_messages  # noqa: F401  (import cost only)
+
+        self.calls.append(kwargs)
+        reply = self._replies.pop(0) if self._replies else "done"
+
+        class _Msg:
+            content = reply
+
+        class _Choice:
+            message = _Msg()
+
+        class _Resp:
+            choices = [_Choice()]
+
+        return _Resp()
+
+
+class _FakeClient:
+    def __init__(self, replies):
+        self.chat = type("Chat", (), {"completions": _FakeCompletions(replies)})()
+
+
+def test_capture_to_shadow_runs_end_to_end(tmp_path, monkeypatch):
+    """
+    The whole measurement path, against a scripted endpoint.
+
+    A plumbing guarantee, not a number. The point is that capture -> verify ->
+    replay cannot rot unnoticed: if this breaks, whoever first tries to measure
+    the write path finds out from a test failure rather than from a silent wrong
+    answer.
+    """
+    import json as _json
+
+    from benchmarks import capture as cap
+    from benchmarks.__main__ import cmd_capture
+    from benchmarks.corpus import Transcript, normalise_messages
+    from benchmarks.shadow import replay_source, run_corpus
+    from contextgc.schemas import load_schema
+
+    replies = [
+        'I should be editing `src/alpha.py`.'
+        '<contextgc-state>{"assert": {"current_file": "src/alpha.py"}}</contextgc-state>',
+        'Correcting that: `src/beta.py`.'
+        '<contextgc-state>{"assert": {"current_file": "src/beta.py"},'
+        ' "pin": {"spend_cap": "500"}}</contextgc-state>',
+        'done',
+    ]
+    client = _FakeClient(replies)
+    monkeypatch.setattr(cap, "_client", lambda: (client, "scripted"))
+
+    here = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    out_file = tmp_path / "cap.json"
+
+    class Args:
+        transcript = os.path.join(here, "benchmarks", "corpus", "sample.txt")
+        out = str(out_file)
+        limit = 1
+        schema = "coding"
+        verify = False
+
+    assert cmd_capture(Args()) == 0
+    assert len(client.chat.completions.calls) >= 1, "the endpoint was never called"
+
+    payload = _json.loads(out_file.read_text())
+    assert payload["model"] == "scripted"
+    assert payload["endpoint"], "a capture must record where it came from"
+    assert cap.verify(payload) == [], cap.verify(payload)
+
+    summary = cap.summarise(payload["turns"])
+    assert summary["declared_turns"] >= 1
+    assert "current_file" in summary["keys"]
+
+    # Replay it the way `benchmarks shadow` does, keyed by turn, with no model.
+    by_turn = {
+        index: block
+        for index, turn in enumerate(payload["turns"])
+        for block in cap.extract_blocks(turn["content"])
+    }
+    assert by_turn, "no blocks were extractable from the capture"
+    parsed = [cap.parse_block(b) for b in by_turn.values()]
+    assert all(parsed), "a recorded block did not parse"
+    assert any("current_file" in (p.get("assert") or {}) for p in parsed)
+
+    transcript = Transcript(
+        transcript_id="replay#1", source="unit-test",
+        messages=normalise_messages([{"role": "user", "content": "go"}]),
+    )
+    result = run_corpus(
+        [transcript],
+        source_for=lambda t: replay_source({}),
+        schema=load_schema("coding"),
+    )
+    assert isinstance(result, dict) and result, "shadow mode produced no result"
+    # And the same call with the captured blocks actually attached, which is the
+    # path that reports what a declaration would have changed.
+    with_declarations = run_corpus(
+        [transcript],
+        source_for=lambda t: replay_source(by_turn),
+        schema=load_schema("coding"),
+    )
+    assert isinstance(with_declarations, dict) and with_declarations
+    # Shadow mode must never emit a declared context: it reports, it does not act.
+    assert "declared_context" not in with_declarations or not with_declarations.get(
+        "declared_context"
+    )
+
+
+def test_a_capture_with_no_declarations_is_refused_not_scored(tmp_path, monkeypatch):
+    """
+    The failure mode that matters: a capture where the model never declared
+    anything would make `shadow` report a clean comparison having measured
+    nothing at all.
+    """
+    import json as _json
+
+    from benchmarks import capture as cap
+    from benchmarks.__main__ import cmd_capture
+
+    client = _FakeClient(["just talking", "still talking", "no block here"])
+    monkeypatch.setattr(cap, "_client", lambda: (client, "scripted"))
+    here = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    empty_capture = tmp_path / "empty.json"
+
+    class Args:
+        transcript = os.path.join(here, "benchmarks", "corpus", "sample.txt")
+        out = str(empty_capture)
+        limit = 1
+        schema = "coding"
+        verify = False
+
+    cmd_capture(Args())
+    payload = _json.loads(empty_capture.read_text())
+    problems = cap.verify(payload)
+    assert any("never emitted" in p for p in problems), problems
+
+    class Verify:
+        out = str(empty_capture)
+        verify = True
+        transcript = None
+        limit = 1
+        schema = None
+
+    with pytest.raises(SystemExit) as exc:
+        cmd_capture(Verify())
+    assert exc.value.code == 1
