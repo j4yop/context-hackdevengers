@@ -1187,3 +1187,325 @@ def test_capture_records_the_trajectory_turn_not_its_own(tmp_path, monkeypatch):
     assert sorted(int(k) for k in index) == [1, 3], (
         f"declarations were filed against the wrong turns: {sorted(index)}"
     )
+
+
+def _fake_client(reply_for):
+    """A stand-in endpoint that records every prompt it was handed."""
+    seen = []
+
+    class _Completions:
+        def create(self, **kwargs):
+            seen.append(kwargs["messages"])
+            msg = type("M", (), {"content": reply_for(len(seen))})()
+            return type("R", (), {"choices": [type("C", (), {"message": msg})()]})()
+
+    class _Model:
+        def __init__(self):
+            self.chat = type("Chat", (), {"completions": _Completions()})()
+
+    return _Model(), seen
+
+
+def test_capture_creates_the_directory_it_was_asked_to_write_into(tmp_path, monkeypatch):
+    """
+    `python -m benchmarks capture --out captures/run1.json` failed with
+    FileNotFoundError on a fresh clone, after the model had already run for
+    several minutes. The output path was taken on trust.
+    """
+    from benchmarks import capture as cap
+    from benchmarks.corpus import Transcript
+
+    transcript = Transcript(
+        transcript_id="d#0", source="unit-test",
+        messages=[{"role": "assistant", "content": "opened `a.py`"}],
+    )
+    model, _seen = _fake_client(
+        lambda n: '<contextgc-state>{"assert": {"f": "a.py"}}</contextgc-state>'
+    )
+    monkeypatch.setattr("benchmarks.corpus.load_synthetic", lambda path, **kw: [transcript])
+    monkeypatch.setattr(cap, "_client", lambda: (model, "d-test"))
+
+    nested = tmp_path / "captures" / "deep" / "run1.json"
+    assert not nested.parent.exists()
+    cap.capture("unused", str(nested), limit=1, schema_path="coding", progress=False)
+    assert nested.exists(), "capture did not create the directory it was told to write into"
+
+
+def test_capture_keeps_silent_turns_so_compliance_is_measurable(tmp_path, monkeypatch):
+    """
+    Silent turns were dropped from the capture, so the file held only the turns
+    that complied. That made the compliance rate unmeasurable -- it could only
+    ever come back as 100%, and the report printed it as a clean result.
+    """
+    from benchmarks import capture as cap
+    from benchmarks.corpus import Transcript
+
+    transcript = Transcript(
+        transcript_id="s#0", source="unit-test",
+        messages=[
+            {"role": "assistant", "content": "turn one"},
+            {"role": "assistant", "content": "turn two"},
+            {"role": "assistant", "content": "turn three"},
+            {"role": "assistant", "content": "turn four"},
+        ],
+    )
+    block = '<contextgc-state>{"assert": {"f": "a.py"}}</contextgc-state>'
+    model, _seen = _fake_client(lambda n: block if n % 2 else "no state changed here")
+    monkeypatch.setattr("benchmarks.corpus.load_synthetic", lambda path, **kw: [transcript])
+    monkeypatch.setattr(cap, "_client", lambda: (model, "s-test"))
+
+    payload = cap.capture(
+        "unused", str(tmp_path / "c.json"), limit=1, schema_path="coding", progress=False
+    )
+    assert len(payload["turns"]) == 4, (
+        f"silent turns were discarded, so compliance is unreportable: {payload['turns']}"
+    )
+    summary = cap.summarise(payload["turns"])
+    assert summary["compliance"] == 0.5, (
+        f"a model that complied on 2 of 4 turns was scored as {summary['compliance']}"
+    )
+    assert payload["prompts_asked"] == 4
+
+
+def test_capture_drops_old_turns_to_fit_the_context_and_records_it(tmp_path, monkeypatch):
+    """
+    A 32k-character transcript is about 8k tokens: twice a 4k context. The
+    endpoint truncates the tail of the prompt itself, so the model is asked to
+    declare against a turn it cannot see, and the resulting low compliance rate
+    looks like a property of the protocol rather than of the prompt.
+    """
+    from benchmarks import capture as cap
+    from benchmarks.corpus import Transcript
+
+    transcript = Transcript(
+        transcript_id="big#0", source="unit-test",
+        messages=[
+            {"role": "user", "content": "x" * 4000},
+            {"role": "assistant", "content": "old answer"},
+            {"role": "user", "content": "y" * 4000},
+            {"role": "assistant", "content": "recent answer"},
+        ],
+    )
+    model, seen = _fake_client(
+        lambda n: '<contextgc-state>{"assert": {"f": "a.py"}}</contextgc-state>'
+    )
+    monkeypatch.setattr("benchmarks.corpus.load_synthetic", lambda path, **kw: [transcript])
+    monkeypatch.setattr(cap, "_client", lambda: (model, "big-test"))
+
+    payload = cap.capture(
+        "unused", str(tmp_path / "c.json"), limit=1, schema_path="coding",
+        context_chars=9000, progress=False,
+    )
+    sent = sum(len(m.get("content") or "") for m in seen[-1])
+    assert sent <= 9000, f"prompt of {sent} chars exceeded the 9000 budget"
+    assert payload["context_truncated_prompts"] > 0, (
+        "the prompt was trimmed and the capture did not say so"
+    )
+    # The turn being declared is the most recent one and must survive trimming.
+    assert any("recent answer" in (m.get("content") or "") for m in seen[-1]), (
+        "the turn under declaration was trimmed out of its own prompt"
+    )
+
+
+def test_a_transcript_system_message_does_not_replace_the_protocol(tmp_path, monkeypatch):
+    """
+    The system slot was assigned over rather than appended to, so a corpus
+    carrying its own system message silently deleted the protocol instruction.
+    The capture then came back with zero declarations and the report blamed the
+    model for a prompt we had removed.
+    """
+    from benchmarks import capture as cap
+    from benchmarks.corpus import Transcript
+
+    transcript = Transcript(
+        transcript_id="sys#0", source="unit-test",
+        messages=[
+            {"role": "system", "content": "You are a careful coding agent."},
+            {"role": "assistant", "content": "opened `a.py`"},
+        ],
+    )
+    model, seen = _fake_client(
+        lambda n: '<contextgc-state>{"assert": {"f": "a.py"}}</contextgc-state>'
+    )
+    monkeypatch.setattr("benchmarks.corpus.load_synthetic", lambda path, **kw: [transcript])
+    monkeypatch.setattr(cap, "_client", lambda: (model, "sys-test"))
+
+    cap.capture("unused", str(tmp_path / "c.json"), limit=1, schema_path="coding", progress=False)
+    first_prompt = seen[0]
+    assert "contextgc-state" in first_prompt[0]["content"], (
+        "the protocol instruction was dropped from the system prompt"
+    )
+    assert any(
+        "You are a careful coding agent." in (m.get("content") or "") for m in first_prompt
+    ), "the transcript's own system message was discarded instead of appended"
+    # The system message must stay first. Trimming the history to fit the context
+    # once reversed the whole list, which put the system message at the end and
+    # the turns in reverse order.
+    assert first_prompt[0]["role"] == "system"
+    assert [m["content"] for m in first_prompt if m["role"] == "assistant"] == [
+        "opened `a.py`"
+    ], f"the trajectory was handed over out of order: {first_prompt}"
+
+
+def test_capture_resumes_instead_of_repeating_paid_for_turns(tmp_path, monkeypatch):
+    """
+    A local server that drops after the fortieth of forty-two calls used to cost
+    the whole run. Turns are now written as they arrive, and a re-run skips the
+    (transcript, turn) pairs already captured.
+    """
+    from benchmarks import capture as cap
+    from benchmarks.corpus import Transcript
+
+    transcript = Transcript(
+        transcript_id="r#0", source="unit-test",
+        messages=[
+            {"role": "assistant", "content": "turn one"},
+            {"role": "assistant", "content": "turn two"},
+            {"role": "assistant", "content": "turn three"},
+        ],
+    )
+    block = '<contextgc-state>{"assert": {"f": "a.py"}}</contextgc-state>'
+    out = tmp_path / "c.json"
+
+    # First run dies after two calls, having already written them.
+    calls = {"n": 0}
+
+    class _Dying:
+        def create(self, **kwargs):
+            calls["n"] += 1
+            if calls["n"] > 2:
+                raise ConnectionError("the local server went away")
+            msg = type("M", (), {"content": block})()
+            return type("R", (), {"choices": [type("C", (), {"message": msg})()]})()
+
+    class _M1:
+        def __init__(self):
+            self.chat = type("Chat", (), {"completions": _Dying()})()
+
+    monkeypatch.setattr("benchmarks.corpus.load_synthetic", lambda path, **kw: [transcript])
+    monkeypatch.setattr(cap, "_client", lambda: (_M1(), "r-test"))
+    with pytest.raises(ConnectionError):
+        cap.capture("unused", str(out), limit=1, schema_path="coding", progress=False)
+    assert out.exists(), "turns were not written before the run failed"
+    saved = json.loads(out.read_text())
+    assert len(saved["turns"]) == 2, (
+        f"completed turns were lost when the server dropped: {len(saved['turns'])}"
+    )
+
+    # Second run finishes the job without re-asking.
+    model, seen = _fake_client(lambda n: block)
+    monkeypatch.setattr(cap, "_client", lambda: (model, "r-test"))
+    payload = cap.capture("unused", str(out), limit=1, schema_path="coding", progress=False)
+    assert len(seen) == 1, f"resume re-asked {len(seen)} turns it already had"
+    assert len(payload["turns"]) == 3
+    assert payload["prompts_asked"] == 1
+
+
+def test_capture_teaches_the_protocol_once_not_twice(tmp_path, monkeypatch):
+    """
+    The system slot was seeded with `render_instruction()` while the compile also
+    passed `teach_protocol=True`, so the model was handed the protocol twice,
+    801 bytes per turn. The duplicated `[STATE_PROTOCOL]` wrapper is what the
+    model echoed back: of the 17 non-compliant replies in the first real capture,
+    four restated the wrapper and the format line as prose.
+    """
+    from benchmarks import capture as cap
+    from benchmarks.corpus import Transcript
+
+    transcript = Transcript(
+        transcript_id="p#0", source="unit-test",
+        messages=[{"role": "assistant", "content": "opened `a.py`"}],
+    )
+    model, seen = _fake_client(
+        lambda n: '<contextgc-state>{"assert": {"f": "a.py"}}</contextgc-state>'
+    )
+    monkeypatch.setattr("benchmarks.corpus.load_synthetic", lambda path, **kw: [transcript])
+    monkeypatch.setattr(cap, "_client", lambda: (model, "p-test"))
+
+    cap.capture("unused", str(tmp_path / "c.json"), limit=1, schema_path="coding", progress=False)
+    blob = "\n".join(m.get("content") or "" for m in seen[0])
+    assert blob.count("[STATE_PROTOCOL]") == 1, (
+        f"the protocol was taught {blob.count('[STATE_PROTOCOL]')} times per turn"
+    )
+    assert blob.count("<contextgc-state>{") == 1, (
+        "the output format was shown more than once, so the model had two "
+        "competing templates to copy"
+    )
+
+
+def test_the_capture_summary_agrees_with_the_pipeline_about_a_string_revoke():
+    """
+    `summarise` re-implemented the protocol's parsing and disagreed with it. The
+    model emitted `{"revoke":"current_file"}` -- a bare string where the format
+    asks for a list -- and the pipeline recorded one revocation, while the
+    summary iterated the string and reported ten: `_` `r` `e` `n` `i` `c` `u`
+    `t` `f` `l`. Those letters then appeared in the capture report as the
+    model's most-declared keys.
+    """
+    from benchmarks.capture import summarise
+    from contextgc.state_protocol import parse_declaration
+
+    text = '<contextgc-state>{"revoke":"current_file"}</contextgc-state>'
+    pipeline = parse_declaration(text)
+    assert pipeline.revokes == ["current_file"]
+
+    reported = summarise([{"content": text}])["keys"]
+    assert reported == {"current_file": 1}, (
+        f"the summary reported {reported} where the pipeline recorded "
+        f"{pipeline.revokes}"
+    )
+
+
+def test_resume_refuses_turns_captured_under_a_different_prompt(tmp_path, monkeypatch):
+    """
+    Resume keyed only on the file version. After the protocol stopped being
+    taught twice, re-running against the existing capture reused all 42 stale
+    turns, asked 0 prompts, and rewrote the file -- so the "new" measurement was
+    byte-identical to the "old" one and the fix appeared to change nothing. A
+    capture must not be stitched from turns asked under two different prompts.
+    """
+    from benchmarks import capture as cap
+    from benchmarks.corpus import Transcript
+
+    transcript = Transcript(
+        transcript_id="f#0", source="unit-test",
+        messages=[
+            {"role": "assistant", "content": "turn one"},
+            {"role": "assistant", "content": "turn two"},
+        ],
+    )
+    block = '<contextgc-state>{"assert": {"f": "a.py"}}</contextgc-state>'
+    out = tmp_path / "c.json"
+
+    model, seen = _fake_client(lambda n: block)
+    monkeypatch.setattr("benchmarks.corpus.load_synthetic", lambda path, **kw: [transcript])
+    monkeypatch.setattr(cap, "_client", lambda: (model, "f-test"))
+    cap.capture("unused", str(out), limit=1, schema_path="coding", progress=False)
+    assert len(seen) == 2
+
+    # Same prompt: resumes.
+    model, seen = _fake_client(lambda n: block)
+    monkeypatch.setattr(cap, "_client", lambda: (model, "f-test"))
+    cap.capture("unused", str(out), limit=1, schema_path="coding", progress=False)
+    assert seen == [], "an identical prompt should have resumed"
+
+    # Different prompt: must re-ask rather than reuse.
+    model, seen = _fake_client(lambda n: block)
+    monkeypatch.setattr(cap, "_client", lambda: (model, "f-test"))
+    cap.capture(
+        "unused", str(out), limit=1, schema_path="coding",
+        context_chars=4000, progress=False,
+    )
+    assert len(seen) == 2, (
+        "turns captured under a different context budget were reused, so one "
+        "file now mixes two experiments"
+    )
+
+    # And the stale fingerprint is not silently carried forward.
+    from contextgc import load_schema, render_instruction
+
+    saved = json.loads(out.read_text())
+    fresh = cap._fingerprint(render_instruction(), load_schema("coding"), 4000)
+    assert saved["prompt_fingerprint"] == fresh, (
+        "the capture does not record the prompt it was produced under"
+    )

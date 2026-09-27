@@ -469,8 +469,8 @@ correctly never fires.
 
 ### What the second domain settled about the write path
 
-The write path is still unmeasured in the sense that no capture exists — but the
-second domain answers the question that motivated it, and the answer is not
+A capture now exists (see below), so the write path is no longer unmeasured. But
+the second domain answers the question that motivated it, and the answer is not
 subtle. In customer-service transcripts, **82–99% of every mutable entity's
 mentions live in tool output**, not in speech:
 
@@ -485,8 +485,15 @@ The read path is forbidden to infer state from machine output — a grep listing
 not a statement about intent, and that rule was measured on the coding corpus. So
 a pattern-based tracker structurally *cannot* see reservation ids or payment
 methods here. That is a property of tool-heavy domains, not a defect in the
-tracker, and it is the strongest argument for the write path that this project has
-produced: the agent knows those values, and only the agent can say them.
+tracker, and it remains the strongest argument for the write path that this project
+has produced: the agent knows those values, and only the agent can say them.
+
+The caveat is now a measurement rather than a hope. A model that *can* state those
+values still has to state them correctly: the coding capture below shows a model
+filling 19 slots with invented keys, none of them schema fields. An agent that
+declares a `payment_method` wrongly is worse than an agent that declares nothing,
+because the compiler will treat it as authoritative. Making declarations earn their
+place in the schema is a prerequisite for the travel case, not a detail.
 
 What is left reachable is cabin class, which is spoken often and changes in 41% of
 conversations. That is the whole of the travel schema.
@@ -514,22 +521,79 @@ a capture that cannot be attributed is an anecdote, and one where the model neve
 declared anything would make `shadow` report a clean comparison having measured
 nothing.
 
-### Is the write path worth it? Still unmeasured
+### Is the write path worth it? Measured, and the answer is no
 
-`python -m benchmarks shadow` runs both paths and reports where they disagree.
-It is deliberately incapable of making things worse: it never emits a declared
-context, because a stale declaration silently outranks a human's plain-text
-correction.
+There is now a capture, made by a real model against a real trajectory file, and it
+is committed at `captures/run1.json` so the comparison replays without a GPU.
 
 ```bash
-python -m benchmarks shadow --captures captures/run1.json --limit 50 \
-    --schema contextgc/schemas/coding.json
+python -m benchmarks capture --verify --out captures/run1.json
+python -m benchmarks shadow --corpus synthetic \
+    --corpus-path benchmarks/corpus/sample.txt \
+    --captures captures/run1.json --schema contextgc/schemas/coding.json
 ```
 
-It needs a capture file: declarations recorded from a real run with a real model.
-**No such capture exists yet**, and the command says so rather than inventing a
-number. Until one does, the honest statement is that the write path is
-unmeasured — and the corpus work above is what makes measuring it possible.
+| | |
+|---|---|
+| model | `qwen2.5:7b` (Q4_K_M), local, via ollama |
+| transcripts | 6 real SWE-agent trajectories, 42 assistant turns |
+| turns where the model emitted a state block | 38 / 42 (90%) |
+| blocks that were not valid JSON | 7 / 38 (18%) |
+| **keys the declaration added** | **19** |
+| **keys the declaration changed** | **0** |
+| keys the declaration agreed with | 4 |
+
+**Every one of the 19 added keys was outside the schema.** Not one was a
+`current_file` or a `failing_test`. The 4 agreements were all `current_file`, and
+the declaration never once corrected the read path.
+
+So the write path's entire measured contribution, at this model size, was:
+confirming four facts the read path had already found, and inventing nineteen
+keys nobody asked for — `auth_token`, `line_144`, `headers_set`, `response`,
+`search_dir`, and `key`/`value`, which are the literal placeholders from the
+format example in the instruction, copied through as if they were entity names.
+
+The read path found `current_file` 11 times by pattern and the model agreed on 4 of
+them. It found nothing the model added. **Net verified information from the write
+path: zero.**
+
+#### What this does and does not say
+
+This is a measurement of *a 7B model's ability to use the protocol*, and it is
+separable from the protocol's design in one direction only. Two things bound it:
+
+- **It is a lower bound.** In the capture the model is a bystander inferring what
+  an *observed* assistant turn changed. In real use the agent emits the block
+  inline, with direct knowledge of its own actions. That is an easier task, and
+  this number does not predict it.
+- **It is one model.** A frontier model would very likely behave differently. The
+  claim is not "declarations do not work"; it is "declarations from a 7B model do
+  not survive contact with a real trajectory."
+
+What the result *does* establish, without any model-size caveat, is that the
+ingestion path accepts out-of-schema keys without complaint. The 19 junk keys were
+not filtered, not flagged and not counted as a problem — they were `added`, which
+is the metric that flatters the write path. Gating declarations to the schema is
+the change this measurement argues for, and it is not in yet.
+
+#### The prompt was wrong before it was measured
+
+The first capture of this run scored 59% compliance and 36% malformed blocks. That
+was not the model. The harness was handing the model the protocol twice — once as a
+hand-built system message and once via `teach_protocol=True` — 801 bytes of
+duplication per turn. Four of the seventeen non-compliant replies were the model
+faithfully echoing the duplicated `[STATE_PROTOCOL]` wrapper back.
+
+Fixing that lifted compliance to 90% and dropped malformed blocks to 18%. It also
+made the *content* worse, in a way worth stating plainly: with the duplication gone
+the model emitted a block on 38 turns instead of 25, and a larger share of them
+were noise. Compliance is not correctness. A harness that reported only the
+compliance figure would have shown a clean improvement.
+
+Both captures are reproducible by setting `PROMPT_VERSION = 1` in
+`benchmarks/capture.py`; the pre-fix numbers are recorded here rather than kept as
+a file, because a capture made with a malformed prompt is not a valid measurement
+and shipping it next to a valid one invites comparing them.
 
 ### What this harness refuses to do
 
