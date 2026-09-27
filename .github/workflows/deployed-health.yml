@@ -1,0 +1,125 @@
+# Is the deployed site actually serving?
+#
+# The outage that prompted this: every route returned HTTP 500
+# FUNCTION_INVOCATION_FAILED, and everything green. The Vercel status check says
+# "Deployment has completed", which means the *build* finished. CI was green.
+# The unit tests were green, because they import fastapi from the runner's own
+# environment. Nothing asked the deployed function whether it could start.
+#
+# So this asks it. No credentials, no deploy hook: the site is public, and a
+# health check that needs a secret is a health check that silently stops running
+# when the secret expires.
+name: deployed site
+
+on:
+  schedule:
+    # Every six hours, plus a few minutes past the hour so this does not join the
+    # top-of-hour pile that every other cron lands on.
+    - cron: "13 */6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  health:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      # One flaky network call should not page anyone, and two consecutive
+      # failures is the signal worth acting on.
+      fail-fast: false
+      matrix:
+        include:
+          - url: https://context-hackdevengers.vercel.app
+            name: production
+    steps:
+      - name: The site must serve its own page
+        run: |
+          set -uo pipefail
+          code=$(curl -sS -m 30 -o /tmp/page.html -w '%{http_code}' "${{ matrix.url }}/" || echo 000)
+          echo "GET / -> $code"
+          if [ "$code" != "200" ]; then
+            echo "::error::${{ matrix.name }} is not serving the page (HTTP $code)"
+            head -c 400 /tmp/page.html || true
+            exit 1
+          fi
+          grep -q "contextgc" /tmp/page.html || {
+            echo "::error::the page at ${{ matrix.url }} is not the contextgc page"
+            exit 1
+          }
+
+      - name: The function must import, not just exist
+        run: |
+          set -uo pipefail
+          # This is the assertion the status check was making in name only. A
+          # deployment whose entrypoint cannot import fastapi returns 500 on
+          # every route while reporting a completed build.
+          body=$(curl -sS -m 30 -w '\n%{http_code}' "${{ matrix.url }}/api/health" || echo 000)
+          code=$(printf '%s' "$body" | tail -n1)
+          payload=$(printf '%s' "$body" | sed '$d')
+          echo "GET /api/health -> $code"
+          echo "$payload" | head -c 300; echo
+          if [ "$code" != "200" ]; then
+            echo "::error::the function is not running. Check the Vercel runtime log:"
+            echo "::error::vercel logs ${{ matrix.url }}"
+            exit 1
+          fi
+          printf '%s' "$payload" | grep -q '"status":"ok"' || {
+            echo "::error::/api/health did not report ok"
+            exit 1
+          }
+
+      - name: The compiler must still work end to end
+        run: |
+          set -uo pipefail
+          # A page that loads and a health endpoint that answers is not the same
+          # as the product working. This is the assertion that would have caught
+          # the example compiling to an empty state register.
+          response=$(curl -sS -m 30 -X POST "${{ matrix.url }}/api/compile" \
+            -H 'Content-Type: application/json' \
+            -d '{"transcript":"user: I am in economy class on reservation 0U4NPP\nuser: actually upgrade me to business class\nuser: thanks","entity_schema":"travel"}' \
+            || echo '{}')
+          echo "$response" | head -c 200; echo
+          printf '%s' "$response" | grep -q '"business"' || {
+            echo "::error::the deployed compiler did not track the superseded value"
+            exit 1
+          }
+          printf '%s' "$response" | grep -q '"retirement_violations":\[\]' || {
+            echo "::error::the deployed compiler reported a retirement violation"
+            exit 1
+          }
+
+      - name: Expected failures must still fail correctly
+        run: |
+          set -uo pipefail
+          unknown=$(curl -sS -m 20 -o /dev/null -w '%{http_code}' -X POST \
+            "${{ matrix.url }}/api/compile" -H 'Content-Type: application/json' \
+            -d '{"transcript":"x","entity_schema":"nope"}' || echo 000)
+          nokey=$(curl -sS -m 20 -o /dev/null -w '%{http_code}' -X POST \
+            "${{ matrix.url }}/v1/chat/completions" -H 'Content-Type: application/json' \
+            -d '{"model":"m","messages":[]}' || echo 000)
+          echo "unknown schema -> $unknown (want 404), no upstream key -> $nokey (want 503)"
+          [ "$unknown" = "404" ] && [ "$nokey" = "503" ] || {
+            echo "::error::the deployed failure paths are not behaving"
+            exit 1
+          }
+
+      - name: The shipped example must still demonstrate something
+        run: |
+          set -uo pipefail
+          # The example was written for schemas that measurement later replaced,
+          # so it compiled to an empty register while every endpoint returned 200.
+          example=$(curl -sS -m 20 "${{ matrix.url }}/api/example" || echo '{}')
+          schema=$(printf '%s' "$example" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("entity_schema") or "")' 2>/dev/null || echo "")
+          echo "example schema: ${schema:-<none>}"
+          [ -n "$schema" ] || { echo "::error::/api/example does not state a schema"; exit 1; }
+          transcript=$(printf '%s' "$example" | python3 -c 'import json,sys; print(json.load(sys.stdin)["transcript"])' 2>/dev/null || echo "")
+          result=$(curl -sS -m 20 -X POST "${{ matrix.url }}/api/compile" \
+            -H 'Content-Type: application/json' \
+            --data-binary "$(python3 -c 'import json,sys; print(json.dumps({"transcript": sys.stdin.read(), "entity_schema": sys.argv[1]}))' "$schema" <<< "$transcript")" \
+            || echo '{}')
+          printf '%s' "$result" | grep -qE '"(current_file|cabin_class|destination_address|active_reservation)"' || {
+            echo "::error::the shipped example compiles to an empty state register, so the site demonstrates nothing"
+            exit 1
+          }
