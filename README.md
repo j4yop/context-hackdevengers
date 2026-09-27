@@ -930,6 +930,9 @@ telemetry field (`latency`, `hallucination`, `estimated`, `risk_score`,
 
 ## Publishing
 
+Full procedure, including the PyPI Trusted Publishing setup that has to be done
+in a browser: [`docs/RELEASING.md`](docs/RELEASING.md).
+
 `main` is protected: a pull request with `test (3.9)`, `test (3.11)`,
 `test (3.13)`, `benchmark`, `build` and `browser` green. Direct pushes and force
 pushes are refused, including for admins, because several of the defects in this

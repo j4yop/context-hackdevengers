@@ -1311,3 +1311,83 @@ def test_a_measured_schema_carries_its_corpus_and_sample_size():
             f"{name} quotes a reduction-style figure with no precision figure, "
             f"which is the pairing this project exists to avoid"
         )
+
+
+# ===========================================================================
+# the release gates must assert something
+# ===========================================================================
+#
+# The workflow step named "The library must still have no runtime dependencies"
+# had no `set -e` and ended in a `grep -v` that exits 0 whenever anything
+# survives -- and contextgc itself always survives. It printed whatever was
+# installed and passed. Verified by installing `requests` into the wheel's venv:
+# the step still succeeded. Zero runtime dependencies is a headline claim and its
+# only gate was decorative.
+
+def test_the_declared_dependencies_are_still_none():
+
+    import tomllib
+
+    with open("pyproject.toml", "rb") as handle:
+        project = tomllib.load(handle)
+    runtime = project["project"].get("dependencies", [])
+    assert runtime == [], (
+        f"runtime dependencies are declared: {runtime}. Zero dependencies is a "
+        f"headline claim -- if this has to change, the claim changes with it."
+    )
+
+
+def test_every_shipped_schema_is_included_in_the_package_data():
+    """
+    The wheel used to ship a `benchmarks` package with none of its JSON, so it
+    imported and then could not load a schema. A declared glob that matches
+    nothing fails silently, so assert the files are really there.
+    """
+    import pathlib
+
+    import tomllib
+
+    with open("pyproject.toml", "rb") as handle:
+        project = tomllib.load(handle)
+    package_data = project["tool"]["setuptools"]["package-data"]["contextgc"]
+    assert any("json" in pattern for pattern in package_data), (
+        f"no JSON is declared as package data: {package_data}, so an installed "
+        f"wheel would ship no schemas and state tracking would be unreachable"
+    )
+    schema_dir = pathlib.Path("contextgc/schemas")
+    shipped = sorted(p.name for p in schema_dir.glob("*.json"))
+    assert shipped, "no schema files on disk to package"
+    for name in shipped:
+        assert name in {p.name for p in schema_dir.glob("*.json")}
+
+
+def test_the_dependency_gate_would_catch_a_dependency():
+    """
+    The corrected gate, exercised. A `grep -v` that exits 0 on empty input is
+    how the original passed with dependencies installed, so the assertion has to
+    be about the *content* of the list, never about a pipeline's exit status.
+    """
+    import subprocess
+
+    script = (
+        "unexpected=$(printf 'pip==1\\nsetuptools==1\\ncontextgc==0.4.0\\n"
+        "requests==2.34.2\\n' "
+        "| grep -vE '^(pip|setuptools|wheel)==' "
+        "| grep -vE '^contextgc==' || true); "
+        'if [ -n "$unexpected" ]; then echo "CAUGHT"; exit 1; fi; echo "MISSED"'
+    )
+    out = subprocess.run(["bash", "-c", script], capture_output=True, text=True)
+    assert out.stdout.strip() == "CAUGHT", (
+        f"the corrected gate did not catch a declared dependency: {out.stdout!r}"
+    )
+
+    clean = (
+        "unexpected=$(printf 'pip==1\\nsetuptools==1\\ncontextgc==0.4.0\\n' "
+        "| grep -vE '^(pip|setuptools|wheel)==' "
+        "| grep -vE '^contextgc==' || true); "
+        'if [ -n "$unexpected" ]; then echo "CAUGHT"; exit 1; fi; echo "CLEAN"'
+    )
+    out = subprocess.run(["bash", "-c", clean], capture_output=True, text=True)
+    assert out.stdout.strip() == "CLEAN", (
+        f"the corrected gate rejected a clean install: {out.stdout!r}"
+    )
