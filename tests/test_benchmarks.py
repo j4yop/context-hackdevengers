@@ -1000,7 +1000,10 @@ def test_a_capture_with_no_declarations_is_refused_not_scored(tmp_path, monkeypa
     cmd_capture(Args())
     payload = _json.loads(empty_capture.read_text())
     problems = cap.verify(payload)
-    assert any("never emitted" in p for p in problems), problems
+    # Either refusal is correct: nothing was recorded at all, or turns were
+    # recorded and none of them declared. Both mean the same thing to shadow
+    # mode, which is that there is nothing to replay.
+    assert any("never emitted" in p or "no turns" in p for p in problems), problems
 
     class Verify:
         out = str(empty_capture)
@@ -1012,3 +1015,175 @@ def test_a_capture_with_no_declarations_is_refused_not_scored(tmp_path, monkeypa
     with pytest.raises(SystemExit) as exc:
         cmd_capture(Verify())
     assert exc.value.code == 1
+
+
+# --- the capture -> replay chain ----------------------------------------------
+#
+# Four defects lived here, and every one of them produced the same symptom: a
+# clean-looking shadow report having replayed nothing. "40 compared, 0 errors,
+# 39 agreed" is indistinguishable from a real result, which is why each is
+# pinned here with a declaration that *disagrees* with the read path.
+
+class _DisagreeingModel:
+    """
+    Declares a file the read path will not infer, so the effect is non-zero.
+
+    A local completions class rather than the shared scripted one: this needs the
+    same reply every turn, and a list that runs dry mid-trajectory produces a
+    capture that is quietly empty.
+    """
+
+    REPLY = (
+        'Looking at `declared_only.py`.'
+        '<contextgc-state>{"assert": {"current_file": "declared_only.py"}}'
+        "</contextgc-state>"
+    )
+
+    def __init__(self):
+        def _create(*args, **kwargs):
+            message = type("M", (), {"content": self.REPLY})()
+            choice = type("C", (), {"message": message})()
+            return type("R", (), {"choices": [choice]})()
+
+        self.chat = type("Chat", (), {"completions": type("X", (), {"create": _create})()})()
+
+
+def test_a_capture_that_disagrees_shows_a_non_zero_effect(tmp_path, monkeypatch):
+    from benchmarks import capture as cap
+    from benchmarks.__main__ import cmd_capture
+    from benchmarks.corpus import Transcript
+    from contextgc.schemas import load_schema
+
+    monkeypatch.setattr(cap, "_client", lambda: (_DisagreeingModel(), "disagreeing"))
+    # The corpus the capture runs over is the one it is replayed against. The id
+    # guard added alongside this test caught an earlier version of this test doing
+    # exactly that, which is the behaviour it exists to prevent.
+    from benchmarks.corpus import normalise_messages as _nm
+    transcript = Transcript(
+        transcript_id="disagree#1", source="unit-test",
+        messages=_nm([
+            {"role": "user", "content": "fix it"},
+            {"role": "assistant", "content": "opening `memset.py` now"},
+            {"role": "user", "content": "ok"},
+        ]),
+    )
+    monkeypatch.setattr("benchmarks.corpus.load_synthetic", lambda path, **kw: [transcript])
+    here = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    cap_file = tmp_path / "cap.json"
+
+    class Capture:
+        transcript = os.path.join(here, "benchmarks", "corpus", "sample.txt")
+        out = str(cap_file)
+        limit = 1
+        schema = "coding"
+        verify = False
+
+    cmd_capture(Capture())
+    payload = json.loads(cap_file.read_text())
+    assert payload["declarations"], "no declaration index was written"
+    assert any(
+        "declared_only.py" in block
+        for turns in payload["declarations"].values()
+        for block in turns.values()
+    ), "the declared value did not survive into the replayable index"
+
+    # Replay against the same transcript, which says something else entirely.
+    from benchmarks.shadow import run_corpus
+    result = run_corpus(
+        [transcript],
+        source_for=lambda t: __import__(
+            "benchmarks.shadow", fromlist=["replay_source"]
+        ).replay_source(payload["declarations"].get(transcript.id, {})),
+        schema=load_schema("coding"),
+        captures=payload["declarations"],
+    )
+    assert result["total_agreed"] == 0, (
+        f"a disagreeing declaration was counted as agreement: {result}"
+    )
+    assert result["total_changed"] or result["total_added"], (
+        f"a disagreeing declaration produced no effect at all: {result}"
+    )
+
+
+def test_capture_refuses_a_corpus_it_cannot_replay_against(tmp_path):
+    """
+    Capture and replay must come from the same corpus. Capturing from a
+    transcript file and replaying against the downloaded shard shares no ids,
+    and used to report every key as agreeing.
+    """
+    from benchmarks.corpus import Transcript, normalise_messages
+    from benchmarks.shadow import run_corpus
+    from contextgc.schemas import load_schema
+
+    corpus = [Transcript(
+        transcript_id=f"shard-repo-{i}#{i}", source="unit-test",
+        messages=normalise_messages([{"role": "user", "content": "go"}]),
+    ) for i in range(3)]
+    captures = {"some-other-file:0": {"1": '{"assert": {"a": "1"}}'}}
+
+    with pytest.raises(SystemExit) as exc:
+        run_corpus(
+            corpus,
+            source_for=lambda t: (lambda i, r, c: None),
+            schema=load_schema("coding"),
+            captures=captures,
+        )
+    assert "share no transcript ids" in str(exc.value)
+
+
+def test_a_json_capture_index_is_replayable():
+    """
+    JSON object keys are always strings. Shadow mode walks the transcript asking
+    for integer turn indices, so an index read back from disk never matched --
+    and the symptom was a clean zero rather than a crash.
+    """
+    from benchmarks.shadow import replay_source
+
+    source = replay_source({"1": '{"assert": {"a": "1"}}', "3": '{"assert": {"a": "3"}}'})
+    assert source(1, "assistant", "x"), "string key 1 was not found"
+    assert source(3, "assistant", "x"), "string key 3 was not found"
+    assert source(2, "assistant", "x") is None
+    assert source(1, "user", "x") is None, "a user turn must never declare"
+
+
+def test_capture_records_the_trajectory_turn_not_its_own(tmp_path, monkeypatch):
+    """
+    The capture used to hold its own conversation and borrow the transcript's id,
+    so its turn indices meant nothing relative to the transcript. The declared
+    index has to be the trajectory's index.
+    """
+    from benchmarks import capture as cap
+    from benchmarks.corpus import Transcript
+
+    transcript = Transcript(
+        transcript_id="idx#1", source="unit-test",
+        messages=[
+            {"role": "user", "content": "start"},
+            {"role": "assistant", "content": "opening `a.py`"},
+            {"role": "user", "content": "next"},
+            {"role": "assistant", "content": "opening `b.py`"},
+        ],
+    )
+
+    calls = {"n": 0}
+
+    class _Completions:
+        def create(self, **kwargs):
+            calls["n"] += 1
+            reply = ('declaring. <contextgc-state>{"assert": {"current_file": "x.py"}}'
+                     "</contextgc-state>")
+            msg = type("M", (), {"content": reply})()
+            return type("R", (), {"choices": [type("C", (), {"message": msg})()]})()
+
+    class _Model:
+        def __init__(self):
+            self.chat = type("Chat", (), {"completions": _Completions()})()
+
+    monkeypatch.setattr("benchmarks.corpus.load_synthetic", lambda path, **kw: [transcript])
+    monkeypatch.setattr(cap, "_client", lambda: (_Model(), "idx-test"))
+
+    payload = cap.capture("unused", str(tmp_path / "c.json"), limit=1, schema_path="coding")
+    index = payload["declarations"]["idx#1"]
+    assert sorted(int(k) for k in index) == [1, 3], (
+        f"declarations were filed against the wrong turns: {sorted(index)}"
+    )

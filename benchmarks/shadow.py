@@ -35,10 +35,21 @@ def replay_source(declarations: Dict[int, str]) -> DeclarationSource:
     require the model to still be available.
     """
 
+    # JSON object keys are always strings, so a capture read back from disk is
+    # keyed "3" while the transcript walk asks for 3. Coerced once here rather
+    # than at every call site, because the symptom is a clean-looking zero
+    # rather than a crash, and a crash is easier to notice.
+    by_turn: Dict[int, str] = {}
+    for key, value in declarations.items():
+        try:
+            by_turn[int(key)] = value
+        except (TypeError, ValueError):
+            continue
+
     def source(index: int, role: str, content: str) -> Optional[str]:
         if role != "assistant":
             return None
-        return declarations.get(index)
+        return by_turn.get(index)
 
     return source
 
@@ -127,6 +138,12 @@ def inject_declarations(
         message = dict(message)
         block = source(index, message.get("role", "user"), message.get("content", "") or "")
         if block:
+            # A capture stores what was *between* the tags, so replaying it
+            # verbatim produced text the declaration parser does not recognise --
+            # and the comparison then reported the read path agreeing with itself.
+            # Both forms are accepted, so a hand-written index can carry either.
+            if "<contextgc-state>" not in block:
+                block = f"<contextgc-state>{block}</contextgc-state>"
             message["content"] = (message.get("content") or "") + "\n" + block
         out.append(message)
     return out
@@ -156,8 +173,39 @@ def run_corpus(
     invariants: Optional[List[str]] = None,
     schema: Optional[Dict[str, Any]] = None,
     limit: Optional[int] = None,
+    captures: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
-    """Run shadow comparison across a corpus and aggregate."""
+    """
+    Run shadow comparison across a corpus and aggregate.
+
+    Raises if the capture and the corpus share no transcript ids, because that
+    produces the most dangerous result this harness can produce: a clean-looking
+    comparison having replayed nothing. It happens the moment anyone captures
+    from a transcript file and replays against the downloaded shard, because the
+    two id schemes have nothing in common -- and the output reads
+    "40 compared, 0 errors, 39 agreed", which looks like a result.
+    """
+    ids = {t.id for t in transcripts}
+    if captures is not None:
+        overlap = ids & set(captures)
+        if not overlap:
+            raise SystemExit(
+                "the capture and the corpus share no transcript ids, so no\n"
+                "declaration would be replayed and every number below would be\n"
+                "about nothing.\n\n"
+                f"  corpus ids        {len(ids)} (e.g. {sorted(ids)[0] if ids else '-'})\n"
+                f"  capture ids       {len(captures)} (e.g. {sorted(captures)[0] if captures else '-'})\n\n"
+                "Capture and replay must come from the same corpus, with the same\n"
+                "id scheme. Either capture against the corpus you intend to replay,\n"
+                "or replay against the file you captured from."
+            )
+        if len(overlap) < len(captures):
+            missing = len(captures) - len(overlap)
+            print(
+                f"warning: {missing} of {len(captures)} captured transcripts are "
+                f"not in this corpus and will not be replayed"
+            )
+
     rows: List[Dict[str, Any]] = []
     for transcript in transcripts:
         if limit and len(rows) >= limit:

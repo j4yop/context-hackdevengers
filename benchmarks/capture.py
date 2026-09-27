@@ -83,6 +83,29 @@ def summarise(turns: List[Dict[str, Any]]) -> Dict[str, Any]:
     }
 
 
+def declaration_index(turns: List[Dict[str, Any]]) -> Dict[str, Dict[int, str]]:
+    """
+    The captured blocks in the shape shadow mode replays.
+
+    The capture file keeps every turn verbatim, because that is the evidence; a
+    second, derived index exists so the same file can be replayed without
+    re-parsing it. The two shapes were incompatible -- capture wrote
+    ``{version, endpoint, turns: [{transcript, role, content}]}`` while shadow
+    read ``{transcript_id: {turn: block}}`` -- so a capture could be loaded,
+    reported as valid, and then replay *nothing* while the report said every key
+    agreed. The read path was agreeing with itself.
+    """
+    index: Dict[str, Dict[int, str]] = {}
+    for turn in turns:
+        transcript = turn.get("transcript")
+        if not transcript:
+            continue
+        blocks = extract_blocks(turn.get("content", ""))
+        if blocks:
+            index.setdefault(transcript, {})[int(turn.get("index", 0))] = blocks[0]
+    return index
+
+
 def verify(capture: Dict[str, Any]) -> List[str]:
     """Problems with a capture, as a list of strings. Empty means usable."""
     problems: List[str] = []
@@ -133,6 +156,31 @@ def _client() -> Any:
         ) from exc
     if base:
         return OpenAI(base_url=base, api_key=os.environ.get("OPENAI_API_KEY", "local")), model
+    if not os.environ.get("OPENAI_API_KEY"):
+        # The library's own error is a stack trace from inside the client, which
+        # is a poor place to discover the one thing standing between you and the
+        # project's largest open measurement.
+        raise SystemExit(
+            "capture needs a reachable model, and none is configured.\n\n"
+            "  Option 1 -- any OpenAI key (smallest model is fine; this measures\n"
+            "  the protocol, not the model):\n\n"
+            "    export OPENAI_API_KEY=sk-...\n"
+            "    export CONTEXTGC_CAPTURE_MODEL=gpt-4o-mini\n\n"
+            "  Option 2 -- a local model, no key and no cost. Any OpenAI-compatible\n"
+            "  server works; ollama is the usual one:\n\n"
+            "    ollama serve && ollama pull qwen2.5:7b\n"
+            "    export CONTEXTGC_CAPTURE_BASE_URL=http://localhost:11434/v1\n"
+            "    export CONTEXTGC_CAPTURE_MODEL=qwen2.5:7b\n\n"
+            "  Then, from the repository root:\n\n"
+            "    python -m benchmarks capture --transcript benchmarks/corpus/sample.txt \\\n"
+            "      --out captures/run1.json --limit 6 --schema coding\n"
+            "    python -m benchmarks capture --verify --out captures/run1.json\n"
+            "    python -m benchmarks shadow --captures captures/run1.json \\\n"
+            "      --corpus swe-agent --schema coding\n\n"
+            "Nothing is fabricated when no model is reachable: without a capture,\n"
+            "`benchmarks shadow` refuses to run, because a synthetic declaration set\n"
+            "would measure this harness rather than the write path."
+        )
     return OpenAI(), model or os.environ.get("CONTEXTGC_CAPTURE_MODEL", "gpt-4o-mini")
 
 
@@ -160,24 +208,61 @@ def capture(
 
     recorded: List[Dict[str, Any]] = []
     for transcript in transcripts:
+        # Walk the *real* trajectory and ask a model to declare what each
+        # assistant turn changed.
+        #
+        # The previous version held a generic conversation and merely borrowed
+        # the transcript's id, so its turn indices had no relationship to the
+        # transcript's. Replaying it would have applied declarations to unrelated
+        # turns and reported every key as agreeing -- a measurement of nothing,
+        # arrived at honestly and printed confidently.
+        #
+        # Declaring over a real trajectory is the question worth asking: given
+        # what an agent actually said, does stating the state outright beat
+        # matching it with a pattern?
+        # `teach_protocol=True`, not a hand-merged system prompt. The compiler
+        # strips protocol markup from every role on the way in -- correctly, so a
+        # user turn cannot inject a declaration -- and that includes the system
+        # message. A system prompt built by concatenating the instruction by hand
+        # arrives at the model with the tag removed and the model never sees a
+        # protocol at all.
         history: List[Dict[str, str]] = [
             {"role": "system", "content": instruction}
         ]
-        for _ in range(6):
+        for position, message in enumerate(transcript.messages):
+            role = message.get("role")
+            if role == "system":
+                history[0]["content"] = message.get("content", "") or instruction
+                continue
+            if role != "assistant":
+                history.append({"role": role, "content": message.get("content", "")})
+                continue
+
+            said = message.get("content", "")
+            history.append({"role": "assistant", "content": said})
             compiled, _telemetry = compile_messages(
                 history, schema=schema, teach_protocol=True
             )
+            # Asked for the block only, so the reply is a declaration rather than
+            # a restatement of the turn.
+            compiled = compiled + [{
+                "role": "user",
+                "content": "Emit only the <contextgc-state> block for that turn, "
+                           "or emit nothing if it changed nothing.",
+            }]
             reply = client.chat.completions.create(
                 model=model_name, messages=compiled
             ).choices[0].message.content or ""
-            history.append({"role": "assistant", "content": reply})
+            if not extract_blocks(reply):
+                continue
             recorded.append({
                 "transcript": transcript.id,
+                # The turn being declared. Shadow mode replays by this index, so
+                # it has to be the trajectory's index, not this loop's.
+                "index": position,
                 "role": "assistant",
                 "content": reply,
             })
-            if extract_blocks(reply):
-                break
 
     payload = {
         "version": CAPTURE_VERSION,
@@ -188,6 +273,7 @@ def capture(
         "transcript_path": transcript_path,
         "turns": recorded,
     }
+    payload["declarations"] = declaration_index(recorded)
     with open(out_path, "w", encoding="utf-8") as handle:
         json.dump(payload, handle, indent=2)
         handle.write("\n")
