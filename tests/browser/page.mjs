@@ -44,16 +44,10 @@ const browser = await chromium.launch();
 const page = await browser.newPage();
 const errors = [], failedReqs = [];
 page.on('pageerror', e => errors.push(String(e)));
-// Step 7 deliberately requests an unknown schema to prove it 404s; the browser
-// logs that as a console error, so it must not be counted as an unexpected one.
-const EXPECTED_404 = 'unknown schema';
-page.on('console', m => {
-  if (m.type() !== 'error') return;
-  const t = m.text();
-  if (/404 \(Not Found\)/.test(t) && m.location()?.url?.includes('/api/compile')) return;
-  errors.push(t);
-});
-page.on('requestfailed', r => { if (!EXPECTED_404) failedReqs.push(r.url()); });
+// No filtering. Every console error on the main page is unexpected, because the
+// one request that is meant to fail now happens on a separate page.
+page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
+page.on('requestfailed', r => failedReqs.push(`${r.method()} ${r.url()}`));
 page.on('requestfailed', r => failedReqs.push(`${r.method()} ${r.url()} ${r.failure()?.errorText}`));
 
 console.log('\n1. page loads');
@@ -113,15 +107,28 @@ console.log('\n6. declared/inferred provenance tags appear');
 ok(/declared|inferred/.test(withSchema), 'per-fact provenance tag rendered');
 
 console.log('\n7. unknown schema is a visible 404, not a silent empty state');
-const bad = await page.evaluate(async (base) => {
-  const r = await fetch(base + '/api/compile', {
-    method: 'POST', headers: {'Content-Type':'application/json'},
-    body: JSON.stringify({ transcript: 'user: hi', entity_schema: 'nope' })
-  });
-  return { status: r.status, body: (await r.json()).detail || '' };
-}, BASE);
-ok(bad.status === 404, 'unknown schema -> 404', `status=${bad.status}`);
-ok(/unknown schema/i.test(bad.body), 'error names the problem', bad.body.slice(0,60));
+// In its own page, on purpose. This step makes the server return 404, and the
+// browser logs that as a console error -- which used to leak into the "no page
+// errors" assertion below. Filtering the console by message text was fragile
+// enough that it passed locally and failed against the live deployment, where
+// the message is worded differently. A deliberate failure should not be
+// something other assertions have to filter around.
+{
+  const probe = await browser.newPage();
+  // Navigate first: a fetch from about:blank is cross-origin from a null origin,
+  // which the CORS policy correctly refuses.
+  await probe.goto(BASE + '/api/health', { waitUntil: 'domcontentloaded' });
+  const bad = await probe.evaluate(async (base) => {
+    const r = await fetch(base + '/api/compile', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ transcript: 'user: hi', entity_schema: 'nope' })
+    });
+    return { status: r.status, body: (await r.json()).detail || '' };
+  }, BASE);
+  ok(bad.status === 404, 'unknown schema -> 404', `status=${bad.status}`);
+  ok(/unknown schema/i.test(bad.body), 'error names the problem', bad.body.slice(0, 60));
+  await probe.close();
+}
 
 console.log('\n8. mode toggle + write-path toggle');
 await page.click('#m-cache');
@@ -141,7 +148,23 @@ ok(/contextgc-state/.test(proto), 'protocol instruction endpoint returns real te
 console.log('\n9. "load an example" picks a matching schema');
 await page.selectOption('#schem', '');
 await page.click('text=example: read path');
-await page.waitForTimeout(1200);
+// Wait for the compile to land rather than sleeping. A fixed wait passed
+// locally against localhost and failed intermittently against the deployed
+// site, where the round trip is a network call and 1.2s is a guess.
+await page.waitForFunction(
+  (previous) => {
+    const box = document.getElementById('result');
+    return box && !box.hidden && box.textContent !== previous;
+  },
+  await page.textContent('#result').catch(() => ''),
+  { timeout: 20000 }
+);
+await page.waitForFunction(
+  () => /current_file = "|cabin_class = "|destination_address = "|active_reservation = "/
+    .test(document.getElementById('result').textContent),
+  null,
+  { timeout: 20000 }
+).catch(() => {});
 const afterExample = await page.$eval('#schem', el => el.value);
 ok(afterExample !== '', 'example auto-selected a schema', `chose "${afterExample}"`);
 const exText = await page.textContent('#result');
