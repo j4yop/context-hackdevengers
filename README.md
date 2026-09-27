@@ -438,16 +438,27 @@ where it cannot be quietly forgotten.
 "It compacted 668 payloads" says nothing about *which* payloads. Measuring every
 shape in the three corpora:
 
-| payload shape | saved | compacted |
-|---|---|---|
-| top-level array of records | 93% | yes |
-| dict wrapping a list under a common key (`items`) | 82% | yes |
-| dict wrapping a list under an **unguessed** key (`results`, `flights`) | 87% / 30% | yes |
-| dict wrapping a map of records | 38% | yes |
-| dict wrapping a map of strings | 0% | no — no repeated fields to summarise |
-| a single record | 0% | no — nothing to summarise |
-| a tool **call** | 0% | no, by design |
-| text listings, test output, stack traces | 36–93% | yes |
+| payload shape | n | share of JSON bytes | saved | compacted |
+|---|---|---|---|---|
+| dict wrapping records under any key | 370 | **84%** | 56% | yes |
+| a tool **call** | 507 | 14% | 0% | no, by design |
+| a lookup map of strings | 8 | **2.5%** | 0% | no — see below |
+| text listings, test output, stack traces | — | — | 36–93% | yes |
+
+Counted over 60 airline + 80 retail conversations. The coding corpus contains
+**no JSON payloads at all** (2,976 candidates, none parse), so its compaction
+figure comes entirely from the non-JSON shapes above.
+
+**The uncovered shapes are 2.5% of the bytes, and that is deliberate.** A
+lookup map of strings — a product catalogue, a currency table — has no repeated
+fields, so there is genuinely nothing to summarise; the only way to shrink one is
+to drop entries, and a model that needed the catalogue would then be reasoning
+from a truncated one. Trading 2.5% of JSON payload bytes, about 0.4% of tokens,
+for silently discarding lookup data is the wrong side of this project's own
+rule. Earlier revisions of this table listed "dict wrapping a map of strings" as
+an uncovered *shape*; measuring it showed the 507 instances of that shape in the
+corpora are all tool calls, which are deliberately untouched, and the genuine
+case is 8 payloads.
 
 Two things that table changed.
 
