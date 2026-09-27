@@ -502,24 +502,36 @@ conversations. That is the whole of the travel schema.
 
 `benchmarks shadow` replays captured declarations. Producing a capture needs a real
 model, and one will not be invented here — a synthetic declaration set would
-measure the harness rather than the write path. The tooling is in place so it is
-one command:
+measure the harness rather than the write path. There is one committed capture at
+`captures/run1.json`, and these are the commands that produced the numbers below:
 
 ```bash
 # any OpenAI-compatible endpoint; a local ollama works and needs no key
 export CONTEXTGC_CAPTURE_BASE_URL=http://localhost:11434/v1
 export CONTEXTGC_CAPTURE_MODEL=qwen2.5:7b
-python -m benchmarks capture --transcript <file> --out captures/run1.json --schema coding
+python -m benchmarks capture --transcript benchmarks/corpus/sample.txt \
+    --out captures/run1.json --limit 6 --schema coding
 python -m benchmarks capture --verify --out captures/run1.json
-python -m benchmarks shadow --captures captures/run1.json --corpus swe-agent --schema coding
+python -m benchmarks shadow --corpus synthetic \
+    --corpus-path benchmarks/corpus/sample.txt \
+    --captures captures/run1.json --schema contextgc/schemas/coding.json
 ```
+
+Note `--corpus-path` on the shadow run. Capture and replay must come from the same
+corpus under the same id scheme; pointing shadow at the downloaded `--corpus
+swe-agent` shard instead would replay nothing while printing a clean comparison,
+so it refuses instead.
 
 The endpoint is read from the environment rather than an argument, so a key cannot
 land in a shell history or a CI log. `capture --verify` refuses a capture that
-recorded no declarations, or one that does not say which endpoint produced it —
-a capture that cannot be attributed is an anecdote, and one where the model never
-declared anything would make `shadow` report a clean comparison having measured
-nothing.
+recorded no declarations, one that does not say which endpoint produced it — a
+capture that cannot be attributed is an anecdote — and one whose declarations name
+a schema slot less than half the time.
+
+Capture is resumable and checkpoints after every turn, because a local server that
+drops on the fortieth of forty-two calls should cost one call. A capture records a
+fingerprint of everything that shapes its prompt, so a re-run after a prompt change
+starts fresh rather than quietly mixing two experiments into one file.
 
 ### Is the write path worth it? Measured, and the answer is no
 
@@ -758,6 +770,14 @@ dag = StateDAG()
 dag.register_entity_schema("order_id", [r"order (?:id |number )?([A-Z]{3}-\d+)"])
 ```
 
+**A declaration the schema cannot account for is not verifiable, whichever policy
+you pick.** `declaration_policy="reject"` drops it, which stops junk entering
+state — and also means a correct fact under an unexpected name is dropped
+silently from your point of view, visible only in `rejected_writes`. The default
+`"flag"` keeps it and tells you. Neither makes it true. On the measured capture,
+34% of declared keys named a schema slot, so most of what that model said could
+not be checked by anything in this project.
+
 **Token counts are `chars/4`, not a BPE tokenizer.** Read them as a ratio, not a
 bill. Exact numbers need `tiktoken` against your real model.
 
@@ -765,9 +785,9 @@ bill. Exact numbers need `tiktoken` against your real model.
 semantic. "What did we decide about billing?" will not find a turn that only
 contains "invoice".
 
-**Nothing here is benchmarked against real agent traces yet.** The website shows
-measurements of *your* input. This README quotes no performance percentage,
-because none has been established against an independent baseline.
+**The write-path numbers come from one 7B model on six trajectories.** They are
+the project's only real measurement of the write path, and they are a lower bound
+rather than a verdict on the design — see the section above for what bounds them.
 
 ---
 
@@ -834,6 +854,21 @@ curl -X POST localhost:8000/api/compile \
 
 Set `"teach_protocol": true` to inject the state-protocol instruction, and
 `/api/example` returns a `write_path_example` that demonstrates it.
+
+Set `"entity_schema"` to a shipped schema name to turn state tracking on, and
+`"declaration_policy"` to decide what happens when the agent declares a key that
+schema does not define:
+
+| `declaration_policy` | effect |
+|---|---|
+| `"flag"` *(default)* | keep it, report it in `telemetry.declarations.off_schema_keys` and `rejected_writes` |
+| `"reject"` | drop it, report it as dropped |
+| `"off"` | accept silently |
+
+It has no effect without `entity_schema`: an unconfigured engine has no vocabulary
+to judge a key against. Note that `"reject"` also drops a *correct* fact declared
+under an unexpected name, so read `rejected_writes` rather than assuming the drop
+was right.
 
 Accepts a plain-text transcript or a JSON message array:
 
