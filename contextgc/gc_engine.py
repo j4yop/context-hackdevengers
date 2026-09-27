@@ -635,7 +635,27 @@ class ContextGCEngine:
         if cleaned_messages:
             tail_extra = ""
             if teach_protocol:
-                instruction = render_instruction(sorted(self.dag.active_state)[:12])
+                # Name the keys the *schema* defines, not the keys already in
+                # state.
+                #
+                # This passed `sorted(self.dag.active_state)`, which is the
+                # opposite of the vocabulary: on turn 1 nothing is in state, so
+                # the model was told a `coding` schema had no keys at all, and
+                # fell back to the format example's literal placeholders. The
+                # first real capture shows the consequence -- a 7B model emitted
+                # `"assert": {"key": "tool_command", "value": "..."}`, copying
+                # `{"key":"value"}` out of the instruction as if `key` and
+                # `value` were entity names. A 14B model did it too.
+                #
+                # The schema is the definition of which keys exist. Telling the
+                # model about it is not hinting it toward a better answer; it is
+                # the one thing it cannot infer, and it is why the slot exists.
+                #
+                # Falls back to what is in state only when no schema is active,
+                # because then the keys already discovered are genuinely all the
+                # vocabulary there is.
+                vocabulary = sorted(self.schema) or sorted(self.dag.active_state)
+                instruction = render_instruction(vocabulary[:12])
                 if mode == "cache_friendly":
                     # Appending only: touching messages[0] would mutate the very
                     # prefix this mode exists to keep cacheable.

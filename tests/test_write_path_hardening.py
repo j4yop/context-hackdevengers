@@ -668,3 +668,74 @@ def test_an_unknown_declaration_policy_is_refused():
             [{"role": "user", "content": "hi"}],
             schema=CODING, declaration_policy="quietly_drop",
         )
+
+
+# ===========================================================================
+# the protocol instruction must name the schema, not what it has already found
+# ===========================================================================
+#
+# `teach_protocol` built the instruction from `sorted(self.dag.active_state)` --
+# the keys already in state. That is the opposite of a vocabulary: on turn 1
+# nothing is in state, so a model running the `coding` schema was told that
+# schema had no keys at all and fell back to the format example's placeholders.
+# The first real capture shows the consequence -- a 7B model emitted
+# `{"assert": {"key": "tool_command", "value": "..."}}`, and a 14B model did too,
+# copying `{"key":"value"}` out of the instruction as if those were entity
+# names.
+#
+# Measured on the same six trajectories, same model, only the instruction fixed:
+# the share of declarations naming a schema slot went 34% -> 87%, and the
+# placeholder keys disappeared. The write path's apparent unusability was
+# substantially this bug rather than the model's capability.
+
+def test_the_taught_instruction_names_the_schema_slots():
+    from contextgc import compile_messages, load_schema
+
+    out, _telemetry = compile_messages(
+        [{"role": "user", "content": "fix it"},
+         {"role": "assistant", "content": "I should be editing `a/b.py`."}],
+        schema=load_schema("coding"), teach_protocol=True,
+    )
+    system = out[0]["content"]
+    for slot in load_schema("coding"):
+        assert slot in system, (
+            f"the protocol instruction did not name the schema slot {slot!r}. The "
+            f"model cannot infer which keys the schema defines, and the format "
+            f"example's `key`/`value` placeholders get copied as entity names."
+        )
+    assert "Relevant keys for this domain" in system, (
+        "the vocabulary hint is missing entirely from the taught instruction"
+    )
+
+
+def test_the_taught_instruction_names_the_schema_on_the_very_first_turn():
+    """
+    The specific shape of the bug: on turn 1 `active_state` is empty, so the old
+    code produced a vocabulary of nothing. This asserts the first turn, not a
+    later one where state happens to be populated.
+    """
+    from contextgc import compile_messages, load_schema
+
+    schema = load_schema("coding")
+    out, telemetry = compile_messages(
+        [{"role": "user", "content": "fix it"}],
+        schema=schema, teach_protocol=True,
+    )
+    assert not telemetry["active_state_slots"], (
+        "the test needs the state to be empty, or it is not testing turn 1"
+    )
+    system = out[0]["content"]
+    assert "current_file" in system, (
+        "with an empty state the instruction lost the schema's vocabulary"
+    )
+
+
+def test_without_a_schema_the_taught_instruction_still_teaches_the_format():
+    from contextgc import compile_messages
+
+    out, _ = compile_messages(
+        [{"role": "user", "content": "fix it"}], teach_protocol=True,
+    )
+    system = out[0]["content"]
+    assert "<contextgc-state>" in system
+    assert "assert" in system and "revoke" in system
