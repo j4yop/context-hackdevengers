@@ -358,5 +358,6 @@
   },
   "prompts_asked": 42,
   "context_chars": 12000,
-  "context_truncated_prompts": 17
+  "context_truncated_prompts": 17,
+  "note": "qwen2.5:7b after, same trajectories. Shows the instruction fix alone moving 34% -> 87%."
 }

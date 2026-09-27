@@ -547,7 +547,10 @@ starts fresh rather than quietly mixing two experiments into one file.
 ### Is the write path worth it? Measured, and the answer is no
 
 There is now a capture, made by a real model against a real trajectory file, and it
-is committed at `captures/run1.json` so the comparison replays without a GPU.
+is committed at `captures/run1.json` so the comparison replays without a GPU. Two
+more sit beside it: the 7B run before the instruction fix, and the same run after
+it, because that pair is the evidence for the bug below rather than for the write
+path.
 
 ```bash
 python -m benchmarks capture --verify --out captures/run1.json
