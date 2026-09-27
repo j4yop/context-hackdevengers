@@ -678,10 +678,46 @@ and more insidious, reason than before. The first failure mode was caught by
 asking whether the key was in the schema. The second passes that check, which is
 why an in-schema ratio is necessary and not sufficient.
 
-The next gate is value shape, not key membership: a `failing_test` that does not
-look like a test identifier is as wrong as a `failing_test` the schema never
-mentioned. Nothing here verifies that yet, and until it does, the write path
-should be treated as unproven rather than as working.
+#### The gate that follows from it: value shape
+
+A key check is necessary and not sufficient, and the second capture proved it by
+sitting exactly on the boundary: 96% of declared keys named a real slot, and the
+values were still wrong. So a schema may now state what a *declared* value for
+each slot may look like:
+
+```json
+"values": {
+  "current_file": "[\w./-]*\.(?:py|js|ts|tsx|jsx|go|rs|java|rb|cpp|hpp)",
+  "failing_test": "(?:^|[/:\s])test_[\w./\[\]:-]+"
+}
+```
+
+`value_policy` then behaves like `declaration_policy`: `flag` keeps the value and
+reports it, `reject` drops it, `off` disables the check. A slot with no contract
+is not gated — absence is not permission to guess.
+
+Two properties were forced by measurement rather than chosen:
+
+- **Contracts are never applied to the read path's own values**, which come out
+  of the slot's pattern by construction, so gating them would be circular. A test
+  runs every contract over the corpora's extractions and fails the build on any
+  wrong rejection. It earned its place immediately: a case-sensitive contract
+  rejected **3 of 111** travel extractions the tracker produced itself, including
+  `cabin_class = "Business"`.
+- **The match is a search, not a full match, and is case-insensitive.** A strict
+  match rejects a leading `/` on an absolute path and pytest's `::` separator.
+
+Measured on the canonical 14B capture: **24 of 55** declarations are of the
+wrong shape and are reported; 31 pass. Under `reject` the 24 go and the 31 stay,
+including all the well-shaped `current_file` values.
+
+**This does not make the write path proven.** It removes a failure mode that was
+previously invisible, and the same standard applies to it as to the key gate: a
+value that satisfies its contract can still be wrong. The `failing_test` the 14B
+declared for transcript 0 was `HTTPError: 403 Forbidden`, which the contract now
+rejects — but a future model could satisfy the contract with a *plausible but
+wrong* test identifier, and nothing here would catch that. Treat the write path
+as unproven rather than as working until truth is checked against labels.
 
 #### The prompt was wrong before it was measured
 

@@ -18,5 +18,9 @@
     "transcripts": 60,
     "repos": null,
     "precision": "100% (n=72, CI 95-100%)"
+  },
+  "values": {
+    "cabin_class": "[a-z ]*(?:economy|business|first|premium)",
+    "active_reservation": "[A-Za-z0-9]{6}"
   }
 }

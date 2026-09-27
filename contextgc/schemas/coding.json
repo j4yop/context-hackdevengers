@@ -15,5 +15,9 @@
     "transcripts": 40,
     "repos": 20,
     "precision": "100% (n=36, CI 90-100%)"
+  },
+  "values": {
+    "current_file": "[\\w./-]*\\.(?:py|js|ts|tsx|jsx|go|rs|java|rb|cpp|hpp)",
+    "failing_test": "(?:^|[/:\\s])test_[\\w./\\[\\]:-]+"
   }
 }

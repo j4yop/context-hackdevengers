@@ -739,3 +739,71 @@ def test_without_a_schema_the_taught_instruction_still_teaches_the_format():
     system = out[0]["content"]
     assert "<contextgc-state>" in system
     assert "assert" in system and "revoke" in system
+
+
+# ===========================================================================
+# the value gate has to survive every entry point
+# ===========================================================================
+#
+# It worked in the library and silently did nothing through the HTTP API, twice:
+# `MessagesRequest` never gained the field, and then `_entities_for` rebuilt the
+# entities mapping by hand and dropped the contracts, so `value_policy: "reject"`
+# returned the very value it was asked to remove. Both are the failure mode this
+# project keeps meeting -- a control that exists in one path and not the others.
+
+GATE_TRANSCRIPT = (
+    'assistant: working\n'
+    '<contextgc-state>{"assert": {"failing_test": "HTTPError: 403 Forbidden",'
+    ' "current_file": "/a/b/memset.py"}}</contextgc-state>\n'
+    'user: go'
+)
+
+
+def test_the_value_gate_works_through_both_http_routes():
+    from fastapi.testclient import TestClient
+
+    from server.main import app
+
+    client = TestClient(app)
+    messages = [
+        {"role": "user", "content": "fix it"},
+        {"role": "assistant",
+         "content": 'x\n<contextgc-state>{"assert": {"failing_test": '
+                    '"HTTPError: 403 Forbidden", "current_file": "/a/b/memset.py"}}'
+                    "</contextgc-state>"},
+        {"role": "user", "content": "go"},
+    ]
+
+    for route, payload in (
+        ("/api/compile/messages", {"messages": messages}),
+        ("/api/compile", {"transcript": GATE_TRANSCRIPT}),
+    ):
+        kept = client.post(route, json={**payload, "entity_schema": "coding",
+                                        "value_policy": "flag"}).json()["telemetry"]
+        dropped = client.post(route, json={**payload, "entity_schema": "coding",
+                                           "value_policy": "reject"}).json()["telemetry"]
+        assert kept["declarations"]["value_shape_rejected"] == 1, (
+            f"{route} did not report the wrong-shaped value at all"
+        )
+        assert "failing_test" in kept["active_state_slots"], (
+            f"{route} dropped the value under 'flag'"
+        )
+        assert "failing_test" not in dropped["active_state_slots"], (
+            f"{route} kept the wrong-shaped value under 'reject' -- the contracts "
+            f"are not reaching the engine, so the gate is inert on this path"
+        )
+        assert "current_file" in dropped["active_state_slots"], (
+            f"{route} dropped the well-shaped value in the same declaration"
+        )
+
+
+def test_the_http_layer_refuses_an_unknown_value_policy():
+    from fastapi.testclient import TestClient
+
+    from server.main import app
+
+    response = TestClient(app).post(
+        "/api/compile/messages",
+        json={"messages": [{"role": "user", "content": "x"}], "value_policy": "quietly"},
+    )
+    assert response.status_code == 422

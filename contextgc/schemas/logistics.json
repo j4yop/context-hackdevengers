@@ -14,5 +14,9 @@
     "transcripts": 80,
     "repos": null,
     "precision": "100% (n=47, CI 92-100%)"
+  },
+  "values": {
+    "delivery_address": "[\\w\\s.,'/-]+",
+    "payment_method": "[\\w ]+"
   }
 }
