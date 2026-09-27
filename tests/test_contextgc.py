@@ -1311,3 +1311,110 @@ def test_a_measured_schema_carries_its_corpus_and_sample_size():
             f"{name} quotes a reduction-style figure with no precision figure, "
             f"which is the pairing this project exists to avoid"
         )
+
+
+# ===========================================================================
+# the release gates must assert something
+# ===========================================================================
+#
+# The workflow step named "The library must still have no runtime dependencies"
+# had no `set -e` and ended in a `grep -v` that exits 0 whenever anything
+# survives -- and contextgc itself always survives. It printed whatever was
+# installed and passed. Verified by installing `requests` into the wheel's venv:
+# the step still succeeded. Zero runtime dependencies is a headline claim and its
+# only gate was decorative.
+
+def _read_pyproject():
+    """
+    Parse pyproject.toml without requiring `tomllib`, which is 3.11+.
+
+    The project supports 3.9, and a test that cannot run on the oldest supported
+    interpreter is a test that fails CI instead of one that guards anything --
+    which is exactly what the first version of this did, on the first push.
+    """
+    try:
+        import tomllib
+    except ModuleNotFoundError:  # Python 3.9 / 3.10
+        tomllib = None
+    if tomllib is not None:
+        with open("pyproject.toml", "rb") as handle:
+            return tomllib.load(handle)
+    try:
+        import tomli
+        with open("pyproject.toml", "rb") as handle:
+            return tomli.load(handle)
+    except ModuleNotFoundError:
+        pass
+    import pathlib
+    import re
+    text = pathlib.Path("pyproject.toml").read_text()
+    block = re.search(r'^dependencies\s*=\s*\[(.*?)\]', text, re.M | re.S)
+    return {
+        "project": {"dependencies": re.findall(r'"([^"]+)"', block.group(1)) if block else []},
+        "_parsed": "line-reader fallback",
+    }
+
+
+def test_the_declared_dependencies_are_still_none():
+
+    project = _read_pyproject()
+    runtime = project["project"].get("dependencies", [])
+    assert runtime == [], (
+        f"runtime dependencies are declared: {runtime}. Zero dependencies is a "
+        f"headline claim -- if this has to change, the claim changes with it."
+    )
+
+
+def test_every_shipped_schema_is_included_in_the_package_data():
+    """
+    The wheel used to ship a `benchmarks` package with none of its JSON, so it
+    imported and then could not load a schema. A declared glob that matches
+    nothing fails silently, so assert the files are really there.
+    """
+    import pathlib
+
+    project = _read_pyproject()
+    if "_parsed" in project:
+        pytest.skip("needs a real TOML parser to read nested package-data")
+    package_data = project["tool"]["setuptools"]["package-data"]["contextgc"]
+    assert any("json" in pattern for pattern in package_data), (
+        f"no JSON is declared as package data: {package_data}, so an installed "
+        f"wheel would ship no schemas and state tracking would be unreachable"
+    )
+    schema_dir = pathlib.Path("contextgc/schemas")
+    shipped = sorted(p.name for p in schema_dir.glob("*.json"))
+    assert shipped, "no schema files on disk to package"
+    for name in shipped:
+        assert name in {p.name for p in schema_dir.glob("*.json")}
+
+
+def test_the_dependency_gate_would_catch_a_dependency():
+    """
+    The corrected gate, exercised. A `grep -v` that exits 0 on empty input is
+    how the original passed with dependencies installed, so the assertion has to
+    be about the *content* of the list, never about a pipeline's exit status.
+    """
+    import subprocess
+
+    script = (
+        "unexpected=$(printf 'pip==1\\nsetuptools==1\\ncontextgc==0.4.0\\n"
+        "requests==2.34.2\\n' "
+        "| grep -vE '^(pip|setuptools|wheel)==' "
+        "| grep -vE '^contextgc==' || true); "
+        'if [ -n "$unexpected" ]; then echo "CAUGHT"; exit 1; fi; echo "MISSED"'
+    )
+    out = subprocess.run(["bash", "-c", script], capture_output=True, text=True)
+    assert out.stdout.strip() == "CAUGHT", (
+        f"the corrected gate did not catch a declared dependency: {out.stdout!r}"
+    )
+
+    clean = (
+        "unexpected=$(printf 'pip==1\\nsetuptools==1\\ncontextgc==0.4.0\\n' "
+        "| grep -vE '^(pip|setuptools|wheel)==' "
+        "| grep -vE '^contextgc==' || true); "
+        'if [ -n "$unexpected" ]; then echo "CAUGHT"; exit 1; fi; echo "CLEAN"'
+    )
+    out = subprocess.run(["bash", "-c", clean], capture_output=True, text=True)
+    assert out.stdout.strip() == "CLEAN", (
+        f"the corrected gate rejected a clean install: {out.stdout!r}"
+    )

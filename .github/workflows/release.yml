@@ -92,8 +92,23 @@ jobs:
           PY
 
       - name: The library must still have no runtime dependencies
+        # This asserted nothing. It had no `set -e`, its last command was a
+        # `grep -v` that exits 0 whenever *anything* survives -- and contextgc
+        # itself always survives -- so the step printed whatever was installed
+        # and passed. Verified: with `requests` and four transitive deps in the
+        # venv, the step still succeeded. Zero runtime dependencies is the
+        # project's headline claim, and the only gate on it was decorative.
         run: |
-          /tmp/v/bin/pip list --format=freeze | grep -v '^pip==' | grep -v '^setuptools=='
+          set -euo pipefail
+          unexpected=$(/tmp/v/bin/pip list --format=freeze \
+            | grep -vE '^(pip|setuptools|wheel)==' \
+            | grep -vE '^contextgc==' || true)
+          if [ -n "$unexpected" ]; then
+            echo "::error::the wheel declares runtime dependencies:"
+            echo "$unexpected"
+            exit 1
+          fi
+          echo "no runtime dependencies beyond contextgc itself"
 
       - uses: actions/upload-artifact@v4
         with:
