@@ -1357,10 +1357,7 @@ def _read_pyproject():
 
 def test_the_declared_dependencies_are_still_none():
 
-    import tomllib
-
-    with open("pyproject.toml", "rb") as handle:
-        project = tomllib.load(handle)
+    project = _read_pyproject()
     runtime = project["project"].get("dependencies", [])
     assert runtime == [], (
         f"runtime dependencies are declared: {runtime}. Zero dependencies is a "
@@ -1376,10 +1373,9 @@ def test_every_shipped_schema_is_included_in_the_package_data():
     """
     import pathlib
 
-    import tomllib
-
-    with open("pyproject.toml", "rb") as handle:
-        project = tomllib.load(handle)
+    project = _read_pyproject()
+    if "_parsed" in project:
+        pytest.skip("needs a real TOML parser to read nested package-data")
     package_data = project["tool"]["setuptools"]["package-data"]["contextgc"]
     assert any("json" in pattern for pattern in package_data), (
         f"no JSON is declared as package data: {package_data}, so an installed "
