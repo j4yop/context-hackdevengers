@@ -28,6 +28,32 @@ All notable changes. Format follows [Keep a Changelog](https://keepachangelog.co
 | retail, payloads compacted | 275 | **275** |
 | coding, token reduction | 66.5% | 66.5% (text payloads, unaffected) |
 
+### Fixed
+
+- **The capture could not have measured anything, with or without a model.**
+  Verifying the path against a real HTTP endpoint surfaced five defects, all with
+  the same symptom — a shadow report that replayed nothing and printed a clean
+  zero:
+  1. `capture()` held its own generic conversation and merely borrowed the
+     transcript's id, so its turn indices meant nothing relative to the
+     transcript. It now walks the real trajectory and asks a model to declare
+     what each assistant turn changed.
+  2. It recorded no turn index, so every declaration was filed against turn 0 —
+     the system prompt.
+  3. The capture file's shape was incompatible with what shadow mode reads, so a
+     capture could load, validate, and replay nothing. The file now carries a
+     derived `declarations` index alongside the verbatim turns.
+  4. JSON object keys are strings while the transcript walk asks for integers, so
+     no declaration ever matched.
+  5. A capture stores what sits *between* the `<contextgc-state>` tags; replay
+     appended it untagged, which the declaration parser does not recognise.
+- **Shadow mode no longer reports a clean zero when it can replay nothing.** It
+  refuses when the capture and the corpus share no transcript ids, and warns on
+  partial overlap. Capturing from a transcript file and replaying against the
+  downloaded shard previously reported "40 compared, 0 errors, 39 agreed".
+- **`benchmarks capture` without a model now says so.** It used to surface a stack
+  trace from inside the OpenAI client, with the three ways to fix it.
+
 ### Not fixed, and stated
 
 - **The write path is still unmeasured.** No model is reachable from CI, so no

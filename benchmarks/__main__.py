@@ -202,7 +202,24 @@ def cmd_shadow(args):
             "there is nothing to compare and this command says so rather than inventing it."
         )
     with open(args.captures, encoding="utf-8") as handle:
-        captures = json.load(handle)
+        payload = json.load(handle)
+    # A capture file carries metadata and a verbatim turn list; shadow mode wants
+    # the derived index. Accept either, so a hand-written index still works.
+    captures = payload.get("declarations")
+    if captures is None:
+        captures = {
+            k: v for k, v in payload.items()
+            if isinstance(v, dict) and not k.startswith("_")
+        }
+    if not captures:
+        sys.exit(
+            f"{args.captures} holds no declarations.\n"
+            "  A capture records the <contextgc-state> blocks a real model emitted;\n"
+            "  it is produced by `benchmarks capture` and validated by\n"
+            "  `benchmarks capture --verify`."
+        )
+    print(f"captured transcripts: {len(captures)}  "
+          f"declared turns: {sum(len(v) for v in captures.values())}")
 
     transcripts = _load(args)
     summary = run_corpus(
@@ -210,6 +227,7 @@ def cmd_shadow(args):
         source_for=lambda t: replay_source(captures.get(t.id, {})),
         schema=_schema(args.schema),
         limit=args.limit,
+        captures=captures,
     )
     print(render_shadow(summary))
     return 0
