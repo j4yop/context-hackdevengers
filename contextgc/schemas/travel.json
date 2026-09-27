@@ -12,5 +12,11 @@
       "\\bunder\\s+reservation\\s+[`\\\"']?(?-i:([A-Z0-9]{6}))\\b",
       "\\breservation\\s+[`\\\"']?(?-i:([A-Z0-9]{6}))\\b\\s+(?:from|to)\\b"
     ]
+  },
+  "_measurement": {
+    "corpus": "APIGen-MT-5k, airline domain",
+    "transcripts": 60,
+    "repos": null,
+    "precision": "100% (n=72, CI 95-100%)"
   }
 }

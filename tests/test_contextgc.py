@@ -1257,3 +1257,57 @@ def test_text_payloads_still_compact():
     )
     _, b2, a2 = ToolSanitizer.distill_tool_payload(failure)
     assert a2 < b2 * 0.2, f"test output barely compacted: {b2} -> {a2}"
+
+
+# ===========================================================================
+# a schema's patterns look identical whether measured or invented
+# ===========================================================================
+#
+# `devtools` shipped describing itself as "a schema for the corpus the
+# benchmarks actually run on". No benchmark used it, and it produced zero
+# extractions across all 100 transcripts in the three corpora this project has.
+# A caller reading /api/schemas had no way to tell it apart from `coding`, whose
+# patterns were derived from a labelled sample. These pin the difference.
+
+def test_every_shipped_schema_declares_its_measurement_evidence():
+    import json
+
+    from contextgc.schemas import list_schemas, schema_path
+
+    for name in list_schemas():
+        with open(schema_path(name), encoding="utf-8") as handle:
+            raw = json.load(handle)
+        assert "_measurement" in raw, (
+            f"the {name} schema does not say whether it was ever measured. A "
+            f"schema whose patterns were invented looks exactly like one derived "
+            f"from a corpus, and that difference is the whole question."
+        )
+
+
+def test_an_unmeasured_schema_is_reported_as_unmeasured():
+    from contextgc.schemas import schema_summary
+
+    devtools = schema_summary("devtools")
+    assert devtools["measured"] is False, (
+        "devtools has never matched anything in any corpus; reporting it as "
+        "measured would be a fabricated provenance claim"
+    )
+    assert devtools["measurement"]["transcripts"] == 0
+    assert devtools["measurement"]["note"], (
+        "an unmeasured schema must say why, not merely that it is unmeasured"
+    )
+
+
+def test_a_measured_schema_carries_its_corpus_and_sample_size():
+    from contextgc.schemas import schema_summary
+
+    for name in ("coding", "travel", "logistics"):
+        summary = schema_summary(name)
+        assert summary["measured"] is True, f"{name} is measured and should say so"
+        evidence = summary["measurement"]
+        assert evidence["corpus"], f"{name} names no corpus"
+        assert evidence["transcripts"] > 0, f"{name} quotes no n"
+        assert evidence["precision"], (
+            f"{name} quotes a reduction-style figure with no precision figure, "
+            f"which is the pairing this project exists to avoid"
+        )

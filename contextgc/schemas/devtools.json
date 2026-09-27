@@ -1,5 +1,5 @@
 {
-  "_comment": "A schema for the corpus the benchmarks actually run on. Every pattern is anchored on an explicit imperative or an identifier-shaped token, which is the property the logistics patterns lacked: 'deliver to' matches prose, 'set the port to' does not.",
+  "_comment": "UNMEASURED. Every pattern here is a hypothesis about a devops domain, not a finding. Measured against the three corpora this project does have -- 40 SWE-agent coding trajectories, 60 airline and 80 retail conversations -- these four patterns produced zero extractions, so none of them has been shown to fire and none has a measured precision. Treat it as a starting point to validate against your own transcripts, not as a tuned schema. It previously described itself as 'a schema for the corpus the benchmarks actually run on', which was false: no benchmark used it.",
   "entities": {
     "target_port": [
       "\\bport (?:to|is|=|:)\\s*(\\d{2,5})\\b"
@@ -14,5 +14,12 @@
       "\\brefund (?:of|for)\\s+(\\d+)\\b"
     ]
   },
-  "__immutable__": []
+  "__immutable__": [],
+  "_measurement": {
+    "corpus": null,
+    "transcripts": 0,
+    "repos": null,
+    "precision": null,
+    "note": "Never measured. Matches nothing in any of the three corpora above (0 extractions across 100 transcripts). The patterns are hypotheses about a devops domain, not derived from one."
+  }
 }

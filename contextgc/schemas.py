@@ -68,16 +68,36 @@ def schema_summary(name: str) -> Dict[str, Any]:
     What a schema tracks, and why its patterns look the way they do.
 
     Returns the slot names plus the first line of the schema's ``_comment``, which
-    is what the website shows next to the picker.
+    is what the website shows next to the picker, and its ``_measurement`` block.
+
+    That block is the point. A schema's patterns look exactly as authoritative
+    whether they were derived from a labelled corpus or invented, and that
+    difference is the whole question: ``devtools`` shipped describing itself as
+    "a schema for the corpus the benchmarks actually run on" while no benchmark
+    used it and it matched nothing in any of the three corpora. A caller choosing
+    a schema is now told which kind of thing they are holding.
+
+    A schema with no ``_measurement`` block is reported as unmeasured rather than
+    omitted, because a missing field is not evidence either way.
     """
     with open(schema_path(name), encoding="utf-8") as handle:
         raw = json.load(handle)
     comment = str(raw.get("_comment", "")).strip()
+    evidence = raw.get("_measurement") or {}
+    transcripts = evidence.get("transcripts") or 0
     return {
         "name": name,
         "entities": sorted(raw.get("entities", {})),
         "summary": comment.split("\n")[0] if comment else "",
         "detail": comment,
+        "measured": bool(transcripts),
+        "measurement": {
+            "corpus": evidence.get("corpus"),
+            "transcripts": transcripts,
+            "repos": evidence.get("repos"),
+            "precision": evidence.get("precision"),
+            "note": evidence.get("note"),
+        },
     }
 
 

@@ -8,5 +8,11 @@
       "\\b(?:my|the|our)\\s+(?:existing\\s+|saved\\s+|current\\s+)?(gift card|gift card balance|credit card|paypal|paypal account|debit card)\\b",
       "\\b(?:pay|refund|charge|settle|use|using|process)\\w*\\s+(?:using|via|with|to|from)\\s+(?:my\\s+|the\\s+)?(gift card|credit card|paypal)\\b"
     ]
+  },
+  "_measurement": {
+    "corpus": "APIGen-MT-5k, retail domain",
+    "transcripts": 80,
+    "repos": null,
+    "precision": "100% (n=47, CI 92-100%)"
   }
 }
