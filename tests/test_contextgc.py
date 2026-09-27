@@ -1324,6 +1324,37 @@ def test_a_measured_schema_carries_its_corpus_and_sample_size():
 # the step still succeeded. Zero runtime dependencies is a headline claim and its
 # only gate was decorative.
 
+def _read_pyproject():
+    """
+    Parse pyproject.toml without requiring `tomllib`, which is 3.11+.
+
+    The project supports 3.9, and a test that cannot run on the oldest supported
+    interpreter is a test that fails CI instead of one that guards anything --
+    which is exactly what the first version of this did, on the first push.
+    """
+    try:
+        import tomllib
+    except ModuleNotFoundError:  # Python 3.9 / 3.10
+        tomllib = None
+    if tomllib is not None:
+        with open("pyproject.toml", "rb") as handle:
+            return tomllib.load(handle)
+    try:
+        import tomli
+        with open("pyproject.toml", "rb") as handle:
+            return tomli.load(handle)
+    except ModuleNotFoundError:
+        pass
+    import pathlib
+    import re
+    text = pathlib.Path("pyproject.toml").read_text()
+    block = re.search(r'^dependencies\s*=\s*\[(.*?)\]', text, re.M | re.S)
+    return {
+        "project": {"dependencies": re.findall(r'"([^"]+)"', block.group(1)) if block else []},
+        "_parsed": "line-reader fallback",
+    }
+
+
 def test_the_declared_dependencies_are_still_none():
 
     import tomllib
