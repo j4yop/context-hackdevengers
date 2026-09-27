@@ -1945,28 +1945,40 @@ def test_a_capture_from_an_older_prompt_is_not_resumed():
 # because the read path matches case-insensitively. This test is what caught it,
 # and it is the reason `flag` is safe as the default policy.
 
-SCHEMA_CORPORA = (("coding", 12), ("travel", 20), ("logistics", 20))
-
-
 def test_no_value_contract_rejects_a_value_the_read_path_produced():
-    from benchmarks.corpus import load_apigen_mt, load_swe_agent
+    """
+    The guard that makes `flag` a safe default for the value gate.
+
+    Only the JSON corpora run unconditionally. The coding shard is parquet, and
+    reading it needs pandas and pyarrow, which the plain `test` jobs do not
+    install -- so coding is included when the shard is cached (locally, and in
+    the `benchmark` job) and skipped otherwise, following the precedent already
+    set for the known-failures test. The two JSON corpora still contribute ~70
+    values in CI, which is what caught the case-sensitivity bug.
+    """
+    import os
+
+    from benchmarks.corpus import cached_shard, load_apigen_mt, load_swe_agent
     from contextgc import load_schema
+    from contextgc.client import compile_messages
     from contextgc.gc_engine import _value_matches
+
+    plan = [("travel", "airline", 20), ("logistics", "retail", 20)]
+    shard = cached_shard()
+    if shard and os.path.exists(shard):
+        plan.insert(0, ("coding", None, 12))
 
     offenders = []
     checked = 0
-    for name, _n in SCHEMA_CORPORA:
+    for name, domain, limit in plan:
         schema = load_schema(name)
         if not schema.value_contracts:
             continue
-        if name == "coding":
-            transcripts = load_swe_agent(limit=12, per_repo=1)
+        if domain is None:
+            transcripts = load_swe_agent(limit=limit, per_repo=1, path=shard)
         else:
-            transcripts = load_apigen_mt(
-                domain="airline" if name == "travel" else "retail", limit=_n
-            )
+            transcripts = load_apigen_mt(domain=domain, limit=limit)
         for transcript in transcripts:
-            from contextgc.client import compile_messages
             _, telemetry = compile_messages(transcript.messages, schema=schema)
             for slot, value in telemetry.get("active_state_slots", {}).items():
                 contract = schema.value_contracts.get(slot)
@@ -1975,7 +1987,10 @@ def test_no_value_contract_rejects_a_value_the_read_path_produced():
                 checked += 1
                 if not _value_matches(contract, str(value)):
                     offenders.append((name, slot, value))
-    assert checked > 20, f"only {checked} values checked; the corpus scan is broken"
+    assert checked > 20, (
+        f"only {checked} values checked; the corpus scan is not exercising the "
+        f"contracts, so this test is decoration"
+    )
     assert not offenders, (
         f"a value contract rejects {len(offenders)} of {checked} values the read "
         f"path produced itself: {offenders[:6]}. A contract must never be "
