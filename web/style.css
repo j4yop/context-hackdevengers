@@ -1,0 +1,277 @@
+/*
+ * contextgc — shared stylesheet.
+ *
+ * One token set and one component vocabulary for both surfaces. They were
+ * duplicated when the console and the landing page were separate documents,
+ * which is how two pages drift into looking like two products.
+ *
+ * Section order: tokens, base, chrome, console, landing.
+ */
+
+  :root {
+    --bg:#fbfbfd; --panel:#fff; --panel-2:#f7f8fa; --line:#e4e7ec;
+    --line-2:#eef0f3; --ink:#101828; --ink-2:#475467; --ink-3:#8a94a6;
+    --accent:#2f5fe0; --accent-ink:#1c3f9e; --accent-bg:#eef3ff; --on-accent:#fff;
+    --good:#0f7a52; --good-bg:#e9f7f0; --good-line:#b6e3cd;
+    --warn:#8a5a00; --warn-bg:#fdf5e4; --warn-line:#f0dcae;
+    --bad:#b42318; --bad-bg:#fdefee; --bad-line:#f5c9c4;
+    --mono:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg:#0c0d10; --panel:#14161a; --panel-2:#191c21; --line:#262a31; --line-2:#1e2127;
+      --ink:#e8eaed; --ink-2:#a8b0be; --ink-3:#8a93a3;
+      --accent:#7fa2ff; --accent-ink:#a8c0ff; --accent-bg:#16203a; --on-accent:#0b1220;
+      --good:#4ed7a0; --good-bg:#0f2620; --good-line:#1d4a3a;
+      --warn:#e8b765; --warn-bg:#2a2113; --warn-line:#4d3d1c;
+      --bad:#f28b82; --bad-bg:#2a1615; --bad-line:#4d2724;
+    }
+  }
+  * { box-sizing:border-box; }
+  /* An author `display` beats the UA stylesheet's `[hidden] { display:none }`,
+     so giving .empty a display value silently broke every `el.hidden = true` in
+     the script -- the empty state stayed on screen above a full result. */
+  [hidden] { display:none !important; }
+  body {
+    margin:0; background:var(--bg); color:var(--ink);
+    font-family:Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+    font-size:15px; line-height:1.55; -webkit-font-smoothing:antialiased;
+  }
+  .wrap { max-width:1200px; margin:0 auto; padding:0 20px; }
+  a { color:var(--accent); }
+  code, pre, .mono { font-family:var(--mono); }
+  .num { font-family:var(--mono); font-variant-numeric:tabular-nums; }
+
+
+
+  /* stretch, not start: the output panel is the point of the page, and pinned
+     to its own content height it sat as a 240px stub beside an 850px input with
+     a field of empty space under it. */
+  .grid { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1.05fr); gap:20px; align-items:stretch; }
+  .grid > .card { display:flex; flex-direction:column; }
+  .grid > .card > .body { flex:1; display:flex; flex-direction:column; }
+  /* Enough room for a register and a couple of metrics before the panel looks
+     broken, and it stops the layout jumping when the first result lands. */
+  #out .body { min-height:min(420px, 52vh); }
+  @media (max-width:940px){ .grid { grid-template-columns:1fr; } }
+
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:14px; }
+  .card > h2 { font-size:13px; text-transform:uppercase; letter-spacing:.07em; color:var(--ink-3);
+    font-weight:600; margin:0; padding:14px 18px; border-bottom:1px solid var(--line-2); }
+  .card > .body { padding:18px; }
+
+  textarea { width:100%; min-height:340px; resize:vertical; font-family:var(--mono); font-size:13px; line-height:1.6;
+    background:var(--panel-2); color:var(--ink); border:1px solid var(--line); border-radius:10px; padding:13px; }
+  textarea:focus { outline:2px solid var(--accent); outline-offset:-1px; background:var(--panel); }
+
+  .row { display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-top:12px; }
+  button { font-family:inherit; font-size:14px; font-weight:600; border-radius:9px; padding:9px 15px; cursor:pointer;
+    border:1px solid var(--line); background:var(--panel-2); color:var(--ink); }
+  button:hover:not(:disabled) { background:var(--line-2); }
+  button:disabled { opacity:.5; cursor:not-allowed; }
+  /* --on-accent, not #fff: in dark mode the accent is a light blue, and white
+     on it measured 2.5:1. A light accent in a dark theme takes dark text. */
+  button.primary { background:var(--accent); border-color:var(--accent); color:var(--on-accent); }
+  button.primary:hover:not(:disabled) { filter:brightness(1.08); }
+  button.link { background:none; border:none; color:var(--accent); padding:4px 2px; font-weight:500; font-size:13.5px; }
+  button.link:hover { background:none; text-decoration:underline; }
+  button.btn { background:var(--panel); border-color:var(--line); color:var(--ink); }
+  button.btn:hover:not(:disabled) { background:var(--panel-2); }
+
+  .seg { display:inline-flex; background:var(--panel-2); border:1px solid var(--line); border-radius:9px; padding:3px; gap:2px; }
+  .seg button { border:none; background:none; padding:5px 11px; font-size:13px; border-radius:6px; color:var(--ink-2); }
+  .seg button[aria-pressed="true"] { background:var(--panel); color:var(--ink); box-shadow:0 1px 2px rgba(16,24,40,.08); }
+
+  label.opt { font-size:12.5px; color:var(--ink-2); font-weight:600; display:block; margin:14px 0 5px; }
+  input[type=text] { width:100%; padding:8px 11px; font-family:var(--mono); font-size:13px;
+    background:var(--panel-2); border:1px solid var(--line); border-radius:9px; color:var(--ink); }
+  input[type=text]:focus { outline:2px solid var(--accent); outline-offset:-1px; }
+
+  .stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(96px,100%),1fr)); gap:1px; background:var(--line-2);
+    border:1px solid var(--line); border-radius:12px; overflow:hidden; margin-bottom:16px; }
+  /* Tabular figures must share a baseline. A label that wraps to two lines in one
+     cell and one in the next pushed the numbers onto different baselines, so the
+     row could not be read across. margin-top:auto on the value pins every value
+     to the bottom of its cell regardless of how its label wrapped. */
+  .stat { background:var(--panel); padding:13px 14px; display:flex; flex-direction:column; }
+  .stat .k { font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:var(--ink-3);
+    font-weight:600; }
+  .stat .v { font-family:var(--mono); font-size:21px; font-weight:600; margin-top:auto;
+    padding-top:3px; letter-spacing:-.02em; }
+  .stat .n { font-size:11.5px; color:var(--ink-3); margin-top:1px; }
+  .v.good { color:var(--good); } .v.accent { color:var(--accent); }
+
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  th { text-align:left; font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--ink-3);
+    font-weight:600; padding:0 8px 7px; border-bottom:1px solid var(--line-2); }
+  td { padding:8px; border-bottom:1px solid var(--line-2); vertical-align:top; }
+  tr:last-child td { border-bottom:none; }
+  td.mono, th.mono { font-family:var(--mono); font-size:12.5px; }
+  /* line-height is declared: a pill is a micro-label and wants tight leading,
+     but that should be a decision on the page, not an inherited accident. */
+  .tag { display:inline-block; font-family:var(--mono); font-size:11px; line-height:1.45;
+    font-weight:600; padding:2px 7px;
+    border-radius:999px; white-space:nowrap; max-width:100%; overflow-wrap:anywhere; }
+  .tag.imm { background:var(--good-bg); color:var(--good); border:1px solid var(--good-line); }
+  .tag.ret { background:var(--panel-2); color:var(--ink-2); border:1px solid var(--line); }
+  .tag.del { background:var(--bad-bg); color:var(--bad); border:1px solid var(--bad-line); }
+  .tag.decl { background:var(--accent-bg); color:var(--accent-ink); border:1px solid #c7d7fb; }
+  .tag.guess { background:var(--panel-2); color:var(--ink-3); border:1px dashed var(--line); }
+  .tag.warn { background:var(--warn-bg); color:var(--warn); border:1px solid var(--warn-line); }
+  .strike { text-decoration:line-through; color:var(--ink-3); }
+
+  .note { border-radius:10px; padding:11px 13px; font-size:13px; margin-bottom:12px; display:flex; gap:9px; align-items:flex-start; }
+  .note.bad { background:var(--bad-bg); border:1px solid var(--bad-line); color:var(--bad); }
+  .note.warn { background:var(--warn-bg); border:1px solid var(--warn-line); color:var(--warn); }
+  .note b { font-weight:700; }
+  .note code { font-size:12px; }
+
+  pre.out { background:var(--panel-2); border:1px solid var(--line); border-radius:10px; padding:13px;
+    font-size:12.5px; line-height:1.6; overflow-x:auto; max-height:400px; overflow-y:auto; margin:0;
+    white-space:pre-wrap; overflow-wrap:anywhere; word-break:break-word; max-width:100%; }
+  /* Long identifiers, URLs and diffs must wrap rather than widen the page. */
+  .mono, .num, td, th, p, li, label, span { overflow-wrap:anywhere; }
+  table { table-layout:fixed; width:100%; }
+  td, th { overflow-wrap:anywhere; word-break:break-word; min-width:0; }
+  td .tag { white-space:normal; }
+  header .wrap { min-width:0; }
+  nav { min-width:0; flex-wrap:wrap; }
+  .card, .card > .body, section, .stats > *, .how > * { min-width:0; }
+
+  .empty { color:var(--ink-3); font-size:13.5px; text-align:center; padding:34px 16px;
+    display:flex; flex-direction:column; align-items:center; gap:12px; justify-content:center; flex:1; }
+  .empty .btn { font-size:13.5px; padding:8px 14px; }
+  .secttl { font-size:12px; text-transform:uppercase; letter-spacing:.07em; color:var(--ink-3);
+    font-weight:600; margin:22px 0 9px; }
+  .secttl:first-child { margin-top:0; }
+
+  details { border:1px solid var(--line); border-radius:10px; padding:0; margin-top:10px; background:var(--panel); }
+  details summary { cursor:pointer; padding:10px 13px; font-size:13.5px; font-weight:600; list-style:none; }
+  details summary::-webkit-details-marker { display:none; }
+  details summary::before { content:"+ "; color:var(--ink-3); font-family:var(--mono); }
+  details[open] summary::before { content:"− "; }
+  details > div { padding:0 13px 13px; }
+
+  .how { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(250px,100%),1fr)); gap:16px; }
+  .how section { background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:20px; }
+  .how h3 { font-size:15px; margin:0 0 7px; letter-spacing:-.01em; }
+  .how p { font-size:14px; color:var(--ink-2); margin:0 0 10px; }
+  .how pre { margin:0; font-size:12.5px; }
+
+  .limits { background:var(--warn-bg); border:1px solid var(--warn-line); border-radius:14px; padding:22px; }
+  .limits h2 { margin:0 0 10px; font-size:16px; color:var(--warn); letter-spacing:-.01em; }
+  .limits ul { margin:0; padding-left:20px; color:var(--ink-2); font-size:14px; }
+  .limits li { margin-bottom:7px; }
+  .limits code { font-size:12.5px; }
+
+  .spin { display:inline-block; width:13px; height:13px; border:2px solid currentColor;
+    border-top-color:transparent; border-radius:50%; animation:sp .7s linear infinite;
+    vertical-align:-2px; opacity:.85; }
+  @keyframes sp { to { transform:rotate(360deg); } }
+  .sr { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; }
+
+  header { border-bottom:1px solid var(--line); background:var(--panel); position:sticky; top:0; z-index:20; }
+  header .wrap { display:flex; align-items:center; gap:16px; height:58px; }
+  .logo { display:flex; align-items:center; gap:9px; font-weight:700; letter-spacing:-.02em; font-size:16px;
+    color:var(--ink); text-decoration:none; }
+  .logo .mark { width:24px; height:24px; border-radius:6px; background:var(--ink); color:var(--panel);
+    display:grid; place-items:center; font-size:12px; font-weight:700; }
+  nav { margin-left:auto; display:flex; gap:4px; align-items:center; }
+  nav a { color:var(--ink-2); text-decoration:none; font-size:13.5px; font-weight:500; padding:6px 10px; border-radius:7px; }
+  /* At 390px the three links plus the wordmark wrapped the header onto two
+     rows and left the mark vertically centred against a gap. Tighter padding
+     and a smaller wordmark keep it one line without hiding anything. */
+  @media (max-width:520px) {
+    header .wrap { height:52px; gap:8px; }
+    .logo { font-size:15px; gap:7px; }
+    .logo .mark { width:22px; height:22px; font-size:11px; }
+    nav { gap:0; }
+    nav a { padding:5px 7px; font-size:12.5px; }
+  }
+  nav a:hover { background:var(--panel-2); color:var(--ink); }
+  nav a[aria-current="page"] { color:var(--ink); background:var(--panel-2); }
+
+  footer { border-top:1px solid var(--line); margin-top:56px; padding:26px 0 40px; color:var(--ink-3); font-size:13px; }
+  footer .wrap { display:flex; flex-wrap:wrap; gap:14px; align-items:center; }
+  footer a { color:var(--ink-2); text-decoration:none; } footer a:hover { text-decoration:underline; }
+
+  /* ── landing ─────────────────────────────────────────────── */
+  /* The hero carries a live before/after rather than a claim, because the
+     project's whole argument is that its numbers are measured. */
+  .hero { padding:60px 0 30px; }
+  .hero h1 { font-size:clamp(30px,5vw,50px); line-height:1.06; letter-spacing:-.033em; margin:0 0 18px;
+    font-weight:700; max-width:17ch; text-wrap:balance; }
+  .hero > p { font-size:18px; color:var(--ink-2); max-width:60ch; margin:0 0 24px; text-wrap:pretty; }
+  .cta { display:flex; flex-wrap:wrap; gap:10px; align-items:center; }
+  .cta a.btn, a.btn { display:inline-flex; align-items:center; gap:8px; font-size:15px; font-weight:600;
+    border-radius:10px; padding:11px 18px; text-decoration:none; border:1px solid var(--line);
+    background:var(--panel); color:var(--ink); }
+  .cta a.btn:hover, a.btn:hover { background:var(--panel-2); }
+  a.btn.primary { background:var(--accent); border-color:var(--accent); color:var(--on-accent); }
+  a.btn.primary:hover { background:var(--accent); filter:brightness(1.12); }
+  .install { display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-top:22px; }
+  .install code { background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:7px 11px; font-size:13.5px; }
+  .install .pill, .pill { background:var(--good-bg); border:1px solid var(--good-line); color:var(--good);
+    border-radius:999px; padding:5px 11px; font-size:12.5px; font-weight:600; }
+
+  /* The demonstration. A real transcript in, the real register out, so the
+     first screen argues instead of asserting. */
+  .demo { margin-top:34px; display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:14px; }
+  @media (max-width:860px){ .demo { grid-template-columns:1fr; } }
+  .demo figure { margin:0; background:var(--panel); border:1px solid var(--line); border-radius:14px; overflow:hidden; }
+  .demo figcaption { font-size:11.5px; text-transform:uppercase; letter-spacing:.07em; color:var(--ink-3);
+    font-weight:600; padding:11px 15px; border-bottom:1px solid var(--line-2); display:flex; gap:8px; align-items:center; }
+  .demo figcaption .arrow { color:var(--ink-3); font-family:var(--mono); }
+  .demo pre { border:0; border-radius:0; margin:0; }
+  .demo .gone { color:var(--ink-2); text-decoration:line-through;
+    text-decoration-color:var(--ink-3); }
+
+  .band { padding:52px 0 4px; }
+  .band > h2 { font-size:clamp(21px,2.6vw,27px); letter-spacing:-.028em; margin:0 0 8px; font-weight:700; text-wrap:balance; }
+  .band > .lede { font-size:16px; color:var(--ink-2); max-width:64ch; margin:0 0 22px; text-wrap:pretty; }
+
+  /* Measured results, quoted as measurements: the corpus and its n travel with
+     every figure, because a percentage without its denominator is advertising. */
+  .results { border:1px solid var(--line); border-radius:14px; overflow:hidden; background:var(--panel); }
+  .results { padding:6px; }
+  .results table { font-size:13.5px; }
+  .results th { padding:11px 15px; background:var(--panel-2); }
+  .results td { padding:11px 15px; }
+  .results td.n, .results th.n { font-family:var(--mono); font-variant-numeric:tabular-nums; text-align:right; white-space:nowrap; }
+  .results .src { color:var(--ink-3); font-size:12.5px; }
+
+  /* Six columns at 390px renders "Coding" as "Cod ing" and stacks the figures
+     one digit per line. Below 760px each corpus becomes its own block and every
+     measurement names itself, so the numbers stay readable instead of merely
+     technically present. */
+  @media (max-width:760px) {
+    .results, .results tbody, .results tr, .results td { display:block; width:auto; }
+    .results thead { display:none; }
+    .results tr { padding:15px; border-bottom:1px solid var(--line-2); }
+    .results tr:last-child { border-bottom:none; }
+    .results td { border:0; padding:3px 0; display:flex; gap:12px;
+      justify-content:space-between; align-items:baseline; }
+    .results td:first-child { display:block; padding-bottom:7px; }
+    .results td[data-label]::before { content:attr(data-label); color:var(--ink-3);
+      font-size:11.5px; text-transform:uppercase; letter-spacing:.06em; font-weight:600;
+      flex-shrink:0; }
+    .results td.n { text-align:right; }
+  }
+
+  /* Not cards. The four items differ in length by an order of magnitude, and
+     forcing them into equal boxes presents a nine-line JSON block and a
+     two-line state register as though they weighed the same. Rows separated by
+     a hairline let each be its own size while still scanning as a set. */
+  .steps { border-top:1px solid var(--line); }
+  .steps section { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1.05fr);
+    gap:14px 30px; align-items:start; padding:24px 0; border-bottom:1px solid var(--line); }
+  @media (max-width:820px){ .steps section { grid-template-columns:1fr; gap:10px; } }
+  .steps h3 { font-size:16.5px; margin:0 0 2px; letter-spacing:-.018em; max-width:22ch; }
+  .steps p { font-size:14.5px; color:var(--ink-2); margin:7px 0 0; max-width:52ch; }
+  .steps pre { margin:0; font-size:12.5px; }
+
+  .cta-band { background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:30px;
+    display:flex; flex-wrap:wrap; gap:18px; align-items:center; justify-content:space-between; }
+  .cta-band h2 { margin:0 0 6px; font-size:24px; line-height:1.35; letter-spacing:-.024em;
+    max-width:20ch; text-wrap:balance; }
+  .cta-band p { margin:0; color:var(--ink-2); font-size:14.5px; max-width:46ch; }

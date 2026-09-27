@@ -11,6 +11,11 @@ const REPO = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 
 const PORT = Number(process.env.PORT || 8914);
 const BASE = process.env.BASE || `http://localhost:${PORT}`;
+// The landing page and the console are separate documents now. `HOME` is the
+// marketing surface; `CONSOLE` is the tool. Hardcoding one and assuming they are
+// the same page is what let the console's controls outlive the split untested.
+const HOME = `${BASE}/`;
+const CONSOLE = `${BASE}/console`;
 
 /** Start the real server and wait for it to answer. */
 async function startServer() {
@@ -25,12 +30,26 @@ async function startServer() {
   for (let i = 0; i < 60; i++) {
     try {
       const r = await fetch(BASE + '/api/health');
-      if (r.ok) return { proc, log: () => log };
+      // Health alone is not enough. A server left over from an earlier run
+      // answers it, the spawn below silently loses the port race, and the whole
+      // suite then measures the *old* code -- which is how a page split shipped
+      // with /console untested and every new assertion failing for the wrong
+      // reason. Ask for something only the current code serves.
+      if (r.ok) {
+        const console = await fetch(BASE + '/console');
+        const css = await fetch(BASE + '/style.css');
+        if (console.ok && css.ok) return { proc, log: () => log };
+      }
     } catch { /* not up yet */ }
     await sleep(500);
   }
   proc.kill();
-  throw new Error('server did not start:\n' + log);
+  throw new Error(
+    'server did not start with the routes this test drives.\n' +
+    'If /console or /style.css is missing, a leftover server from an earlier run\n' +
+    'is probably holding the port:\n' +
+    '  lsof -nP -iTCP:' + PORT + ' -sTCP:LISTEN\n' + log
+  );
 }
 const fails = [];
 const ok = (cond, label, extra='') => {
@@ -50,10 +69,54 @@ page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
 page.on('requestfailed', r => failedReqs.push(`${r.method()} ${r.url()}`));
 page.on('requestfailed', r => failedReqs.push(`${r.method()} ${r.url()} ${r.failure()?.errorText}`));
 
-console.log('\n1. page loads');
-const resp = await page.goto(BASE, { waitUntil: 'networkidle' });
-ok(resp.status() === 200, 'GET / returns 200', `status=${resp.status()}`);
+console.log('\n1. the landing page and the console are separate surfaces');
+const home = await page.goto(HOME, { waitUntil: 'networkidle' });
+ok(home.status() === 200, 'GET / returns 200', `status=${home.status()}`);
 ok((await page.title()).length > 0, 'title set', await page.title());
+
+// The landing page must not be the console. Both directions: a landing page that
+// is secretly a tool is confusing, and a console link that 404s is worse.
+const homeText = await page.textContent('body');
+ok(!/Paste a transcript on the left/i.test(homeText),
+   'landing page is not the console');
+const consoleLink = await page.getAttribute('a.btn.primary', 'href');
+ok(consoleLink === '/console', 'primary CTA points at the console', String(consoleLink));
+const stylesheet = await page.evaluate(() =>
+  getComputedStyle(document.body).getPropertyValue('--accent').trim());
+ok(stylesheet !== '', 'the shared stylesheet actually applied',
+   `--accent: ${stylesheet}`);
+
+const resp = await page.goto(CONSOLE, { waitUntil: 'networkidle' });
+ok(resp.status() === 200, 'GET /console returns 200', `status=${resp.status()}`);
+ok(await page.isVisible('#src'), 'console has the input');
+ok((await page.title()).includes('Console'), 'console title says so', await page.title());
+const backLink = await page.getAttribute('header nav a[href="/"]', 'href');
+ok(backLink === '/', 'console links back to the overview');
+
+console.log('\n1b. the landing page states measurements, not adjectives');
+// A percentage with no n next to it is advertising, and this project's whole
+// argument is that it does not do that. Checked against the text a reader sees.
+const landingText = await (await fetch(HOME)).text();
+for (const [label, re] of [
+  ['coding reduction', /66\.5%/],
+  ['airline reduction', /59\.0%/],
+  ['retail reduction', /62\.5%/],
+  ['sample sizes', /40 transcripts/],
+  ['precision confidence intervals', /CI 90/],
+  ['honest write-path limit', /34% of declared keys/],
+]) ok(re.test(landingText), `landing page quotes the ${label}`);
+
+ok(!/has been benchmarked against real agent traces/i.test(landingText),
+   'the "not benchmarked yet" claim is gone -- it was false, and the numbers above refute it');
+ok(!/Nothing here is benchmarked/i.test(landingText), 'and no variant of it survives');
+
+// Every internal link must resolve. A 404 in the primary path is the one bug a
+// screenshot cannot show.
+for (const href of ['/console', '/style.css']) {
+  const r = await fetch(BASE + href);
+  ok(r.ok, `${href} resolves`, `status=${r.status}`);
+}
+
 
 console.log('\n2. schema picker is populated from /api/schemas');
 // <option> is never "visible" to Playwright, so wait on the count instead.
@@ -176,6 +239,19 @@ ok(
   exText.slice(0, 120).replace(/\s+/g, ' ')
 );
 ok(!/No state tracked/.test(exText), 'example did not fall through to an empty state');
+
+// Two defects a screenshot of the empty console could not show, both of which
+// shipped: an author `display` on .empty beat the UA stylesheet's [hidden] rule,
+// so "Paste a transcript" stayed on screen above a full result; and the stat read
+// `authority_ratio`, a telemetry field that does not exist -- the engine
+// deliberately calls it `declared_share` -- so the cell rendered "NaN%".
+const live = await page.evaluate(() => ({
+  emptyHidden: document.getElementById('empty').hidden,
+  text: document.getElementById('result').textContent,
+}));
+ok(live.emptyHidden, 'the empty state is gone once a result is rendered');
+ok(!/NaN|undefined/.test(live.text), 'no NaN or undefined leaked into a stat',
+   (live.text.match(/\S*(NaN|undefined)\S*/) || [''])[0]);
 
 console.log('\n10. responsive: no horizontal overflow at any phone width');
 // Checked in the state the previous steps leave the page in, not on a fresh
