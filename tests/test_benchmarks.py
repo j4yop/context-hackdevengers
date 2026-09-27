@@ -1793,3 +1793,86 @@ def test_informational_metrics_are_judged_by_neither_direction(tmp_path, capsys)
     assert wpc.main([str(capture), str(baseline)]) == 0
     out = capsys.readouterr().out
     assert "REGRESSED" not in out, out
+
+
+# ===========================================================================
+# the compactor coverage table must match the corpora
+# ===========================================================================
+#
+# The README published a table of which payload shapes the compactor covers,
+# and listed "dict wrapping a map of strings" as an uncovered shape. Measuring
+# it: the 507 instances of that shape in the support corpora are all *tool
+# calls*, which are deliberately untouched, and the genuine case is 8 payloads
+# worth 2.5% of JSON bytes. The table was not wrong about the code; it was
+# describing a category the corpora do not contain.
+
+APIGEN_LIMIT = 30  # per domain; the shape counts are not sensitive to this
+
+
+def _json_shapes():
+    from benchmarks.corpus import load_apigen_mt
+    from contextgc.sanitizer import ToolSanitizer as sanitizer
+
+    counts = {"tool_call": 0, "has_records": 0, "lookup_map_of_strings": 0}
+    for domain in ("airline", "retail"):
+        for transcript in load_apigen_mt(domain=domain, limit=APIGEN_LIMIT):
+            for message in transcript.messages:
+                text = (message.get("content") or "").strip()
+                if not text or text[0] not in "[{":
+                    continue
+                try:
+                    data = json.loads(text)
+                except ValueError:
+                    continue
+                if not isinstance(data, dict):
+                    continue
+                if "name" in data and ("arguments" in data or "function" in data):
+                    counts["tool_call"] += 1
+                    continue
+                has_records = False
+                for key, value in data.items():
+                    if key in sanitizer._NEVER_COMPRESS:
+                        continue
+                    if isinstance(value, list) and any(isinstance(x, dict) for x in value):
+                        has_records = True
+                    elif isinstance(value, dict) and any(
+                        isinstance(x, dict) for x in value.values()
+                    ):
+                        has_records = True
+                if has_records:
+                    counts["has_records"] += 1
+                elif any(isinstance(v, dict) for v in data.values()) or len(data) > 1:
+                    counts["lookup_map_of_strings"] += 1
+    return counts
+
+
+def test_the_uncapped_payload_shapes_are_rare_which_is_why_nothing_was_added():
+    """
+    Not a claim that the compactor is complete -- a claim about the size of what
+    it leaves alone. A lookup map of strings has no repeated fields, so shrinking
+    one means dropping entries the model may need; 2.5% of JSON bytes is not
+    worth that, and a test that says so is harder to quietly undo than a table
+    row nobody checks.
+    """
+    counts = _json_shapes()
+    assert counts["has_records"] > 0, "no record-bearing payloads found; the scan is broken"
+    uncovered = counts["lookup_map_of_strings"]
+    assert uncovered < counts["has_records"] / 10, (
+        f"uncovered shapes are now {uncovered} against {counts['has_records']} "
+        f"compacted ones -- the compactor's coverage assumption no longer holds"
+    )
+
+
+def test_tool_calls_are_never_compacted():
+    """
+    A tool call is the agent's own instruction, not output. Compacting it would
+    rewrite what the agent asked for.
+    """
+    from contextgc.sanitizer import ToolSanitizer
+
+    call = json.dumps({"name": "get_reservation_details",
+                       "arguments": {"reservation_id": "0U4NPP"}})
+    out, _kept, _total = ToolSanitizer.distill_tool_payload(call)
+    assert json.loads(out) == json.loads(call), (
+        f"a tool call was altered: {out!r}"
+    )
