@@ -169,8 +169,9 @@ repositories and every number below inherits that narrowness.
 | sample | 40 transcripts, 20 repos | 60 conversations | 80 conversations |
 | facts tracked | 39 | 72 | 47 |
 | key re-assertions | 77 | 10 | 2 |
-| token reduction | **66.5%** | **54.3%** | **52.9%** |
+| token reduction | **66.5%** | **59.0%** | **62.5%** |
 | turns retired | 161 | 9 | 2 |
+| tool payloads compacted | 668 | 138 | 275 |
 | retirement violations | 0 | 0 | 0 |
 | contexts that grew | 0 | 0 | 0 |
 | precision (independent units) | 100% (n=36, CI 90–100%) | 100% (n=72, CI 95–100%) | 100% (n=47, CI 92–100%) |
@@ -431,6 +432,40 @@ changes constantly because it means several things at once tracks nothing.
 
 So retail ships two slots, and the supersession rate stays in the schema file
 where it cannot be quietly forgotten.
+
+### What the compactor actually covers
+
+"It compacted 668 payloads" says nothing about *which* payloads. Measuring every
+shape in the three corpora:
+
+| payload shape | saved | compacted |
+|---|---|---|
+| top-level array of records | 93% | yes |
+| dict wrapping a list under a common key (`items`) | 82% | yes |
+| dict wrapping a list under an **unguessed** key (`results`, `flights`) | 87% / 30% | yes |
+| dict wrapping a map of records | 38% | yes |
+| dict wrapping a map of strings | 0% | no — no repeated fields to summarise |
+| a single record | 0% | no — nothing to summarise |
+| a tool **call** | 0% | no, by design |
+| text listings, test output, stack traces | 36–93% | yes |
+
+Two things that table changed.
+
+**The dict branch guessed key names.** It looked for a list under one of eight
+hardcoded keys — `items`, `products`, `records`, `data` and so on — and fell
+through to a flat distillation for anything else. The airline payloads wrap their
+flights under `flights` and their search results under `results`; neither is on
+the list. So **18% of airline and 27% of retail payloads went uncompressed for no
+reason other than the spelling of a key.** It now finds the largest collection
+under any key. Guessing key names is a list of tomorrow's bugs.
+
+**A tool call is not tool output.** A `function_call` turn is the agent stating
+what it did, and compressing its `arguments` would obscure the action rather than
+the output it describes. That is exempt however large it is.
+
+Corrected on the corpora: airline +10.3% and retail +18.9% of payload characters
+saved, coding unchanged because its payloads are text and the JSON branch
+correctly never fires.
 
 ### What the second domain settled about the write path
 
