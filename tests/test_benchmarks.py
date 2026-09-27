@@ -1876,3 +1876,56 @@ def test_tool_calls_are_never_compacted():
     assert json.loads(out) == json.loads(call), (
         f"a tool call was altered: {out!r}"
     )
+
+
+def test_the_fingerprint_covers_the_vocabulary_the_model_is_shown():
+    """
+    `teach_protocol` renders the slot list from the schema, so the prompt the
+    model receives is not `render_instruction()` -- it is that plus the domain's
+    keys. Hashing only the bare instruction made a real prompt change invisible:
+    fixing the vocabulary left the digest identical, so a re-run resumed, skipped
+    all 42 turns, and silently reported the pre-fix capture as the post-fix one.
+    It was caught only because the numbers came back bit-for-bit equal.
+    """
+    from benchmarks import capture as cap
+    from contextgc import load_schema, render_instruction
+
+    instruction = render_instruction()
+    coding = cap._fingerprint(instruction, load_schema("coding"), 12000)
+    travel = cap._fingerprint(instruction, load_schema("travel"), 12000)
+    assert coding != travel, (
+        "two different schemas fingerprint identically, so a capture made under "
+        "one can be resumed as though it were made under the other"
+    )
+
+
+def test_a_capture_from_an_older_prompt_is_not_resumed():
+    """
+    The concrete failure: a capture recorded at PROMPT_VERSION 2 was resumed at
+    version 3 and every turn skipped, because the resume key did not move when
+    the prompt did.
+    """
+    import json
+    import pathlib
+
+    from benchmarks import capture as cap
+    from contextgc import load_schema, render_instruction
+
+    stale = {
+        "version": cap.CAPTURE_VERSION,
+        "prompt_fingerprint": "0" * 16,
+        "endpoint": "http://localhost:11434/v1",
+        "turns": [{"transcript": "t#0", "index": 1, "content": "x"}],
+    }
+    path = pathlib.Path(cap.__file__).parent.parent / "captures" / "_stale_probe.json"
+    path.write_text(json.dumps(stale))
+    try:
+        current = cap._fingerprint(
+            render_instruction(), load_schema("coding"), 12000
+        )
+        assert cap._resume(str(path), current) == [], (
+            "a capture from a different prompt was resumed, so a re-run would "
+            "report old turns as new ones"
+        )
+    finally:
+        path.unlink(missing_ok=True)

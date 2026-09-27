@@ -558,16 +558,20 @@ python -m benchmarks shadow --corpus synthetic \
 
 | | |
 |---|---|
-| model | `qwen2.5:7b` (Q4_K_M), local, via ollama |
+| model | `qwen2.5:14b` (Q4_K_M), local, via ollama |
 | transcripts | 6 real SWE-agent trajectories, 42 assistant turns |
-| turns where the model emitted a state block | 38 / 42 (90%) |
-| blocks that were not valid JSON | 7 / 38 (18%) |
-| declared keys naming a schema slot | 10 / 29 (**34%**) |
-| **keys the declaration added** | **19** |
-| — of those, in the schema | **0** |
-| — of those, outside it | **19** |
-| **keys the declaration changed** | **0** |
-| keys the declaration agreed with | 4 |
+| turns where the model emitted a state block | 42 / 42 (**100%**) |
+| blocks that were not valid JSON | **0** |
+| declared keys naming a schema slot | 53 / 55 (**96%**) |
+| **keys the declaration added** | **9** |
+| — of those, in the schema | **7** |
+| — of those, outside it | 2 |
+| **keys the declaration changed** | **4** |
+| keys the declaration agreed with | 1 |
+
+The first run of this used `qwen2.5:7b` and produced 34% in-schema, 19 off-schema
+additions and no verified information at all. That number was a bug in the
+instruction, not a property of the model — see below. Both captures are kept.
 
 **Every one of the 19 added keys was outside the schema.** Not one was a
 `current_file` or a `failing_test`. The 4 agreements were all `current_file`, and
@@ -611,40 +615,70 @@ path accepted out-of-schema keys without complaint. The 19 junk keys were not
 filtered, not flagged and not counted as a problem — they were `added`, which is
 the metric that flatters the write path.
 
-#### What changed in response
+#### A second model, and a bug the first one was blaming
 
-`declaration_policy` on the engine and on `compile_messages`:
+`qwen2.5:14b` was captured on the same six trajectories, and the first
+comparison said the 34% in-schema rate was not a model-size artifact — 14b
+scored 40%. That reading was wrong, and finding out why mattered more than the
+number.
 
-| policy | an off-schema declared key |
+`teach_protocol` built the protocol instruction from `sorted(self.dag.active_state)`
+— the keys **already in state**. On turn 1 nothing is in state, so a model
+running the `coding` schema was told that schema had **no keys at all**, and fell
+back to the format example's placeholders. Both models had been copying
+`{"key":"value"}` out of the instruction as if `key` and `value` were entity
+names. The schema is the definition of which keys exist; telling the model about
+it is not hinting it toward an answer, it is the one thing it cannot infer.
+
+Fixed, and re-measured on the same trajectories:
+
+| | 7b before | 7b after | 14b after |
+|---|---|---|---|
+| compliance | 90% | 93% | **100%** |
+| malformed blocks | 7 | 4 | **0** |
+| declared keys | 29 | 39 | 55 |
+| keys naming a schema slot | 10 | 34 | **53** |
+| **in-schema share** | 34% | **87%** | **96%** |
+
+So the vocabulary bug was the dominant factor and the model size a real but
+smaller increment on top of it.
+
+#### Why the ratio is not the answer
+
+96% in-schema looks like a working write path. Adjudicating what it actually
+produced says otherwise.
+
+| 14b, shadow replay | count |
 |---|---|
-| `"flag"` *(default)* | kept, and reported in `telemetry.rejected_writes` and `declarations.off_schema_keys` |
-| `"reject"` | dropped, and reported as dropped |
-| `"off"` | accepted silently, as before |
+| keys added, in schema | 7 |
+| keys changed (disagreed with the read path) | 4 |
+| keys agreed | 1 |
+| keys added, off schema | 2 |
 
-There is deliberately no silent option, and the default is not `reject`.
+**Every one of the 7 in-schema additions is a value of the wrong shape.** Three
+are the literal string `None`. The rest are error messages and a method name
+placed in `failing_test`, whose patterns are supposed to yield a test
+identifier: `HTTPError: 403 Forbidden`, `SyntaxError: '(' was never closed`,
+`mocking_memset_api_response`. The model stopped inventing *keys* and started
+inventing *values shaped to look like keys*.
 
-**Why not a hard gate on schema membership.** A first cut that refused every key
-absent from the schema would have broken two load-bearing things.
-`dietary_allergy` and `security_invariant` are protected *because* they carry no
-patterns — a caller opts into that safety by naming the key, so refusing
-schema-less keys refuses the safety mechanism. And in customer-service
-transcripts 82–99% of every mutable entity's mention lives in tool output, which
-the read path may not read; an agent supplying a `payment_method` the travel
-schema cannot define is the write path working, not hallucinating. The gate
-therefore admits the schema's keys, the structural guardrails, and anything
-registered on the dag, and leaves the rest to the policy.
+And one of the 4 changes is a genuine regression. In transcript 5 the agent
+worked through `memset.py` and had moved on to `cli.py`; the read path's final
+`current_file` is `lexicon/cli.py`, and the declaration moved it **back** to
+`lexicon/lexicon/providers/memset.py`. Sending the model a file the agent has
+already left is precisely the failure this project exists to prevent. The other
+three are benign — the read path says `memset.py`, the declaration says the full
+path, and both name the same file.
 
-**Why `flag` is the default.** With a measured 34% in-schema rate on a 7B model,
-`reject` is the right setting *for that model* — and applying it to a good model
-would discard correct declarations that merely use an unexpected name. So the
-default keeps the fact, because a pattern-based tracker structurally cannot see
-machine-output facts, and makes the problem visible instead. Choose `reject` per
-deployment, once you know which model you are running.
+**Net verified information from the write path: still zero.** For a different,
+and more insidious, reason than before. The first failure mode was caught by
+asking whether the key was in the schema. The second passes that check, which is
+why an in-schema ratio is necessary and not sufficient.
 
-The gate runs **before** inference is told which keys are already accounted for.
-That ordering is load-bearing: had `current_file_lines` been allowed to mark
-itself as covering the file, the read path would have skipped `current_file` — the
-key it could actually have found — because the model used a longer name.
+The next gate is value shape, not key membership: a `failing_test` that does not
+look like a test identifier is as wrong as a `failing_test` the schema never
+mentioned. Nothing here verifies that yet, and until it does, the write path
+should be treated as unproven rather than as working.
 
 #### The prompt was wrong before it was measured
 
@@ -785,9 +819,15 @@ dag.register_entity_schema("order_id", [r"order (?:id |number )?([A-Z]{3}-\d+)"]
 you pick.** `declaration_policy="reject"` drops it, which stops junk entering
 state — and also means a correct fact under an unexpected name is dropped
 silently from your point of view, visible only in `rejected_writes`. The default
-`"flag"` keeps it and tells you. Neither makes it true. On the measured capture,
-34% of declared keys named a schema slot, so most of what that model said could
-not be checked by anything in this project.
+`"flag"` keeps it and tells you. Neither makes it true.
+
+And the stronger version of the same warning: even a declaration that *is* in the
+schema may be unverifiable. On the 14B capture 96% of declared keys named a real
+slot and every one of the resulting additions was a value of the wrong shape —
+three literal `None`s, and error messages where a test identifier belongs. A key
+check catches an invented key; nothing here yet catches an invented value. Treat
+the write path as unproven rather than as working until value shape is checked
+too.
 
 **Token counts are `chars/4`, not a BPE tokenizer.** Read them as a ratio, not a
 bill. Exact numbers need `tiktoken` against your real model.

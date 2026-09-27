@@ -1,0 +1,69 @@
+  [1/6] swe-agent-trajectories (vendored slice):0 (13893 chars)
+      turn  1  declared  (67 chars, window 2 msgs)
+      turn  3  declared  (109 chars, window 4 msgs)
+      turn  5  declared  (124 chars, window 6 msgs)
+      turn  7  declared  (74 chars, window 8 msgs)
+      turn  9  declared  (100 chars, window 10 msgs)
+      turn 11  declared  (82 chars, window 12 msgs)
+      turn 13  declared  (145 chars, window 13 msgs)
+  [2/6] swe-agent-trajectories (vendored slice):1 (24065 chars)
+      turn  1  declared  (67 chars, window 2 msgs)
+      turn  3  declared  (263 chars, window 4 msgs)
+      turn  5  declared  (189 chars, window 5 msgs)
+      turn  7  declared  (134 chars, window 5 msgs)
+      turn  9  declared  (101 chars, window 5 msgs)
+      turn 11  declared  (166 chars, window 7 msgs)
+      turn 13  declared  (100 chars, window 7 msgs)
+  [3/6] swe-agent-trajectories (vendored slice):2 (30869 chars)
+      turn  1  declared  (67 chars, window 2 msgs)
+      turn  3  declared  (200 chars, window 4 msgs)
+      turn  5  declared  (74 chars, window 5 msgs)
+      turn  7  declared  (171 chars, window 3 msgs)
+      turn  9  declared  (156 chars, window 3 msgs)
+      turn 11  declared  (69 chars, window 3 msgs)
+      turn 13  declared  (130 chars, window 5 msgs)
+  [4/6] swe-agent-trajectories (vendored slice):3 (7248 chars)
+      turn  1  declared  (107 chars, window 2 msgs)
+      turn  3  declared  (76 chars, window 4 msgs)
+      turn  5  declared  (76 chars, window 6 msgs)
+      turn  7  declared  (76 chars, window 8 msgs)
+      turn  9  declared  (76 chars, window 10 msgs)
+      turn 11  declared  (67 chars, window 12 msgs)
+      turn 13  declared  (67 chars, window 14 msgs)
+  [5/6] swe-agent-trajectories (vendored slice):4 (10742 chars)
+      turn  1  declared  (107 chars, window 2 msgs)
+      turn  3  declared  (233 chars, window 4 msgs)
+      turn  5  declared  (187 chars, window 6 msgs)
+      turn  7  declared  (77 chars, window 8 msgs)
+      turn  9  declared  (77 chars, window 10 msgs)
+      turn 11  declared  (74 chars, window 12 msgs)
+      turn 13  declared  (77 chars, window 13 msgs)
+  [6/6] swe-agent-trajectories (vendored slice):5 (32637 chars)
+      turn  1  declared  (67 chars, window 2 msgs)
+      turn  3  declared  (203 chars, window 4 msgs)
+      turn  5  declared  (207 chars, window 5 msgs)
+      turn  7  declared  (164 chars, window 3 msgs)
+      turn  9  declared  (97 chars, window 3 msgs)
+      turn 11  declared  (140 chars, window 4 msgs)
+      turn 13  declared  (67 chars, window 4 msgs)
+
+  42 turns captured (42 declared, 0 silent), 17 prompts truncated, wrote captures/14b.json
+------------------------------------------------------------------------------
+CAPTURE
+  endpoint             http://localhost:11434/v1
+  model                qwen2.5:14b
+  schema               coding
+  turns recorded       42
+  state blocks         42
+  malformed blocks     0
+  turns that declared  42  (100% of turns)
+  keys declared        55
+  naming a schema key  53  (96% of declared keys)
+  keys declared:
+    current_file                 31
+    failing_test                 22
+    auth_token                   1
+    credentials                  1
+
+
+written -> captures/14b.json

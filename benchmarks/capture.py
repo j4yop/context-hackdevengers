@@ -37,7 +37,7 @@ CAPTURE_VERSION = 1
 #: prompts, and nothing in it would say so. The first real capture (42 turns) was
 #: invalidated this way, when the protocol stopped being taught twice and the
 #: stale turns were silently carried forward.
-PROMPT_VERSION = 2
+PROMPT_VERSION = 3
 
 #: Asked for the block only, so the reply is a declaration rather than a
 #: restatement of the turn.
@@ -319,10 +319,19 @@ def _fingerprint(
     together from turns asked under different instructions, schemas or context
     budgets.
     """
+    # The instruction is hashed *with* the schema's vocabulary, because that is
+    # the text the model is actually shown. Hashing the bare instruction missed
+    # a real change: `teach_protocol` renders the slot list from the schema, so
+    # fixing that made the prompt materially different while the digest stayed
+    # the same. A re-run then resumed, skipped all 42 turns, and silently left
+    # the pre-fix capture in place -- reported as "14b after" and numerically
+    # identical to "14b before", which is what finally gave it away.
+    vocabulary = sorted(schema) if isinstance(schema, dict) else []
     material = json.dumps(
         {
             "prompt_version": PROMPT_VERSION,
             "instruction": instruction,
+            "vocabulary": vocabulary,
             "ask": _ASK,
             "schema": schema,
             "context_chars": context_chars,

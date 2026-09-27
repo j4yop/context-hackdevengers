@@ -212,12 +212,11 @@ SAFETY-FLAGGED ROWS RETAINED: [{"name":
         tracked. Missed extraction is the main failure mode: the state is silently
         incomplete rather than loudly wrong. Extend it with
         <code>StateDAG.register_entity_schema()</code>.</li>
-        <li><b>The write path depends on the model cooperating.</b> Measured against
-        <code>qwen2.5:7b</code> on 6 real trajectories, 34% of declared keys named a
-        schema slot and the rest were keys nothing could check. Compliance was 90% &mdash;
-        which is not the same as being right. Set
-        <code>declaration_policy: "reject"</code> to drop what the schema cannot account
-        for.</li>
+        <li><b>The write path is unproven, not working.</b> On 6 real trajectories a
+        14B model names a schema slot 96% of the time and emits well-formed JSON every
+        turn &mdash; and every resulting addition is still a value of the wrong shape:
+        three literal <code>None</code>s, and error messages where a test identifier
+        belongs. Checking the key is not checking the value.</li>
         <li><b>Token counts are <code>chars/4</code>, not a BPE tokenizer.</b> Read them
         as a ratio, not a bill. Exact figures need <code>tiktoken</code> against your
         model.</li>

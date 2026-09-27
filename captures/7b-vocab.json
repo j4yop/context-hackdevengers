@@ -1,0 +1,362 @@
+{
+  "version": 1,
+  "endpoint": "http://localhost:11434/v1",
+  "model": "qwen2.5:7b",
+  "transcript_path": "benchmarks/corpus/sample.txt",
+  "schema": "coding",
+  "legacy_prompt": false,
+  "prompt_fingerprint": "eea43768e738103e",
+  "prompt_version": 2,
+  "turns": [
+    {
+      "transcript": "swe-agent-trajectories (vendored slice):0",
+      "index": 1,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"current_file\":\"lexicon memset create example.com TXT --name _acme-challenge.example.com --content BLAH --ttl 300\",\"failing_test\":\"ToolError: TypeError: string indices must be integers\"}</contextgc-state>"
+    },
+    {
+      "transcript": "swe-agent-trajectories (vendored slice):0",
+      "index": 3,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"current_file\":\"memset.py\"}</contextgc-state>"
+    },
+    {
+      "transcript": "swe-agent-trajectories (vendored slice):0",
+      "index": 5,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"current_file\":\"memset.py\"}</contextgc-state>"
+    },
+    {
+      "transcript": "swe-agent-trajectories (vendored slice):0",
+      "index": 7,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"current_file\":\"lexicon/memset.py\"}</contextgc-state>"
+    },
+    {
+      "transcript": "swe-agent-trajectories (vendored slice):0",
+      "index": 9,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"assert\":{\"current_file\":\"lexicon/lexicon/providers/memset.py\",\"turn\":12}}</contextgc-state>"
+    },
+    {
+      "transcript": "swe-agent-trajectories (vendored slice):0",
+      "index": 11,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"current_file\":\"memset.py\"}</contextgc-state>"
+    },
+    {
+      "transcript": "swe-agent-trajectories (vendored slice):0",
+      "index": 13,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"current_file\":\"lexicon/providers/memset.py\",\"revoke\":[\"failing_test\"]}</contextgc-state>\n\nThis indicates that the `failing_test` key was revoked since the previous turn, as the test was successfully resolved. No other keys changed."
+    },
+    {
+      "transcript": "swe-agent-trajectories (vendored slice):1",
+      "index": 1,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"assert\":{\"current_file\":\"script.py:123\",\"failing_test\":\"lexicon memset create example.com TXT --name _acme-challenge.example.com --content BLAH --ttl 300 --raises TypeError: string indices must be integers\"}}</contextgc-state>"
+    },
+    {
+      "transcript": "swe-agent-trajectories (vendored slice):1",
+      "index": 3,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"current_file\":\"memset.py\",\"failing_test\":\"lexicon memset create example.com TXT --name _acme-challenge.example.com --content BLAH --ttl 300\"}</contextgc-state>"
+    },
+    {
+      "transcript": "swe-agent-trajectories (vendored slice):1",
+      "index": 5,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"assert\":{\"current_file\":\"memset.py\",\"line_144_action\":\"raised_for_status\"}} </contextgc-state>"
+    },
+    {
+      "transcript": "swe-agent-trajectories (vendored slice):1",
+      "index": 7,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"assert\":{\"current_file\":\"memset.py\",\"line_to_check\":138,\"auth_token\":\"<unspecified>\"}}</contextgc-state>"
+    },
+    {
+      "transcript": "swe-agent-trajectories (vendored slice):1",
+      "index": 9,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"assert\":{\"current_file\":\"memset.py\",\"failing_test\":\"API request fails with 403 Forbidden\"}} </contextgc-state>"
+    },
+    {
+      "transcript": "swe-agent-trajectories (vendored slice):1",
+      "index": 11,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"assert\":{\"current_file\":\"/lexicon/lexicon/providers/memset.py\"},\"pin\":{\"failing_test\":\"403 Forbidden response\"}} </contextgc-state>"
+    },
+    {
+      "transcript": "swe-agent-trajectories (vendored slice):1",
+      "index": 13,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"assert\":{\"current_file\":\"/lexicon/lexicon/providers/memset.py\",\"failing_test\":\"SyntaxError: '(' was never closed\"}}</contextgc-state>"
+    },
+    {
+      "transcript": "swe-agent-trajectories (vendored slice):2",
+      "index": 1,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"assert\":{\"current_file\":\"lexicon memset create example.com TXT --name _acme-challenge.example.com --content BLAH --ttl 300\"},\"failing_test\":\"ToolError: TypeError: string indices must be integers\"}</contextgc-state>"
+    },
+    {
+      "transcript": "swe-agent-trajectories (vendored slice):2",
+      "index": 3,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"current_file\":\"memset.py\"}</contextgc-state>"
+    },
+    {
+      "transcript": "swe-agent-trajectories (vendored slice):2",
+      "index": 5,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"assert\":{\"current_file\":\"memset.py\",\"line_to_inspect\":102}}</contextgc-state>"
+    },
+    {
+      "transcript": "swe-agent-trajectories (vendored slice):2",
+      "index": 7,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"assert\":{\"current_file\":\"/lexicon/lexicon/providers/memset.py\",\"failing_test\":\"_get method in BaseProvider class is not properly handling the authentication for the Memset API.\"}}</contextgc-state>"
+    },
+    {
+      "transcript": "swe-agent-trajectories (vendored slice):2",
+      "index": 9,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"assert\":{\"current_file\":\"/lexicon/lexicon/providers/memset.py\"},\"pin\":{\"failing_test\":\"Auth error\"}}}</contextgc-state>"
+    },
+    {
+      "transcript": "swe-agent-trajectories (vendored slice):2",
+      "index": 11,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"assert\":{\"current_file\":\"/lexicon/lexicon/providers/memset.py\"},\"pin\":{\"failing_test\":\"auth_token_not_set_properly_in_request_header_due_to_changes_in_code_format_specified_in_previous_turns\"}}</contextgc-state>"
+    },
+    {
+      "transcript": "swe-agent-trajectories (vendored slice):2",
+      "index": 13,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"assert\":{\"current_file\":\"/lexicon/lexicon/providers/memset.py\",\"failing_test\":\"lexicon memset create example.com TXT --name _acme-challenge.example.com --content BLAH --ttl 300\"}}</contextgc-state>"
+    },
+    {
+      "transcript": "swe-agent-trajectories (vendored slice):3",
+      "index": 1,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"assert\":{\"current_file\":\"__main__.py\",\"failing_test\":\"TypeError: string indices must be integers\"}}</contextgc-state>"
+    },
+    {
+      "transcript": "swe-agent-trajectories (vendored slice):3",
+      "index": 3,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"revoke\":\"current_file\"}</contextgc-state>"
+    },
+    {
+      "transcript": "swe-agent-trajectories (vendored slice):3",
+      "index": 5,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"revoke\":\"current_file\",\"assert\":\"src:__main__.py\"}</contextgc-state>"
+    },
+    {
+      "transcript": "swe-agent-trajectories (vendored slice):3",
+      "index": 7,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"revoke\":{\"current_file\":\"__main__.py\"}}</contextgc-state>"
+    },
+    {
+      "transcript": "swe-agent-trajectories (vendored slice):3",
+      "index": 9,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"revoke\":\"current_file\"}</contextgc-state>"
+    },
+    {
+      "transcript": "swe-agent-trajectories (vendored slice):3",
+      "index": 11,
+      "role": "assistant",
+      "declared": false,
+      "content": "<spanxml-state>{\"revoke\":[\"current_file\"]}</spanxml-state>"
+    },
+    {
+      "transcript": "swe-agent-trajectories (vendored slice):3",
+      "index": 13,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"revoke\":[\"current_file\"]}</contextgc-state>"
+    },
+    {
+      "transcript": "swe-agent-trajectories (vendored slice):4",
+      "index": 1,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"current_file\":\"lexicon memset create example.com TXT --name _acme-challenge.example.com --content BLAH --ttl 300\"}</contextgc-state>"
+    },
+    {
+      "transcript": "swe-agent-trajectories (vendored slice):4",
+      "index": 3,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"current_file\":\"reproduce.py\"}</contextgc-state>"
+    },
+    {
+      "transcript": "swe-agent-trajectories (vendored slice):4",
+      "index": 5,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"current_file\":\"reproduce.py\"}</contextgc-state>"
+    },
+    {
+      "transcript": "swe-agent-trajectories (vendored slice):4",
+      "index": 7,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"assert\":{\"current_file\":\"reproduce.py\",\"failing_test\":\"python reproduce.py\"}}</contextgc-state>"
+    },
+    {
+      "transcript": "swe-agent-trajectories (vendored slice):4",
+      "index": 9,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"assert\":{\"current_file\":\"reproduce.py\",\"failing_test\":\"ApiErrorForbidden\"}}</contextgc-state>"
+    },
+    {
+      "transcript": "swe-agent-trajectories (vendored slice):4",
+      "index": 11,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"assert\":{\"current_file\":\"reproduce.py\"},\"revoke\":[\"failing_test\"]}</contextgc-state>"
+    },
+    {
+      "transcript": "swe-agent-trajectories (vendored slice):4",
+      "index": 13,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"assert\":{\"current_file\":\"reproduce.py\"},\"revoke\":[\"failing_test\"]}</contextgc-state>"
+    },
+    {
+      "transcript": "swe-agent-trajectories (vendored slice):5",
+      "index": 1,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"assert\":{\"current_file\":\"memset create example.com TXT --name _acme-challenge.example.com --content BLAH --ttl 300\",\"failing_test\":\"ToolError: TypeError: string indices must be integers\"}}</contextgc-state>"
+    },
+    {
+      "transcript": "swe-agent-trajectories (vendored slice):5",
+      "index": 3,
+      "role": "assistant",
+      "declared": false,
+      "content": "\"contextgc-state{\"assert\":{\"current_file\":\"lexicon/providers/memset.py\"},\"revoke\":[\"failing_test\"]}</contextgc-state>"
+    },
+    {
+      "transcript": "swe-agent-trajectories (vendored slice):5",
+      "index": 5,
+      "role": "assistant",
+      "declared": false,
+      "content": "<sectiongc-state>{\"assert\":{\"current_file\":\"/lexicon/providers/memset.py\"},\"revoke\":[\"failing_test\"]}</sectiongc-state>"
+    },
+    {
+      "transcript": "swe-agent-trajectories (vendored slice):5",
+      "index": 7,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"assert\":{\"current_file\":\"/lexicon/lexicon/providers/memset.py\"},\"revoke\":{\"failing_test\":\"memset.py authentication error - forbidden API request\"}}</contextgc-state>"
+    },
+    {
+      "transcript": "swe-agent-trajectories (vendored slice):5",
+      "index": 9,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"assert\":{\"current_file\":\"lexicon/cli.py\"},\"revoke\":[\"asserting_base_provider\"]}</contextgc-state>"
+    },
+    {
+      "transcript": "swe-agent-trajectories (vendored slice):5",
+      "index": 11,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"assert\":{\"current_file\":\"lexicon/providers/memset.py\",\"failing_test\":\"string indices must be integers\"}}</contextgc-state>"
+    },
+    {
+      "transcript": "swe-agent-trajectories (vendored slice):5",
+      "index": 13,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"assert\":{\"current_file\":\"cli.py\",\"failing_test\":\"handle_output\"}}</contextgc-state>"
+    }
+  ],
+  "declarations": {
+    "swe-agent-trajectories (vendored slice):0": {
+      "1": "{\"current_file\":\"lexicon memset create example.com TXT --name _acme-challenge.example.com --content BLAH --ttl 300\",\"failing_test\":\"ToolError: TypeError: string indices must be integers\"}",
+      "3": "{\"current_file\":\"memset.py\"}",
+      "5": "{\"current_file\":\"memset.py\"}",
+      "7": "{\"current_file\":\"lexicon/memset.py\"}",
+      "9": "{\"assert\":{\"current_file\":\"lexicon/lexicon/providers/memset.py\",\"turn\":12}}",
+      "11": "{\"current_file\":\"memset.py\"}",
+      "13": "{\"current_file\":\"lexicon/providers/memset.py\",\"revoke\":[\"failing_test\"]}"
+    },
+    "swe-agent-trajectories (vendored slice):1": {
+      "1": "{\"assert\":{\"current_file\":\"script.py:123\",\"failing_test\":\"lexicon memset create example.com TXT --name _acme-challenge.example.com --content BLAH --ttl 300 --raises TypeError: string indices must be integers\"}}",
+      "3": "{\"current_file\":\"memset.py\",\"failing_test\":\"lexicon memset create example.com TXT --name _acme-challenge.example.com --content BLAH --ttl 300\"}",
+      "5": "{\"assert\":{\"current_file\":\"memset.py\",\"line_144_action\":\"raised_for_status\"}}",
+      "7": "{\"assert\":{\"current_file\":\"memset.py\",\"line_to_check\":138,\"auth_token\":\"<unspecified>\"}}",
+      "9": "{\"assert\":{\"current_file\":\"memset.py\",\"failing_test\":\"API request fails with 403 Forbidden\"}}",
+      "11": "{\"assert\":{\"current_file\":\"/lexicon/lexicon/providers/memset.py\"},\"pin\":{\"failing_test\":\"403 Forbidden response\"}}",
+      "13": "{\"assert\":{\"current_file\":\"/lexicon/lexicon/providers/memset.py\",\"failing_test\":\"SyntaxError: '(' was never closed\"}}"
+    },
+    "swe-agent-trajectories (vendored slice):2": {
+      "1": "{\"assert\":{\"current_file\":\"lexicon memset create example.com TXT --name _acme-challenge.example.com --content BLAH --ttl 300\"},\"failing_test\":\"ToolError: TypeError: string indices must be integers\"}",
+      "3": "{\"current_file\":\"memset.py\"}",
+      "5": "{\"assert\":{\"current_file\":\"memset.py\",\"line_to_inspect\":102}}",
+      "7": "{\"assert\":{\"current_file\":\"/lexicon/lexicon/providers/memset.py\",\"failing_test\":\"_get method in BaseProvider class is not properly handling the authentication for the Memset API.\"}}",
+      "9": "{\"assert\":{\"current_file\":\"/lexicon/lexicon/providers/memset.py\"},\"pin\":{\"failing_test\":\"Auth error\"}}}",
+      "11": "{\"assert\":{\"current_file\":\"/lexicon/lexicon/providers/memset.py\"},\"pin\":{\"failing_test\":\"auth_token_not_set_properly_in_request_header_due_to_changes_in_code_format_specified_in_previous_turns\"}}",
+      "13": "{\"assert\":{\"current_file\":\"/lexicon/lexicon/providers/memset.py\",\"failing_test\":\"lexicon memset create example.com TXT --name _acme-challenge.example.com --content BLAH --ttl 300\"}}"
+    },
+    "swe-agent-trajectories (vendored slice):3": {
+      "1": "{\"assert\":{\"current_file\":\"__main__.py\",\"failing_test\":\"TypeError: string indices must be integers\"}}",
+      "3": "{\"revoke\":\"current_file\"}",
+      "5": "{\"revoke\":\"current_file\",\"assert\":\"src:__main__.py\"}",
+      "7": "{\"revoke\":{\"current_file\":\"__main__.py\"}}",
+      "9": "{\"revoke\":\"current_file\"}",
+      "13": "{\"revoke\":[\"current_file\"]}"
+    },
+    "swe-agent-trajectories (vendored slice):4": {
+      "1": "{\"current_file\":\"lexicon memset create example.com TXT --name _acme-challenge.example.com --content BLAH --ttl 300\"}",
+      "3": "{\"current_file\":\"reproduce.py\"}",
+      "5": "{\"current_file\":\"reproduce.py\"}",
+      "7": "{\"assert\":{\"current_file\":\"reproduce.py\",\"failing_test\":\"python reproduce.py\"}}",
+      "9": "{\"assert\":{\"current_file\":\"reproduce.py\",\"failing_test\":\"ApiErrorForbidden\"}}",
+      "11": "{\"assert\":{\"current_file\":\"reproduce.py\"},\"revoke\":[\"failing_test\"]}",
+      "13": "{\"assert\":{\"current_file\":\"reproduce.py\"},\"revoke\":[\"failing_test\"]}"
+    },
+    "swe-agent-trajectories (vendored slice):5": {
+      "1": "{\"assert\":{\"current_file\":\"memset create example.com TXT --name _acme-challenge.example.com --content BLAH --ttl 300\",\"failing_test\":\"ToolError: TypeError: string indices must be integers\"}}",
+      "7": "{\"assert\":{\"current_file\":\"/lexicon/lexicon/providers/memset.py\"},\"revoke\":{\"failing_test\":\"memset.py authentication error - forbidden API request\"}}",
+      "9": "{\"assert\":{\"current_file\":\"lexicon/cli.py\"},\"revoke\":[\"asserting_base_provider\"]}",
+      "11": "{\"assert\":{\"current_file\":\"lexicon/providers/memset.py\",\"failing_test\":\"string indices must be integers\"}}",
+      "13": "{\"assert\":{\"current_file\":\"cli.py\",\"failing_test\":\"handle_output\"}}"
+    }
+  },
+  "prompts_asked": 42,
+  "context_chars": 12000,
+  "context_truncated_prompts": 17
+}
