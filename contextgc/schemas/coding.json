@@ -9,5 +9,11 @@
       "\\b(?:FAILED|ERROR|failed|error)\\s+([\\w./\\[\\]-]*test_[\\w./\\[\\]-]+)\\b"
     ]
   },
-  "__immutable__": []
+  "__immutable__": [],
+  "_measurement": {
+    "corpus": "nebius/SWE-agent-trajectories shard 0",
+    "transcripts": 40,
+    "repos": 20,
+    "precision": "100% (n=36, CI 90-100%)"
+  }
 }

@@ -19,6 +19,25 @@ const CONSOLE = `${BASE}/console`;
 
 /** Start the real server and wait for it to answer. */
 async function startServer() {
+  // Refuse to start if the port is already taken, rather than spawning and
+  // racing for it. A server left over from an earlier run answers /api/health
+  // and every route this test probes, so the suite then measures the OLD code
+  // and reports it as a failure of whatever was just changed. That happened
+  // twice here: once looking like `/console` was broken, once looking like the
+  // schema evidence had not been wired up. Both were a stale process, and both
+  // cost more time than this check.
+  if (!process.env.BASE) {
+    const busy = await fetch(BASE + '/api/health').then(() => true).catch(() => false);
+    if (busy) {
+      throw new Error(
+        `port ${PORT} is already answering. A previous run left its server up, and\n` +
+        `this run would silently measure that one instead of the current code.\n\n` +
+        `  lsof -nP -iTCP:${PORT} -sTCP:LISTEN   # find it\n` +
+        `  pkill -f "port ${PORT}"                # or stop it and re-run\n\n` +
+        `Or set BASE to test an already-running deployment.`
+      );
+    }
+  }
   const proc = spawn(
     'python3',
     ['-m', 'uvicorn', 'server.main:app', '--port', String(PORT), '--log-level', 'warning'],
@@ -30,26 +49,12 @@ async function startServer() {
   for (let i = 0; i < 60; i++) {
     try {
       const r = await fetch(BASE + '/api/health');
-      // Health alone is not enough. A server left over from an earlier run
-      // answers it, the spawn below silently loses the port race, and the whole
-      // suite then measures the *old* code -- which is how a page split shipped
-      // with /console untested and every new assertion failing for the wrong
-      // reason. Ask for something only the current code serves.
-      if (r.ok) {
-        const console = await fetch(BASE + '/console');
-        const css = await fetch(BASE + '/style.css');
-        if (console.ok && css.ok) return { proc, log: () => log };
-      }
+      if (r.ok) return { proc, log: () => log };
     } catch { /* not up yet */ }
     await sleep(500);
   }
   proc.kill();
-  throw new Error(
-    'server did not start with the routes this test drives.\n' +
-    'If /console or /style.css is missing, a leftover server from an earlier run\n' +
-    'is probably holding the port:\n' +
-    '  lsof -nP -iTCP:' + PORT + ' -sTCP:LISTEN\n' + log
-  );
+  throw new Error('server did not start:\n' + log);
 }
 const fails = [];
 const ok = (cond, label, extra='') => {
@@ -165,6 +170,28 @@ await page.waitForFunction(() => /Gate 2/.test(document.getElementById('result')
 const withSchema = await page.textContent('#result');
 ok(/Gate 2/.test(withSchema), 'state table now shows a tracked value');
 ok(!/No state tracked/i.test(withSchema), 'empty-state message is gone');
+
+console.log('\n5b. an unmeasured schema says so, in the picker');
+// `devtools` shipped describing itself as the schema the benchmarks run on,
+// having matched nothing in any of the three corpora. The API now carries the
+// evidence and the picker must surface it, or a caller adopts untested patterns
+// believing they were derived.
+{
+  const unmeasured = catalog.schemas.find((s) => s.measured === false);
+  ok(!!unmeasured, 'the catalog marks at least one schema as unmeasured',
+     unmeasured ? unmeasured.name : 'none');
+  if (unmeasured) {
+    await page.selectOption('#schem', unmeasured.name);
+    await page.waitForTimeout(300);
+    const txt = await page.textContent('#schema-note');
+    ok(/not measured/i.test(txt), `selecting ${unmeasured.name} says it is unmeasured`);
+    await page.selectOption('#schem', pick.name);
+    await page.waitForTimeout(300);
+    const measuredTxt = await page.textContent('#schema-note');
+    ok(!/not measured/i.test(measuredTxt),
+       'and a measured schema is not tarred with it');
+  }
+}
 
 console.log('\n6. declared/inferred provenance tags appear');
 ok(/declared|inferred/.test(withSchema), 'per-fact provenance tag rendered');

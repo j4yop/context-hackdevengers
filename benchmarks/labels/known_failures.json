@@ -8,7 +8,8 @@
       "entity": "current_file",
       "value": "azure_functions_worker/dispatcher.py",
       "verdict": "incorrect",
-      "note": "turn reviews main.py; the dispatcher.py path matched elsewhere in the message"
+      "note": "turn reviews main.py; the dispatcher.py path matched elsewhere in the message",
+      "diagnosis": "DIAGNOSED, NOT FIXED. Both cases are one defect: the agent hypothesises about a file, states an intent, and shows the open command in a fenced block -- and the fenced command is the only thing naming a path, so the tracker promoted a shown command to an executed action. 'navigate to X' matched first; the fence's 'open X' matched second and won on last-write. A fix was implemented and measured, then reverted. Stripping fenced blocks before pattern matching cost 48% of the measured supersession signal (keys_reasserted 77 -> 40, turns_retired 161 -> 124 at n=40) because in this corpus the fence IS how the agent opens a file -- and it did not even fix these cases: one transcript still extracted dispatcher.py and the other extracted nothing at all. Dropping the intent verbs is free (77 -> 78) but fixes nothing on its own. The blocker is that the expected value in these labels was itself produced by the same pattern, so correcting them is a re-labelling exercise, not a regex change."
     },
     {
       "transcript": "Azure__azure-functions-python-worker-890#20",
@@ -16,7 +17,8 @@
       "entity": "current_file",
       "value": "dispatcher.py",
       "verdict": "incorrect",
-      "note": "turn discusses constants.py; the dispatcher.py path matched elsewhere in the message"
+      "note": "turn discusses constants.py; the dispatcher.py path matched elsewhere in the message",
+      "diagnosis": "DIAGNOSED, NOT FIXED. Both cases are one defect: the agent hypothesises about a file, states an intent, and shows the open command in a fenced block -- and the fenced command is the only thing naming a path, so the tracker promoted a shown command to an executed action. 'navigate to X' matched first; the fence's 'open X' matched second and won on last-write. A fix was implemented and measured, then reverted. Stripping fenced blocks before pattern matching cost 48% of the measured supersession signal (keys_reasserted 77 -> 40, turns_retired 161 -> 124 at n=40) because in this corpus the fence IS how the agent opens a file -- and it did not even fix these cases: one transcript still extracted dispatcher.py and the other extracted nothing at all. Dropping the intent verbs is free (77 -> 78) but fixes nothing on its own. The blocker is that the expected value in these labels was itself produced by the same pattern, so correcting them is a re-labelling exercise, not a regex change."
     }
   ]
 }

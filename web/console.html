@@ -219,10 +219,25 @@ function syncSchemaNote(){
     const meta = SCHEMAS[SCHEMA];
     note.hidden = false;
     note.className = 'note';
-    note.style.cssText = 'margin-top:8px;background:var(--accent-bg);border-color:#c7d7fb;color:var(--accent-ink)';
+    // An unmeasured schema gets the warning colour, not the accent colour. Its
+    // patterns look exactly as authoritative as a measured one's, and that is
+    // the whole risk: `devtools` shipped for weeks describing itself as the
+    // schema the benchmarks run on, having matched nothing anywhere.
+    const unmeasured = meta && meta.measured === false;
+    note.style.cssText = unmeasured
+      ? 'margin-top:8px;background:var(--warn-bg);border-color:var(--warn-line);color:var(--warn)'
+      : 'margin-top:8px;background:var(--accent-bg);border-color:#c7d7fb;color:var(--accent-ink)';
     note.innerHTML = '<div><b>Schema: <code>' + SCHEMA + '</code>.</b> Tracking ' +
       (meta ? meta.entities.length : 0) + ' slot(s): <code>' +
       (meta ? meta.entities.join('</code>, <code>') : '') + '</code>.' +
+      (unmeasured
+        ? '<br><b>Not measured.</b> ' + esc(meta.measurement.note ||
+            'These patterns have never been run against a labelled corpus.')
+        : (meta && meta.measurement && meta.measurement.transcripts
+            ? '<br>Measured on ' + meta.measurement.transcripts + ' ' +
+              esc(meta.measurement.corpus || 'transcripts') +
+              (meta.measurement.precision ? ', ' + esc(meta.measurement.precision) : '') + '.'
+            : '')) +
       (meta && meta.summary ? '<br><span style="opacity:.8">' + esc(meta.summary) + '</span>' : '') +
       '</div>';
   }
