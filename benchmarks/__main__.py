@@ -134,6 +134,27 @@ def cmd_run(args):
     return 0
 
 
+def _load_capture_schema(payload):
+    """
+    The schema a capture was made under, so its summary can say whether the model
+    declared anything the tracker had asked for.
+
+    A capture made before the field existed has no ``schema`` key. Guessing one
+    from the transcript path would be inventing provenance, and defaulting to
+    the coding schema would report an in-schema ratio for a capture that never
+    had one. Returns None, which leaves the ratio unreported rather than wrong.
+    """
+    name = payload.get("schema")
+    if not name:
+        return None
+    try:
+        from contextgc import load_schema
+
+        return load_schema(name)
+    except (OSError, ValueError):
+        return None
+
+
 def cmd_capture(args):
     """
     Record what a real model declares, so `shadow` has something honest to
@@ -152,8 +173,11 @@ def cmd_capture(args):
             )
         with open(args.out, encoding="utf-8") as handle:
             payload = json.load(handle)
-        problems = verify(payload)
-        print(render_capture_summary(summarise(payload.get("turns", [])), payload))
+        schema = _load_capture_schema(payload)
+        problems = verify(payload, schema=schema)
+        print(render_capture_summary(
+            summarise(payload.get("turns", []), schema=schema), payload
+        ))
         if problems:
             print()
             print("CAPTURE NOT USABLE:")
@@ -167,9 +191,12 @@ def cmd_capture(args):
     if not args.transcript:
         sys.exit("capture needs --transcript (a transcript file) or --verify")
     payload = capture(
-        args.transcript, args.out, limit=args.limit, schema_path=args.schema
+        args.transcript, args.out, limit=args.limit, schema_path=args.schema,
+        legacy_prompt=getattr(args, "legacy_prompt", False),
     )
-    print(render_capture_summary(summarise(payload["turns"]), payload))
+    print(render_capture_summary(
+        summarise(payload["turns"], schema=_load_capture_schema(payload)), payload
+    ))
     print(f"\nwritten -> {args.out}")
     return 0
 
@@ -178,10 +205,23 @@ def render_capture_summary(summary, payload):
     lines = ["-" * 78, "CAPTURE"]
     lines.append(f"  endpoint             {payload.get('endpoint')}")
     lines.append(f"  model                {payload.get('model')}")
+    lines.append(f"  schema               {payload.get('schema') or '(none recorded)'}")
     lines.append(f"  turns recorded       {summary['turns']}")
     lines.append(f"  state blocks         {summary['blocks']}")
     lines.append(f"  malformed blocks     {summary['malformed']}")
-    lines.append(f"  turns that declared  {summary['declared_turns']}")
+    lines.append(f"  turns that declared  {summary['declared_turns']}"
+                 f"  ({summary['compliance']:.0%} of turns)")
+    lines.append(f"  keys declared        {summary['declared_keys']}")
+    # Compliance says the model spoke. This says it said something the tracker
+    # asked for. They came apart sharply on the first real capture, and only
+    # this one predicts whether the write path is worth enabling.
+    if summary["in_schema_ratio"] is not None:
+        lines.append(
+            f"  naming a schema key  {summary['in_schema_keys']}"
+            f"  ({summary['in_schema_ratio']:.0%} of declared keys)"
+        )
+    else:
+        lines.append("  naming a schema key  (no schema recorded, ratio unknown)")
     if summary["keys"]:
         lines.append("  keys declared:")
         for key, count in list(summary["keys"].items())[:10]:
@@ -298,6 +338,13 @@ def main(argv=None):
                                 help="check an existing capture instead of making one")
     capture_parser.add_argument("--limit", type=int, default=20)
     capture_parser.add_argument("--schema", help="schema name, passed to the agent")
+    capture_parser.add_argument(
+        "--legacy-prompt", action="store_true",
+        help="reproduce the duplicated-protocol prompt that the first capture used, "
+             "so the before/after is reproducible. The result is stamped "
+             "legacy_prompt and `capture --verify` refuses it: a valid record of a "
+             "broken harness, not a measurement of the protocol.",
+    )
     capture_parser.set_defaults(func=cmd_capture)
 
     shadow_parser = sub.add_parser("shadow", help="compare read path against declarations")

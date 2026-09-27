@@ -539,7 +539,10 @@ python -m benchmarks shadow --corpus synthetic \
 | transcripts | 6 real SWE-agent trajectories, 42 assistant turns |
 | turns where the model emitted a state block | 38 / 42 (90%) |
 | blocks that were not valid JSON | 7 / 38 (18%) |
+| declared keys naming a schema slot | 10 / 29 (**34%**) |
 | **keys the declaration added** | **19** |
+| — of those, in the schema | **0** |
+| — of those, outside it | **19** |
 | **keys the declaration changed** | **0** |
 | keys the declaration agreed with | 4 |
 
@@ -547,15 +550,25 @@ python -m benchmarks shadow --corpus synthetic \
 `current_file` or a `failing_test`. The 4 agreements were all `current_file`, and
 the declaration never once corrected the read path.
 
-So the write path's entire measured contribution, at this model size, was:
-confirming four facts the read path had already found, and inventing nineteen
-keys nobody asked for — `auth_token`, `line_144`, `headers_set`, `response`,
-`search_dir`, and `key`/`value`, which are the literal placeholders from the
-format example in the instruction, copied through as if they were entity names.
+That `19` used to be the headline, and it was the wrong number to lead with. It
+counted `key`, `value`, `auth_token`, `line_144` and `headers_set` as recovered
+facts. Shadow mode now splits it, and the split is the finding:
 
-The read path found `current_file` 11 times by pattern and the model agreed on 4 of
-them. It found nothing the model added. **Net verified information from the write
-path: zero.**
+```
+  keys added      19
+      in schema    0   (the read path had patterns for these and still missed them)
+      off schema   19   (nothing could corroborate these)
+```
+
+The write path's real contribution, at this model size, was confirming four facts
+the read path had already found, and inventing nineteen keys nobody asked for —
+including `key` and `value`, which are the literal placeholders from the format
+example in the instruction, copied through as if they were entity names.
+
+The read path found `current_file` in 5 of the 6 transcripts by pattern. The model
+declared it 12 times, and the two agreed 4 times. In no transcript did the
+declaration supply a `current_file` the read path had missed. **Net verified
+information from the write path: zero.**
 
 #### What this does and does not say
 
@@ -570,30 +583,91 @@ separable from the protocol's design in one direction only. Two things bound it:
   claim is not "declarations do not work"; it is "declarations from a 7B model do
   not survive contact with a real trajectory."
 
-What the result *does* establish, without any model-size caveat, is that the
-ingestion path accepts out-of-schema keys without complaint. The 19 junk keys were
-not filtered, not flagged and not counted as a problem — they were `added`, which
-is the metric that flatters the write path. Gating declarations to the schema is
-the change this measurement argues for, and it is not in yet.
+What the result established, without any model-size caveat, is that the ingestion
+path accepted out-of-schema keys without complaint. The 19 junk keys were not
+filtered, not flagged and not counted as a problem — they were `added`, which is
+the metric that flatters the write path.
+
+#### What changed in response
+
+`declaration_policy` on the engine and on `compile_messages`:
+
+| policy | an off-schema declared key |
+|---|---|
+| `"flag"` *(default)* | kept, and reported in `telemetry.rejected_writes` and `declarations.off_schema_keys` |
+| `"reject"` | dropped, and reported as dropped |
+| `"off"` | accepted silently, as before |
+
+There is deliberately no silent option, and the default is not `reject`.
+
+**Why not a hard gate on schema membership.** A first cut that refused every key
+absent from the schema would have broken two load-bearing things.
+`dietary_allergy` and `security_invariant` are protected *because* they carry no
+patterns — a caller opts into that safety by naming the key, so refusing
+schema-less keys refuses the safety mechanism. And in customer-service
+transcripts 82–99% of every mutable entity's mention lives in tool output, which
+the read path may not read; an agent supplying a `payment_method` the travel
+schema cannot define is the write path working, not hallucinating. The gate
+therefore admits the schema's keys, the structural guardrails, and anything
+registered on the dag, and leaves the rest to the policy.
+
+**Why `flag` is the default.** With a measured 34% in-schema rate on a 7B model,
+`reject` is the right setting *for that model* — and applying it to a good model
+would discard correct declarations that merely use an unexpected name. So the
+default keeps the fact, because a pattern-based tracker structurally cannot see
+machine-output facts, and makes the problem visible instead. Choose `reject` per
+deployment, once you know which model you are running.
+
+The gate runs **before** inference is told which keys are already accounted for.
+That ordering is load-bearing: had `current_file_lines` been allowed to mark
+itself as covering the file, the read path would have skipped `current_file` — the
+key it could actually have found — because the model used a longer name.
 
 #### The prompt was wrong before it was measured
 
-The first capture of this run scored 59% compliance and 36% malformed blocks. That
-was not the model. The harness was handing the model the protocol twice — once as a
-hand-built system message and once via `teach_protocol=True` — 801 bytes of
-duplication per turn. Four of the seventeen non-compliant replies were the model
-faithfully echoing the duplicated `[STATE_PROTOCOL]` wrapper back.
+The first capture of this run scored 55% compliance. That was not the model. The
+harness was handing the model the protocol twice — once as a hand-built system
+message and once via `teach_protocol=True` — 801 bytes of duplication per turn.
+Four of the nineteen non-compliant replies were the model faithfully echoing the
+duplicated `[STATE_PROTOCOL]` wrapper back.
 
-Fixing that lifted compliance to 90% and dropped malformed blocks to 18%. It also
-made the *content* worse, in a way worth stating plainly: with the duplication gone
-the model emitted a block on 38 turns instead of 25, and a larger share of them
-were noise. Compliance is not correctness. A harness that reported only the
-compliance figure would have shown a clean improvement.
+`--legacy-prompt` reproduces that defect on demand, so the comparison below is
+measured rather than remembered. Both columns are the same model, the same six
+trajectories, the same counting method:
 
-Both captures are reproducible by setting `PROMPT_VERSION = 1` in
-`benchmarks/capture.py`; the pre-fix numbers are recorded here rather than kept as
-a file, because a capture made with a malformed prompt is not a valid measurement
-and shipping it next to a valid one invites comparing them.
+| | `--legacy-prompt` | current |
+|---|---|---|
+| turns emitting a block | 23 / 42 | **38 / 42** |
+| compliance | 55% | **90%** |
+| blocks that were not valid JSON | 4 / 23 (17%) | 7 / 38 (18%) |
+| declared keys | 22 | 29 |
+| keys naming a schema slot | 8 | 10 |
+| **in-schema share** | **36%** | **34%** |
+
+Compliance went up by 35 points. The share of declarations naming something the
+tracker asked for did not move.
+
+That is the finding. A harness reporting the compliance figure would have shown a
+clean improvement; the in-schema share is flat, so the extra blocks are noise. And
+the malformed rate is flat too, which corrects an earlier reading of this data: a
+first pass compared one run at 36% malformed against one at 18% and called it an
+improvement. Re-running the legacy prompt put it at 17%. The model is sampled, so
+single-run rates carry real noise and the 36%→18% comparison was two draws, not a
+trend.
+
+Compliance is not correctness, and neither is a low malformed rate. The number
+that predicts whether the write path is worth enabling is the in-schema share, and
+`capture --verify` now refuses a capture that scores below 50% on it.
+
+A capture made with `--legacy-prompt` is stamped `legacy_prompt: true` and `verify`
+refuses it. It is a valid record of what the broken harness did and an invalid
+measurement of the protocol, and it should not sit in `captures/` looking like one.
+
+The committed capture's `schema` field was backfilled to `coding` after the fact,
+and the backfill is verifiable rather than asserted: the capture's
+`prompt_fingerprint` covers the schema, and only `coding` reproduces the recorded
+digest `5c5215b167ec10d4`. A capture with no recorded schema reports its in-schema
+ratio as unknown instead of guessing one.
 
 ### What this harness refuses to do
 

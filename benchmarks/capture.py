@@ -67,7 +67,10 @@ def parse_block(block: str) -> Optional[Dict[str, Any]]:
     return parsed if isinstance(parsed, dict) else None
 
 
-def summarise(turns: List[Dict[str, Any]]) -> Dict[str, Any]:
+def summarise(
+    turns: List[Dict[str, Any]],
+    schema: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
     """
     What a capture contains, for a human deciding whether to trust it.
 
@@ -80,6 +83,14 @@ def summarise(turns: List[Dict[str, Any]]) -> Dict[str, Any]:
     turns caps the entire write path at a tenth of its theoretical value no
     matter how good the compiler is.
 
+    ``in_schema_ratio`` is the one that decides whether the write path is worth
+    having, and it is not the compliance figure. A model can comply on every turn
+    and declare a different invented key each time; measured on the first real
+    capture, fixing a prompt defect took compliance from 59% to 90% while the
+    share of declarations naming a schema key stayed at 37%. Compliance measures
+    whether the model spoke; this measures whether it said anything the tracker
+    asked for.
+
     Parsing is delegated to ``parse_declaration`` rather than repeated here. The
     hand-rolled version disagreed with the pipeline it was reporting on: given
     ``{"revoke":"current_file"}`` -- a bare string where the protocol asks for a
@@ -91,6 +102,13 @@ def summarise(turns: List[Dict[str, Any]]) -> Dict[str, Any]:
 
     total = malformed = 0
     keys: Dict[str, int] = {}
+    declared_keys = 0
+    in_schema_keys = 0
+    known = set()
+    if schema:
+        raw = schema.get("entities") if isinstance(schema.get("entities"), dict) else schema
+        known = {k for k in raw if not k.startswith("_") and k != "__immutable__"}
+
     for turn in turns:
         for block in extract_blocks(turn.get("content", "")):
             total += 1
@@ -104,6 +122,14 @@ def summarise(turns: List[Dict[str, Any]]) -> Dict[str, Any]:
             ):
                 for key in group:
                     keys[key] = keys.get(key, 0) + 1
+            # Revocations are not "the model supplied a fact", so they are
+            # excluded here: a model that revokes four keys it never asserted has
+            # not demonstrated it can name the schema.
+            for group in (declaration.asserts, declaration.pins, declaration.unsure):
+                for key in group:
+                    declared_keys += 1
+                    if not known or key in known:
+                        in_schema_keys += 1
     declared_turns = sum(1 for t in turns if extract_blocks(t.get("content", "")))
     return {
         "turns": len(turns),
@@ -111,6 +137,11 @@ def summarise(turns: List[Dict[str, Any]]) -> Dict[str, Any]:
         "malformed": malformed,
         "declared_turns": declared_turns,
         "compliance": round(declared_turns / len(turns), 3) if turns else 0.0,
+        "declared_keys": declared_keys,
+        "in_schema_keys": in_schema_keys if known else None,
+        "in_schema_ratio": (
+            round(in_schema_keys / declared_keys, 3) if declared_keys and known else None
+        ),
         "keys": dict(sorted(keys.items(), key=lambda kv: -kv[1])),
     }
 
@@ -138,12 +169,28 @@ def declaration_index(turns: List[Dict[str, Any]]) -> Dict[str, Dict[int, str]]:
     return index
 
 
-def verify(capture: Dict[str, Any]) -> List[str]:
-    """Problems with a capture, as a list of strings. Empty means usable."""
+def verify(
+    capture: Dict[str, Any], schema: Optional[Dict[str, Any]] = None
+) -> List[str]:
+    """Problems with a capture, as a list of strings. Empty means usable.
+
+    Given a schema, a capture whose declarations almost never name a defined key
+    is reported as a problem in its own right. It is still replayable -- shadow
+    mode can show exactly how far off it was, which is more useful than refusing
+    -- but "the model emitted blocks" is not the same as "the model emitted
+    something this tracker asked for", and only the second is a result.
+    """
     problems: List[str] = []
     if capture.get("version") != CAPTURE_VERSION:
         problems.append(
             f"capture version is {capture.get('version')!r}, expected {CAPTURE_VERSION}"
+        )
+    if capture.get("legacy_prompt"):
+        problems.append(
+            "this capture was made with the duplicated-prompt defect "
+            "(legacy_prompt=true). It is a valid record of what that harness did "
+            "and an invalid measurement of the protocol; re-run without "
+            "--legacy-prompt to measure the protocol."
         )
     if not capture.get("endpoint"):
         problems.append("no endpoint recorded, so the capture cannot be attributed")
@@ -154,7 +201,7 @@ def verify(capture: Dict[str, Any]) -> List[str]:
     for index, turn in enumerate(turns):
         if "role" not in turn or "content" not in turn:
             problems.append(f"turn {index} is missing role or content")
-    summary = summarise(turns)
+    summary = summarise(turns, schema=schema)
     if summary["blocks"] == 0:
         problems.append(
             "the model never emitted a <contextgc-state> block, so this capture "
@@ -163,6 +210,14 @@ def verify(capture: Dict[str, Any]) -> List[str]:
     if summary["malformed"]:
         problems.append(
             f"{summary['malformed']} of {summary['blocks']} blocks do not parse as JSON"
+        )
+    if summary["in_schema_ratio"] is not None and summary["in_schema_ratio"] < 0.5:
+        problems.append(
+            f"only {summary['in_schema_keys']} of {summary['declared_keys']} "
+            f"declarations ({summary['in_schema_ratio']:.0%}) name a key the "
+            f"schema defines; the rest are keys the read path could never "
+            f"corroborate, so this capture shows what the model said rather than "
+            f"what the tracker gained"
         )
     return problems
 
@@ -254,7 +309,9 @@ def _write(payload: Dict[str, Any], out_path: str) -> None:
         handle.write("\n")
 
 
-def _fingerprint(instruction: str, schema: Any, context_chars: int) -> str:
+def _fingerprint(
+    instruction: str, schema: Any, context_chars: int, legacy_prompt: bool = False
+) -> str:
     """
     A short digest of everything that shapes the prompt.
 
@@ -269,6 +326,7 @@ def _fingerprint(instruction: str, schema: Any, context_chars: int) -> str:
             "ask": _ASK,
             "schema": schema,
             "context_chars": context_chars,
+            "legacy_prompt": legacy_prompt,
         },
         sort_keys=True,
         default=str,
@@ -311,6 +369,7 @@ def capture(
     system: Optional[str] = None,
     context_chars: Optional[int] = None,
     progress: bool = True,
+    legacy_prompt: bool = False,
 ) -> Dict[str, Any]:
     """
     Run real conversations and record what the model actually declared.
@@ -379,7 +438,7 @@ def capture(
         # backwards, and nothing said so.
         return systems + list(reversed(kept))
 
-    fingerprint = _fingerprint(instruction, schema, context_chars)
+    fingerprint = _fingerprint(instruction, schema, context_chars, legacy_prompt)
     recorded: List[Dict[str, Any]] = _resume(out_path, fingerprint)
     # Which (transcript, turn) pairs a previous run already paid for. Resuming
     # keeps the capture honest as long as the key is the trajectory position,
@@ -395,6 +454,8 @@ def capture(
         "endpoint": os.environ.get("CONTEXTGC_CAPTURE_BASE_URL", "api.openai.com"),
         "model": model_name,
         "transcript_path": transcript_path,
+        "schema": schema_path,
+        "legacy_prompt": legacy_prompt,
         "prompt_fingerprint": fingerprint,
         "prompt_version": PROMPT_VERSION,
         "turns": recorded,
@@ -432,7 +493,15 @@ def capture(
         # `[STATE_PROTOCOL]` wrapper is what the model then echoed back: a quarter
         # of the non-compliant replies in the first capture were the wrapper tag
         # and the format line restated as prose.
-        history: List[Dict[str, str]] = []
+        #
+        # `legacy_prompt` restores that defect on purpose, so the before/after in
+        # the README is reproducible rather than remembered. It is recorded in
+        # the payload and makes `verify` refuse the result, because a capture
+        # made with a doubled prompt is not a valid measurement and must not sit
+        # in `captures/` looking like one.
+        history: List[Dict[str, str]] = (
+            [{"role": "system", "content": instruction}] if legacy_prompt else []
+        )
         for position, message in enumerate(transcript.messages):
             role = message.get("role")
             if role == "system":

@@ -114,6 +114,15 @@ class CompileRequest(BaseModel):
     entity_schema: Optional[str] = Field(
         None, description="Name of a shipped entity schema. Required for state tracking to do anything."
     )
+    declaration_policy: str = Field(
+        "flag",
+        pattern="^(flag|reject|off)$",
+        description=(
+            "What to do with a declared key the schema does not define. 'flag' "
+            "keeps it and reports it in telemetry; 'reject' drops it. Only has an "
+            "effect when entity_schema is set."
+        ),
+    )
 
 
 class MessagesRequest(BaseModel):
@@ -123,6 +132,15 @@ class MessagesRequest(BaseModel):
     recall_query: Optional[str] = None
     teach_protocol: bool = False
     entity_schema: Optional[str] = None
+    declaration_policy: str = Field(
+        "flag",
+        pattern="^(flag|reject|off)$",
+        description=(
+            "What to do with a declared key the schema does not define. 'flag' "
+            "keeps it and reports it in telemetry; 'reject' drops it. Only has an "
+            "effect when entity_schema is set."
+        ),
+    )
 
 
 # --------------------------------------------------------------------------
@@ -217,6 +235,7 @@ async def api_compile(req: CompileRequest, request: Request) -> JSONResponse:
         recall_query=req.recall_query,
         teach_protocol=req.teach_protocol,
         schema=_entities_for(req.entity_schema),
+        declaration_policy=req.declaration_policy,
     )
 
     if "error" in telemetry:
@@ -251,6 +270,7 @@ async def api_compile_messages(req: MessagesRequest, request: Request) -> JSONRe
         recall_query=req.recall_query,
         teach_protocol=req.teach_protocol,
         schema=_entities_for(req.entity_schema),
+        declaration_policy=req.declaration_policy,
     )
     return JSONResponse(
         content={"compiled_messages": compiled, "telemetry": telemetry},

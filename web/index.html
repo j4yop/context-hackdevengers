@@ -509,6 +509,20 @@ function render(data){
       answered. Check which one is right.</div></div>`;
   });
 
+  const offSchema = (t.declarations && t.declarations.off_schema_keys) || 0;
+  if (offSchema > 0){
+    const policy = (t.declarations && t.declarations.declaration_policy) || 'flag';
+    banner += `<div class="note warn"><div><b>${offSchema} declared key(s) are not in the
+      schema.</b> Nothing here can tell you whether they are true &mdash; no read-path
+      pattern exists for them, so they were never checkable. ${policy === 'reject'
+      ? 'They were dropped.'
+      : 'They were kept, because an agent can see facts in tool output that a pattern structurally cannot. Set <code>declaration_policy: "reject"</code> to drop them instead.'}
+      <ul style="margin:5px 0 0;padding-left:18px">${(t.rejected_writes || [])
+        .filter(r => r.kind === 'off_schema_declaration')
+        .slice(0, 6).map(r => `<li>turn ${r.turn}: <code>${esc(r.entity)}</code></li>`).join('')}</ul>
+      </div></div>`;
+  }
+
   const rejected = t.rejected_writes || [];
   if (rejected.length){
     banner += `<div class="note warn"><div><b>${rejected.length} write(s) refused.</b>

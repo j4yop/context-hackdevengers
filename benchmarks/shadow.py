@@ -90,6 +90,14 @@ def shadow_compare(
     ``added`` and ``changed`` are the whole measurement. ``added`` is the upside:
     facts the read path could not see. ``changed`` is the risk, and each entry
     names both values so a human can adjudicate.
+
+    ``added`` is split by whether the active schema defines the key, because the
+    undivided number is the one that flatters. In the first real capture
+    ``added`` was 19 -- the headline for the write path -- and all 19 were keys
+    the schema did not define: ``auth_token``, ``line_144``, ``headers_set``, and
+    ``key``/``value``, which are the format example's placeholders copied through
+    as entity names. Reported undivided, that reads as nineteen facts recovered.
+    ``added_in_schema`` is the part of the upside a reader can act on.
     """
     from contextgc.client import compile_messages
 
@@ -113,18 +121,29 @@ def shadow_compare(
         if k in base_state and str(base_state[k]) == str(decl_state[k])
     }
 
+    # Which added keys the schema could have found for itself. A key the schema
+    # defines is one the read path had the patterns for and still missed, which
+    # is the genuine upside. A key it does not define is one no pattern could
+    # ever corroborate, so its correctness is unknowable from here.
+    known = set(schema or {})
+    added_in_schema = {k: v for k, v in added.items() if k in known}
+    added_off_schema = {k: v for k, v in added.items() if k not in known}
+
     return {
         "baseline_state": base_state,
         "declared_state": decl_state,
         "added": added,
+        "added_in_schema": added_in_schema,
+        "added_off_schema": added_off_schema,
         "changed": changed,
         "agreed": agreed,
+        "off_schema_declarations": with_decl["declarations"]["off_schema_keys"],
         "conflicts": with_decl.get("conflicts", []),
         "declared_share": with_decl["declarations"]["declared_share"],
         # The read-path compile is what gets emitted. Shadow mode never lets a
         # declaration into the context it hands back.
         "emitted": baseline_messages,
-        "verdict": _verdict(added, changed, agreed),
+        "verdict": _verdict(added, changed, agreed, added_in_schema, added_off_schema),
     }
 
 
@@ -149,7 +168,13 @@ def inject_declarations(
     return out
 
 
-def _verdict(added: Dict, changed: Dict, agreed: Dict) -> str:
+def _verdict(
+    added: Dict,
+    changed: Dict,
+    agreed: Dict,
+    added_in_schema: Optional[Dict] = None,
+    added_off_schema: Optional[Dict] = None,
+) -> str:
     """
     A one-word summary, stated conservatively.
 
@@ -157,14 +182,34 @@ def _verdict(added: Dict, changed: Dict, agreed: Dict) -> str:
     quality judgement this function cannot make: it cannot tell whether an added
     fact is true, only that the read path did not have it. Adjudicating truth
     needs a labelled sample, which is what ``gold.py`` is for.
+
+    The one thing it will say is how much of the upside the schema could account
+    for, because a verdict of "added 19 key(s), agreed on the rest" on a run
+    where all 19 were off-schema inventions is a sentence that reads as nineteen
+    recovered facts. When everything added was off-schema, the verdict says so.
     """
     if not added and not changed:
         return "no effect"
+    off = len(added_off_schema) if added_off_schema is not None else 0
+    inside = len(added_in_schema) if added_in_schema is not None else len(added) - off
+
     if added and not changed:
-        return f"added {len(added)} key(s), agreed on the rest"
+        if inside == 0 and off:
+            return (
+                f"added {off} key(s), none defined by the schema; agreed on the rest"
+            )
+        return f"added {len(added)} key(s) ({inside} in schema), agreed on the rest"
     if changed and not added:
         return f"disagreed on {len(changed)} key(s), added none"
-    return f"added {len(added)}, disagreed on {len(changed)}"
+    if inside == 0 and off:
+        return (
+            f"added {off} key(s), none defined by the schema, disagreed on "
+            f"{len(changed)}"
+        )
+    return (
+        f"added {len(added)} key(s) ({inside} in schema), disagreed on "
+        f"{len(changed)}"
+    )
 
 
 def run_corpus(
@@ -226,6 +271,8 @@ def run_corpus(
             "turns": transcript.n_turns,
             "verdict": outcome["verdict"],
             "added": outcome["added"],
+            "added_in_schema": outcome["added_in_schema"],
+            "added_off_schema": outcome["added_off_schema"],
             "changed": outcome["changed"],
             "agreed_count": len(outcome["agreed"]),
             "conflicts": len(outcome["conflicts"]),
@@ -243,6 +290,11 @@ def run_corpus(
             1 for r in ok if r["added"] or r["changed"]
         ),
         "total_added": sum(len(r["added"]) for r in ok),
+        # The split that gives `total_added` a meaning. A run can only be said
+        # to have added something the read path was equipped to miss if the
+        # schema defined the key; the rest are keys nothing could corroborate.
+        "total_added_in_schema": sum(len(r["added_in_schema"]) for r in ok),
+        "total_added_off_schema": sum(len(r["added_off_schema"]) for r in ok),
         "total_changed": sum(len(r["changed"]) for r in ok),
         "total_agreed": sum(r["agreed_count"] for r in ok),
         "rows": rows,
