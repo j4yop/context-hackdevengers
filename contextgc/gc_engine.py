@@ -12,7 +12,7 @@ estimated, projected, or modelled -- see ``telemetry`` at the bottom of
 
 import re
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 from .anchors import PolicyInvariantAnchor
 from .sanitizer import ToolSanitizer
@@ -115,6 +115,7 @@ class ContextGCEngine:
         session_id: str = "contextgc",
         invariants: Optional[List[str]] = None,
         schema: Optional[Dict[str, Any]] = None,
+        declaration_policy: str = "flag",
     ):
         """
         Args:
@@ -130,9 +131,24 @@ class ContextGCEngine:
                 compiled as patterns -- a schema's own prose is not a regex, and
                 feeding it to ``re`` raises an opaque ``re.PatternError`` about
                 unbalanced parentheses instead of saying what is wrong.
+
+            declaration_policy: what to do with a declared key the active schema
+                does not define. ``"flag"`` (default) keeps it and reports it in
+                ``rejected_writes``; ``"reject"`` drops it; ``"off"`` disables the
+                check. There is no silent option, because the first real capture
+                showed a 7B model adding 19 keys of which none was in the
+                schema, all of them counted as the write path's upside. See
+                :meth:`_apply_declaration_policy` for why this is not a hard gate
+                on schema membership.
         """
+        if declaration_policy not in ("flag", "reject", "off"):
+            raise ValueError(
+                "declaration_policy must be 'flag', 'reject' or 'off', got "
+                f"{declaration_policy!r}"
+            )
         self.session_id = session_id
         self.schema = _normalise_schema(schema)
+        self.declaration_policy = declaration_policy
         self.dag = self._new_dag()
         self.sanitizer = ToolSanitizer()
         self.vector_tier = VectorMemoryTier(session_id)
@@ -212,6 +228,104 @@ class ContextGCEngine:
             dag.immutable_entities.update(immutable)
         return dag
 
+    def _admissible_keys(self, dag: StateDAG) -> Optional[Set[str]]:
+        """
+        Which keys a declaration may write, or None when anything goes.
+
+        The gate has to be narrow. A first cut that rejected every key absent
+        from the schema would have broken two things that are load-bearing:
+
+        * ``StateDAG.IMMUTABLE_ENTITIES`` -- ``dietary_allergy`` and
+          ``security_invariant`` are protected *because* they carry no patterns.
+          A caller opts into that protection by naming the key, so refusing
+          schema-less keys would refuse the safety mechanism itself.
+        * the reason the write path exists. In customer-service transcripts 82-99%
+          of every mutable entity's mentions live in tool output, which the read
+          path is forbidden to read. An agent supplying ``payment_method`` --
+          which the travel schema does not define, because no pattern can find it
+          -- is the feature working, not a hallucination.
+
+        So the gate admits the schema's own keys, the structural guardrails, and
+        any entity registered on the dag, and leaves everything else to the
+        configured policy. With no schema there is no vocabulary to judge against
+        and no gate: an unconfigured engine has no basis for calling a
+        declaration wrong.
+        """
+        if not self.schema:
+            return None
+        return set(self.schema) | set(dag.immutable_entities) | set(dag.entity_patterns)
+
+    def _apply_declaration_policy(
+        self,
+        declaration: StateDeclaration,
+        dag: StateDAG,
+        turn_index: int,
+        rejections: List[Dict[str, Any]],
+    ) -> Tuple[StateDeclaration, Set[str]]:
+        """
+        Hold declarations to the schema, according to ``declaration_policy``.
+
+        ``flag`` (the default) keeps every value and records the ones the schema
+        does not define, in ``rejected_writes`` and in telemetry. Nothing is
+        dropped and nothing is trusted: the declaration still enters state,
+        because the read path structurally cannot see a machine-output fact and
+        refusing to record it would make the tracker worse, not stricter.
+
+        ``reject`` drops off-schema keys entirely. That is a real behaviour
+        change and is not the default, because with a measured 19-of-19 off-schema
+        rate on a 7B model the same policy applied to a good model would discard
+        correct declarations it happens to use an unexpected name for. Choose it
+        per deployment, once the compliance data says which model you have.
+        """
+        if self.declaration_policy == "off":
+            return declaration, set()
+        admissible = self._admissible_keys(dag)
+        if admissible is None:
+            return declaration, set()
+        off_here: Set[str] = set()
+
+        def partition(group: Dict[str, str]) -> Dict[str, str]:
+            for key in group:
+                if key in admissible:
+                    continue
+                off_here.add(key)
+                rejections.append({
+                    "entity": key,
+                    "turn": turn_index,
+                    "kind": "off_schema_declaration",
+                    "reason": (
+                        f"{key!r} is not defined by the active schema; the read "
+                        f"path cannot corroborate it"
+                    ),
+                    "dropped": self.declaration_policy == "reject",
+                })
+            # Under "flag" the group comes back whole. Returning only the
+            # admissible half here would have made the default policy a silent
+            # hard gate wearing a flag's name -- every existing declaration test
+            # that used a key outside its schema lost the fact, and seven tests
+            # said so.
+            if self.declaration_policy == "flag":
+                return group
+            return {k: v for k, v in group.items() if k in admissible}
+
+        if not any(
+            key not in admissible
+            for group in (declaration.asserts, declaration.pins, declaration.unsure)
+            for key in group
+        ):
+            return declaration, off_here
+
+        gated = StateDeclaration()
+        gated.asserts = partition(declaration.asserts)
+        gated.pins = partition(declaration.pins)
+        gated.unsure = partition(declaration.unsure)
+        # A revoked key the schema does not define is still void. Refusing to
+        # record a revocation would leave a retired fact live in the register
+        # because of the name the model used to retire it.
+        gated.revokes = list(declaration.revokes)
+        gated.malformed = declaration.malformed
+        return gated, off_here
+
     @staticmethod
     def _kv_prefix_len(original: List[Dict[str, Any]], compiled: List[Dict[str, Any]]) -> int:
         """Length of the byte-identical message prefix shared by both sequences."""
@@ -267,6 +381,7 @@ class ContextGCEngine:
         untrusted_blocks = 0
         conflicts: List[Dict[str, Any]] = []
         rejections: List[Dict[str, Any]] = []
+        off_schema_keys = 0
 
         # ---- Pass 1: read declarations, then infer what was not declared -----
         # Declarations are applied first and are authoritative. A regex match is
@@ -306,6 +421,20 @@ class ContextGCEngine:
                 })
             else:
                 declaration = StateDeclaration()
+
+            # Hold the declaration to the schema before anything reads it, so an
+            # off-schema key cannot reach `already` and then suppress a read-path
+            # extraction of a real one. The 19 junk keys from the first capture
+            # included `current_file_lines`; had that landed first, the read path
+            # would have been told to skip `current_file` because the model had
+            # "already" accounted for it under a different name.
+            declaration, off_here = self._apply_declaration_policy(
+                declaration, self.dag, idx, rejections
+            )
+            # Counted from the keys the policy actually saw, not from the length
+            # of the rejection list: a key appearing in two verbs is two
+            # declarations the schema could not account for, not one.
+            off_schema_keys += len(off_here)
 
             declarations.append(declaration)
 
@@ -620,6 +749,13 @@ class ContextGCEngine:
                     # is right -- see `conflicts` for that.
                     "declared_share": self._declared_share(),
                     "protocol_taught": teach_protocol,
+                    # How many of the agent's own keys the schema could not
+                    # account for. Counted separately from `rejected_writes`
+                    # because under the default policy they were kept: a caller
+                    # reading only the write counters would see a healthy number
+                    # of asserted facts and no sign that 19 of 19 were invented.
+                    "off_schema_keys": off_schema_keys,
+                    "declaration_policy": self.declaration_policy,
                 },
                 # The agent asserted a key one way and a pattern matched it
                 # another. This is the signal that correlates with a wrong state,

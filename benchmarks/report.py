@@ -198,9 +198,31 @@ def render_shadow(summary: Dict[str, Any], width: int = 78) -> str:
                  f"{summary['transcripts_with_any_effect']}")
     lines.append("")
     lines.append(f"  keys added      {summary['total_added']}")
+    # The split, because `keys added` on its own reads as a count of recovered
+    # facts. A key the schema does not define is one no pattern could ever have
+    # found, so its correctness cannot be checked from here at all.
+    lines.append(f"      in schema    {summary.get('total_added_in_schema', 0)}"
+                 f"   (the read path had patterns for these and still missed them)")
+    lines.append(f"      off schema   {summary.get('total_added_off_schema', 0)}"
+                 f"   (nothing could corroborate these)")
     lines.append(f"  keys changed    {summary['total_changed']}")
     lines.append(f"  keys agreed     {summary['total_agreed']}")
     lines.append("")
+
+    off_rows = [r for r in summary["rows"] if r.get("added_off_schema")]
+    if off_rows:
+        lines.append("  OFF-SCHEMA ADDITIONS -- keys the schema does not define:")
+        for row in off_rows[:10]:
+            for key in list(row["added_off_schema"])[:4]:
+                lines.append(f"    {row['id'][:28]:<30} {key}")
+        if len(off_rows) > 10:
+            lines.append(f"    ... and {len(off_rows) - 10} more transcripts")
+        lines.append("")
+        lines.append("  These are counted as the write path's upside, which is the")
+        lines.append("  problem. A key outside the schema is one no read-path pattern")
+        lines.append("  could have found, so nothing here can say whether it is true.")
+        lines.append("  Where a declaration invents them, the count flatters a run")
+        lines.append("  that recovered nothing.")
 
     changed_rows = [r for r in summary["rows"] if r.get("changed")]
     if changed_rows:

@@ -32,6 +32,7 @@ def compile_messages(
     session_id: Optional[str] = None,
     teach_protocol: bool = False,
     schema: Optional[Dict[str, Any]] = None,
+    declaration_policy: str = "flag",
 ) -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
     """
     Compile an OpenAI-format message history.
@@ -48,13 +49,19 @@ def compile_messages(
         schema: entity patterns to enable. Empty by default -- the read path has
             no built-in domain, because the default it used to ship was measured
             producing nonsense on real transcripts.
+        declaration_policy: ``"flag"`` (default) keeps a declared key the schema
+            does not define and reports it under ``telemetry.rejected_writes``;
+            ``"reject"`` drops it; ``"off"`` disables the check. Only has an
+            effect when a ``schema`` is supplied, since without one there is no
+            vocabulary to judge a key against.
 
     Returns:
         ``(compiled_messages, telemetry)``. Every telemetry field is measured at
         runtime; see :meth:`ContextGCEngine.process_session`.
     """
     engine = ContextGCEngine(
-        session_id=session_id or "contextgc", invariants=invariants, schema=schema
+        session_id=session_id or "contextgc", invariants=invariants, schema=schema,
+        declaration_policy=declaration_policy,
     )
     result = engine.process_session(
         messages, query_for_jit=recall_query, mode=mode, teach_protocol=teach_protocol
@@ -69,6 +76,7 @@ def compile_transcript(
     recall_query: Optional[str] = None,
     teach_protocol: bool = False,
     schema: Optional[Dict[str, Any]] = None,
+    declaration_policy: str = "flag",
 ) -> Tuple[List[Dict[str, Any]], Dict[str, Any], List[str]]:
     """
     Compile a pasted plain-text transcript.
@@ -91,6 +99,7 @@ def compile_transcript(
     compiled, telemetry = compile_messages(
         messages, mode=mode, invariants=invariants, recall_query=recall_query,
         teach_protocol=teach_protocol, schema=schema,
+        declaration_policy=declaration_policy,
     )
     return compiled, telemetry, warnings
 
@@ -102,6 +111,7 @@ def patch_openai(
     teach_protocol: bool = False,
     schema: Optional[Dict[str, Any]] = None,
     session_id: Optional[str] = None,
+    declaration_policy: str = "flag",
 ) -> Any:
     """
     Wrap ``client.chat.completions.create`` so outgoing message histories are
@@ -118,6 +128,10 @@ def patch_openai(
         session_id: namespaces the retired-turn archive and the recall tier.
             Omitted before, so two wrapped clients in one process shared the
             default session and could surface each other's retired turns.
+        declaration_policy: what to do with a declared key the schema does not
+            define. See :func:`compile_messages`. Added here for the same reason
+            ``schema`` had to be: this is the most documented integration path, so
+            a policy that is unreachable from it is a policy nobody will set.
 
     Set ``teach_protocol=True`` to have the agent declare its own state changes.
     The declared facts are authoritative and carry provenance, which is what
@@ -142,6 +156,7 @@ def patch_openai(
             teach_protocol=teach_protocol,
             schema=schema,
             session_id=session_id,
+            declaration_policy=declaration_policy,
         )
 
     @functools.wraps(original_create)

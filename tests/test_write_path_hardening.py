@@ -515,3 +515,156 @@ def test_declared_value_confidence_object_is_rejected_not_silently_flattened():
     """It used to parse, then throw the number away. Now it must not parse."""
     declaration = parse_declaration(block({"unsure": {"rider": {"value": "west", "confidence": 0.4}}}))
     assert declaration.malformed is True
+
+
+# ===========================================================================
+# the schema gate
+# ===========================================================================
+#
+# The first real capture (qwen2.5:7b, 6 real SWE-agent trajectories) added 19
+# keys and changed none. Not one of the 19 was defined by the coding schema:
+# `auth_token`, `line_144`, `headers_set`, and `key`/`value`, which are the
+# format example's placeholders copied through as entity names. Ingestion
+# accepted all of them, counted them as the write path's upside, and said
+# nothing. These tests pin the three things that has to stop doing.
+
+CODING = {"entities": {"current_file": [r"opening ([\w./-]+\.py)"]}}
+
+
+def _declare(block, schema=CODING, policy="flag"):
+    messages = [
+        {"role": "user", "content": "fix the failing test"},
+        {"role": "assistant",
+         "content": "opening memset.py\n" + block(block_)},
+        {"role": "user", "content": "keep going"},
+    ]
+    out, telemetry = compile_messages(
+        messages, schema=schema, declaration_policy=policy
+    )
+    state = next(
+        (m["content"] for m in out if "ACTIVE_AGENT_STATE" in m["content"]), ""
+    )
+    return state, telemetry
+
+
+def block_(body):
+    return f"<contextgc-state>{body}</contextgc-state>"
+
+
+def test_an_off_schema_declaration_is_reported_not_silently_accepted():
+    """
+    It used to land in state with no trace. A caller reading the write counters
+    saw a healthy number of asserted facts and no sign that the facts were
+    invented.
+    """
+    _state, telemetry = _declare(
+        lambda b: block_('{"assert": {"auth_token": "abc123"}}')
+    )
+    flagged = [
+        r for r in telemetry["rejected_writes"]
+        if r["kind"] == "off_schema_declaration"
+    ]
+    assert [r["entity"] for r in flagged] == ["auth_token"], (
+        f"the off-schema declaration was not reported: {telemetry['rejected_writes']}"
+    )
+    assert flagged[0]["dropped"] is False, (
+        "the default policy is 'flag', which keeps the value; reporting it as "
+        "dropped would misdescribe what happened"
+    )
+    assert telemetry["declarations"]["off_schema_keys"] == 1
+
+
+def test_the_default_policy_keeps_the_value_and_only_reports_it():
+    """
+    Flagging must not become a silent hard gate wearing a flag's name. The first
+    implementation returned only the admissible half of every group, so seven
+    existing declaration tests lost their facts on the way past.
+
+    It also must not become a hard *block*: in customer-service transcripts
+    82-99% of every mutable entity's mentions live in tool output, which the
+    read path may not read. An agent supplying a key the schema cannot define is
+    the write path working.
+    """
+    state, _ = _declare(
+        lambda b: block_('{"assert": {"auth_token": "abc123"}}'), policy="flag"
+    )
+    assert "auth_token" in state, (
+        "the default policy dropped a declared fact; refusing to record it makes "
+        "the tracker worse, not stricter"
+    )
+
+
+def test_the_reject_policy_drops_off_schema_keys_and_says_so():
+    state, telemetry = _declare(
+        lambda b: block_('{"assert": {"current_file": "memset.py", '
+                         '"auth_token": "abc"}}'),
+        policy="reject",
+    )
+    assert "current_file" in state, "the in-schema key was dropped"
+    assert "auth_token" not in state, "an off-schema key survived under 'reject'"
+    flagged = [
+        r for r in telemetry["rejected_writes"]
+        if r["kind"] == "off_schema_declaration"
+    ]
+    assert flagged and flagged[0]["dropped"] is True
+
+
+def test_the_gate_does_not_refuse_the_structural_guardrails():
+    """
+    `dietary_allergy` and `security_invariant` are protected *because* they carry
+    no patterns -- a caller opts into that safety by naming the key. A gate that
+    rejected schema-less keys would have refused the safety mechanism itself,
+    which is why this is a policy and not a hard membership test.
+    """
+    state, _ = _declare(
+        lambda b: block_('{"pin": {"dietary_allergy": "peanut"}}'), policy="reject"
+    )
+    assert "dietary_allergy" in state, (
+        "the gate refused a guardrail; a schema-less safety key is the whole "
+        "point of IMMUTABLE_ENTITIES"
+    )
+
+
+def test_no_schema_means_no_gate():
+    """
+    An unconfigured engine has no vocabulary to judge a key against, so it has
+    no basis for calling a declaration wrong.
+    """
+    _state, telemetry = _declare(
+        lambda b: block_('{"assert": {"whatever": "x"}}'),
+        schema=None, policy="reject",
+    )
+    assert telemetry["declarations"]["off_schema_keys"] == 0
+
+
+def test_an_off_schema_key_does_not_suppress_the_read_path_on_a_real_one():
+    """
+    The gate runs before the declaration is read for `skip_entities`, because
+    inference is told which keys are already accounted for. Had
+    `current_file_lines` been allowed to mark itself as covering the file, the
+    read path would have been told to skip `current_file` -- the key it could
+    actually have found -- because the model used a longer name.
+    """
+    state, _ = _declare(
+        lambda b: block_('{"assert": {"current_file_lines": "10-40"}}')
+    )
+    assert "current_file" in state, (
+        "the read path stopped extracting current_file because the model had "
+        "declared a different name for it"
+    )
+
+
+def test_the_off_policy_reports_nothing():
+    _state, telemetry = _declare(
+        lambda b: block_('{"assert": {"auth_token": "abc"}}'), policy="off"
+    )
+    assert telemetry["declarations"]["off_schema_keys"] == 0
+    assert telemetry["declarations"]["declaration_policy"] == "off"
+
+
+def test_an_unknown_declaration_policy_is_refused():
+    with pytest.raises(ValueError, match="declaration_policy"):
+        compile_messages(
+            [{"role": "user", "content": "hi"}],
+            schema=CODING, declaration_policy="quietly_drop",
+        )

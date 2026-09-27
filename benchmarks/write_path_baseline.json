@@ -1,0 +1,11 @@
+{
+  "blocks": 38,
+  "compliance": 0.905,
+  "declared_keys": 29,
+  "in_schema_keys": 10,
+  "in_schema_ratio": 0.345,
+  "malformed": 7,
+  "model": "qwen2.5:7b",
+  "schema": "coding",
+  "turns": 42
+}

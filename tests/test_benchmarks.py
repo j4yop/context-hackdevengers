@@ -1509,3 +1509,287 @@ def test_resume_refuses_turns_captured_under_a_different_prompt(tmp_path, monkey
     assert saved["prompt_fingerprint"] == fresh, (
         "the capture does not record the prompt it was produced under"
     )
+
+
+# ===========================================================================
+# the flattering metric
+# ===========================================================================
+#
+# Shadow mode reported `keys added 19` on a run where the coding schema defined
+# two keys and the declaration used neither. Nineteen is the write path's
+# headline number and it was entirely off-schema invention. These pin the split.
+
+SHADOW_SCHEMA = {"entities": {"current_file": [r"opening ([\w./-]+\.py)"]}}
+
+
+def test_shadow_separates_added_keys_the_schema_could_have_found():
+    from benchmarks import shadow as sh
+
+    # The block is added by inject_declarations, as a real capture's would be.
+    # Embedding it in the message instead would let the read path mine the
+    # declaration's own JSON for entities, and the invented key would appear in
+    # the baseline too.
+    messages = [
+        {"role": "user", "content": "fix it"},
+        {"role": "assistant", "content": "opening memset.py"},
+        {"role": "user", "content": "keep going"},
+    ]
+    outcome = sh.shadow_compare(
+        messages,
+        sh.model_source(lambda _turn: '{"assert": {"current_file": "other.py", '
+                                       '"auth_token": "abc"}}'),
+        schema=SHADOW_SCHEMA,
+    )
+    assert "auth_token" in outcome["added_off_schema"], (
+        "an invented key was counted as something the read path could have found"
+    )
+    assert outcome["added_off_schema"]["auth_token"] == "abc"
+    # `current_file` was declared with a different value, so it is a change, not
+    # an addition -- and the change is the number that needs a human.
+    assert "current_file" in outcome["changed"]
+    assert "none defined by the schema" in outcome["verdict"], outcome["verdict"]
+
+
+def block_(body):
+    return f"<contextgc-state>{body}</contextgc-state>"
+
+
+def test_a_verdict_of_only_off_schema_additions_says_so():
+    """
+    "added 19 key(s), agreed on the rest" reads as nineteen recovered facts. When
+    none of them is a key the schema defines, the verdict has to say that
+    instead of leaving the reader to notice.
+    """
+    from benchmarks.shadow import _verdict
+
+    added = {f"junk{i}": "v" for i in range(19)}
+    verdict = _verdict(added, {}, {"current_file": "memset.py"}, {}, added)
+    assert "none defined by the schema" in verdict, (
+        f"the verdict presented 19 inventions as recovered facts: {verdict!r}"
+    )
+    assert "19" in verdict
+
+
+def test_a_verdict_with_in_schema_additions_reports_the_split():
+    from benchmarks.shadow import _verdict
+
+    verdict = _verdict(
+        {"current_file": "a.py", "junk": "v"}, {}, {}, {"current_file": "a.py"}, {"junk": "v"}
+    )
+    assert "1 in schema" in verdict, verdict
+
+
+def test_the_capture_summary_reports_how_often_declarations_name_a_schema_key():
+    """
+    Compliance and usefulness came apart on the first real capture. Fixing a
+    duplicated-prompt defect took compliance from 59% to 90% while the share of
+    declarations naming a schema key did not move. Reporting only compliance
+    would have shown a clean improvement.
+    """
+    from benchmarks.capture import summarise
+
+    turns = [
+        {"content": block_('{"assert": {"current_file": "a.py"}}')},
+        {"content": block_('{"assert": {"auth_token": "abc"}}')},
+        {"content": block_('{"assert": {"line_144": "x"}}')},
+    ]
+    summary = summarise(turns, schema=SHADOW_SCHEMA)
+    assert summary["declared_keys"] == 3
+    assert summary["in_schema_keys"] == 1
+    assert summary["in_schema_ratio"] == 0.333, summary
+    # Compliance is perfect here and usefulness is not; both must be visible.
+    assert summary["compliance"] == 1.0
+
+
+def test_the_capture_summary_does_not_guess_a_schema_it_was_never_given():
+    """
+    A capture with no recorded schema has no basis for an in-schema ratio, and
+    defaulting to the coding schema would report a number for a capture that
+    never had one.
+    """
+    from benchmarks.capture import summarise
+
+    turns = [{"content": block_('{"assert": {"whatever": "x"}}')}]
+    summary = summarise(turns, schema=None)
+    assert summary["in_schema_ratio"] is None
+    assert summary["in_schema_keys"] is None
+
+
+def test_verify_flags_a_capture_whose_declarations_miss_the_schema():
+    from benchmarks.capture import verify
+
+    capture = {
+        "version": 1,
+        "endpoint": "http://localhost:11434/v1",
+        "turns": [
+            {"content": block_('{"assert": {"auth_token": "abc"}}')},
+            {"content": block_('{"assert": {"line_144": "x"}}')},
+        ],
+    }
+    problems = verify(capture, schema=SHADOW_SCHEMA)
+    assert any("schema" in p for p in problems), (
+        f"a capture that names nothing the tracker asked for verified clean: {problems}"
+    )
+
+
+def test_the_legacy_prompt_flag_reproduces_the_defect_and_is_refused_as_a_measurement(
+    tmp_path, monkeypatch
+):
+    """
+    The README quotes a before/after for the doubled-protocol prompt. A
+    comparison in prose that cannot be re-run is a claim rather than a
+    measurement, and `PROMPT_VERSION` did not make it re-runnable -- that
+    constant only feeds the fingerprint, so setting it to 1 changed the digest
+    and left the prompt exactly as it was.
+    """
+    from benchmarks import capture as cap
+    from benchmarks.corpus import Transcript
+
+    transcript = Transcript(
+        transcript_id="L#0", source="unit-test",
+        messages=[
+            {"role": "system", "content": "You are a coding agent."},
+            {"role": "assistant", "content": "opened `a.py`"},
+        ],
+    )
+    block = '<contextgc-state>{"assert": {"f": "a.py"}}</contextgc-state>'
+    monkeypatch.setattr("benchmarks.corpus.load_synthetic", lambda path, **kw: [transcript])
+
+    def run(name, **kwargs):
+        model, seen = _fake_client(lambda n: block)
+        monkeypatch.setattr(cap, "_client", lambda: (model, "L-test"))
+        payload = cap.capture(
+            "unused", str(tmp_path / name), limit=1, schema_path="coding",
+            progress=False, **kwargs,
+        )
+        blob = "\n".join(m.get("content") or "" for m in seen[0])
+        return payload, blob
+
+    modern, modern_blob = run("modern.json")
+    legacy, legacy_blob = run("legacy.json", legacy_prompt=True)
+
+    assert legacy_blob.count("[STATE_PROTOCOL]") == 2, (
+        "--legacy-prompt did not reproduce the doubled protocol instruction"
+    )
+    assert modern_blob.count("[STATE_PROTOCOL]") == 1
+    assert legacy["legacy_prompt"] is True
+    assert modern["legacy_prompt"] is False
+    assert legacy["prompt_fingerprint"] != modern["prompt_fingerprint"], (
+        "the two prompts share a fingerprint, so resume would treat one as the other"
+    )
+    problems = cap.verify(legacy, schema={"entities": {"f": ["a"]}})
+    assert any("legacy_prompt" in problem for problem in problems), (
+        f"a doubled-prompt capture verified as a measurement: {problems}"
+    )
+
+
+# ===========================================================================
+# the write-path regression check
+# ===========================================================================
+#
+# The nightly ran `capture --verify` on the committed capture and went red every
+# night, because verify correctly exits non-zero on a model that names a schema
+# slot 34% of the time. A check that fails forever on a known result is not a
+# check. These pin the replacement: a baseline, and failure only on movement.
+
+def test_the_write_path_check_fails_on_a_regression_and_passes_when_unchanged(
+    tmp_path, monkeypatch
+):
+    import benchmarks.write_path_check as wpc
+
+    capture = {
+        "schema": "coding", "model": "test",
+        "turns": [
+            {"content": block_('{"assert": {"current_file": "a.py"}}')},
+            {"content": block_('{"assert": {"auth_token": "x"}}')},
+        ],
+    }
+    path = tmp_path / "c.json"
+    path.write_text(json.dumps(capture))
+
+    baseline = tmp_path / "b.json"
+    assert wpc.main([str(path), str(baseline), "--update"]) == 0
+    assert wpc.main([str(path), str(baseline)]) == 0, (
+        "a capture identical to the baseline was reported as changed"
+    )
+
+    worse = json.loads(path.read_text())
+    worse["turns"] = [{"content": block_('{"assert": {"auth_token": "x"}}')}]
+    path.write_text(json.dumps(worse))
+    assert wpc.main([str(path), str(baseline)]) == 1, (
+        "the share of declarations naming a schema slot fell to zero and the "
+        "check passed"
+    )
+
+
+def test_the_write_path_check_refuses_to_run_without_a_baseline(tmp_path):
+    import benchmarks.write_path_check as wpc
+
+    capture = tmp_path / "c.json"
+    capture.write_text(json.dumps({"schema": "coding", "turns": []}))
+    assert wpc.main([str(capture), str(tmp_path / "absent.json")]) == 1
+
+
+def test_the_write_path_check_reports_a_missing_capture_as_a_failure(tmp_path):
+    import benchmarks.write_path_check as wpc
+
+    assert wpc.main([str(tmp_path / "nope.json"), str(tmp_path / "b.json")]) == 1
+
+
+def test_a_better_model_is_reported_rather_than_failing(tmp_path, capsys):
+    """
+    Failing the build because the numbers improved would make the correct action
+    -- adopt a better model, re-capture, update the baseline -- look like a
+    break, and the likeliest response would be to stop looking.
+    """
+    import benchmarks.write_path_check as wpc
+
+    capture = tmp_path / "c.json"
+    # A baseline recorded against a model that named nothing the tracker asked for.
+    capture.write_text(json.dumps({
+        "schema": "coding", "model": "weak",
+        "turns": [
+            {"content": block_('{"assert": {"auth_token": "x"}}')},
+            {"content": block_('{"assert": {"line_144": "y"}}')},
+        ],
+    }))
+    baseline = tmp_path / "b.json"
+    wpc.main([str(capture), str(baseline), "--update"])
+
+    better = json.loads(capture.read_text())
+    better["model"] = "strong"
+    better["turns"] = [
+        {"content": block_('{"assert": {"current_file": "a.py"}}')},
+        {"content": block_('{"assert": {"failing_test": "t.py"}}')},
+    ]
+    capture.write_text(json.dumps(better))
+
+    assert wpc.main([str(capture), str(baseline)]) == 0, (
+        "a capture that improved on the baseline failed the check"
+    )
+    assert "IMPROVED" in capsys.readouterr().out
+
+
+def test_informational_metrics_are_judged_by_neither_direction(tmp_path, capsys):
+    """
+    A capture that emitted twice as many blocks is not worse. Scoring an
+    informational metric as though more were worse made a harmless change fail
+    the build, which is how a regression detector starts crying wolf.
+    """
+    import benchmarks.write_path_check as wpc
+
+    capture = tmp_path / "c.json"
+    capture.write_text(json.dumps({
+        "schema": "coding", "model": "t",
+        "turns": [{"content": block_('{"assert": {"current_file": "a.py"}}')}],
+    }))
+    baseline = tmp_path / "b.json"
+    wpc.main([str(capture), str(baseline), "--update"])
+
+    more = json.loads(capture.read_text())
+    more["turns"] = more["turns"] * 3
+    capture.write_text(json.dumps(more))
+
+    assert wpc.main([str(capture), str(baseline)]) == 0
+    out = capsys.readouterr().out
+    assert "REGRESSED" not in out, out
