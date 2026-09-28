@@ -102,7 +102,19 @@ def cmd_run(args):
         transcripts, schema=_schema(args.schema),
         max_extractions=getattr(args, "max_extractions", None) or 100_000,
     )
+    from contextgc import load_schema
+
     from .gold import labels_path_for
+
+    def _slot_names(name):
+        """The slots a schema name defines, so unlabelled ones can be named."""
+        if not name:
+            return None
+        try:
+            loaded = load_schema(name)
+        except Exception:
+            return None
+        return {slot: [] for slot in loaded}
 
     # The schema name is the better key: a label judges one schema's extractions,
     # and APIGen-MT is sliced two ways.
@@ -111,6 +123,11 @@ def cmd_run(args):
         labels_path=labels_path_for(
             (result.corpus or {}).get("corpus_source"), args.schema
         ),
+        # So the report can name the slots nobody labelled. Without it a slot
+        # with no labels is simply absent from the breakdown, and absent reads
+        # as "not applicable" rather than "not done" -- which is how a figure
+        # covering one slot of two came to read as a statement about a schema.
+        schema=_slot_names(args.schema),
     )
     print(render(result))
     notice = render_truncation_notice(result)

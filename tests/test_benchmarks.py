@@ -1018,6 +1018,50 @@ def test_a_slot_short_of_its_budget_says_so_rather_than_looking_empty():
     )
 
 
+def test_a_precision_figure_reports_which_slots_it_covers_and_which_it_does_not():
+    """
+    The coding figure was 100% over 36 rows that were every one of them
+    `current_file`, and the printed output did not say so anywhere. A reader
+    took it as a statement about the coding schema, which it was not, and could
+    not tell the difference by looking.
+
+    So the breakdown is part of the result, and a slot nobody labelled is
+    reported UNMEASURED rather than left out. Left out, it reads as "not
+    applicable" -- which is the failure: a slot the read path never even
+    produced looked the same as a slot a person simply had not got to.
+    """
+    from benchmarks.gold import CORRECT, score
+
+    extractions = [
+        {"transcript": "r#0", "entity": "current_file", "turn": 0, "value": "a.py"},
+    ]
+    labels = [
+        {"transcript": "r#0", "entity": "current_file", "turn_index": 0,
+         "value": "a.py", "verdict": CORRECT, "labelled_by": "t"},
+    ]
+    schema = {"current_file": [], "failing_test": []}
+    result = score(extractions, labels=labels, schema=schema)
+
+    assert result["by_entity"]["current_file"]["n"] == 1
+    # failing_test was never labelled, so it must be named, not omitted.
+    assert "failing_test" in result["by_entity"], (
+        "an unlabelled slot that is absent reads as not-applicable, which is "
+        "how an unfired slot looked identical to an unlabelled one"
+    )
+    assert result["by_entity"]["failing_test"]["n"] == 0
+    assert result["slots_measured"] == ["current_file"]
+    assert result["slots_unmeasured"] == ["failing_test"]
+
+    from benchmarks.gold import render
+
+    text = render(result)
+    assert "failing_test" in text and "UNMEASURED" in text
+    assert "1 of 2" in text, (
+        "the printed figure must state its own coverage, or it is quotable as "
+        "a statement about the schema"
+    )
+
+
 def test_a_capture_scores_the_read_path_at_the_same_turn_not_a_rebuilt_one():
     """
     The old staleness rate was unquotable for three separate reasons and this
