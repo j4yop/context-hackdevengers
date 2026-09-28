@@ -367,7 +367,36 @@ exposed the problem in the first place. It then had to be re-read a second time,
 because fixing the repeat bug in defect 6 changed what the compiler extracts.
 
 The 100% is not a claim that the tracker is perfect. It is 100% of what was
-labelled, and labelling is the bottleneck.
+labelled, and labelling is the bottleneck. Concretely, the limit is that **all 39
+labels are one slot**: precision is currently a statement about the
+`current_file` regex and nothing else. (`coding.failing_test` cannot be measured
+at all — it has 0 speech observations, so the read path never produces it.)
+
+#### Making labelling cheap enough to stop being the bottleneck
+
+`python -m benchmarks.label_worksheet travel --limit 200 --per-entity 12` writes
+a worksheet a human can fill in, and
+`python -m benchmarks.label_worksheet travel --merge <file>` folds the judged
+rows into the committed label file. Three things it does that hand-picking does
+not:
+
+- **It spreads the budget across slots.** Sampling "the extractions" reproduces
+  the existing shape, because `current_file` is the easiest slot to sample and
+  the others are not. The worksheet samples round-robin, so 12 per slot is 12
+  per slot — 80 rows across all seven travel slots, of which 60 are for the five
+  slots that have **no labels at all**.
+- **It quotes the registering turn and its neighbours.** Both "confirmed errors"
+  this project once carried were mislabelled by someone reading a value without
+  the sentence that said the agent had moved on. The quote is the fix, and the
+  merge refuses a row that does not carry one.
+- **It will not invent a verdict.** Every row ships `unlabelled`, and the merge
+  exits while any row is unlabelled, so a precision number can never acquire a
+  denominator nobody judged. Rows are de-duplicated by value and by transcript
+  first, because inflating `n` with repeats was this project's first precision
+  bug.
+
+The committed label file is the only thing that produces a number. The worksheet
+carries none until a person fills it in.
 
 #### One precision question the labels structurally cannot answer
 

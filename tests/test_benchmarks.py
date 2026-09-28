@@ -895,6 +895,129 @@ def test_staleness_will_not_quarter_its_rate_on_one_transcript():
     assert staleness.MIN_COMPARISONS >= 50, "a rate over a handful of points is not a measurement"
 
 
+def _fake_extractions():
+    """Extractions shaped like the read path's, across three slots."""
+    items = []
+    for entity, values in (
+        ("current_file", [f"mod{i}.py" for i in range(20)]),
+        ("cabin_class", ["economy", "business", "basic economy"]),
+        ("flight_date", [f"May {i}, 2024" for i in range(1, 6)]),
+    ):
+        for i, value in enumerate(values):
+            items.append({
+                "transcript": f"t#{i}", "entity": entity,
+                "value": value, "turn": i, "source": "inferred",
+            })
+    return items
+
+
+def test_a_worksheet_ships_unlabelled_and_quotes_the_turn():
+    """
+    Two properties, both about not manufacturing evidence.
+
+    Every row must arrive with no verdict: a worksheet that carried verdicts
+    would let a precision number acquire a denominator nobody judged. And every
+    row must quote the registering turn, because the two "confirmed errors" this
+    project once carried were both mislabelled by a labeller who read a value
+    without the sentence that said the agent had moved on.
+    """
+    from benchmarks import label_worksheet as lw
+
+    rows = lw.sample_rows(_fake_extractions(), {}, per_entity=3)
+    assert rows
+    for row in rows:
+        assert row["verdict"] == "unlabelled", row
+        assert row["labelled_by"] == ""
+
+
+def test_a_worksheet_spreads_its_budget_across_slots():
+    """
+    All 39 committed labels are `current_file`, so the reported 100% says nothing
+    about the other slots the library ships. A budget spent on whichever slot is
+    easiest to sample reproduces that exactly, so the worksheet samples
+    round-robin and every slot gets its quota before any slot gets a second one.
+    """
+    from collections import Counter
+
+    from benchmarks import label_worksheet as lw
+
+    rows = lw.sample_rows(_fake_extractions(), {}, per_entity=3)
+    counts = Counter(r["entity"] for r in rows)
+    assert len(counts) == 3, "one slot means the sample says nothing about the rest"
+    assert max(counts.values()) - min(counts.values()) <= 1, counts
+    # And the order is interleaved, so a labeller who stops early has not spent
+    # the whole budget on one slot.
+    assert [r["entity"] for r in rows[:3]] == sorted(counts)
+
+
+def test_a_worksheet_never_asks_twice_about_one_value_or_one_file():
+    """
+    Precision is scored over independent units, and inflating `n` with repeats was
+    this project's first precision bug -- 39 rows about 39 turns turned out to be
+    36 independent facts. A sample of 12 rows about the same file, or the same
+    value restated, would report the same thing 12 times.
+    """
+    from benchmarks import label_worksheet as lw
+
+    rows = lw.sample_rows(_fake_extractions(), {}, per_entity=5)
+    for entity in {r["entity"] for r in rows}:
+        picked = [r for r in rows if r["entity"] == entity]
+        assert len({r["value"] for r in picked}) == len(picked), entity
+        assert len({r["transcript"] for r in picked}) == len(picked), entity
+
+    # A corpus that only ever says one thing yields one row, not five.
+    same = [{"transcript": f"t#{i}", "entity": "cabin_class", "value": "economy",
+             "turn": i} for i in range(5)]
+    assert len(lw.sample_rows(same, {}, per_entity=5)) == 1
+
+
+def test_a_worksheet_excludes_rows_already_labelled():
+    from benchmarks import label_worksheet as lw
+
+    items = _fake_extractions()
+    already = {(items[0]["transcript"], items[0]["entity"], items[0]["value"],
+                items[0]["turn"])}
+    rows = lw.sample_rows(items, {}, per_entity=3, already=already)
+    assert not any(
+        (r["transcript"], r["entity"], r["value"], r["turn_index"]) in already
+        for r in rows
+    )
+
+
+def test_the_merge_refuses_a_worksheet_nobody_judged():
+    """
+    Checked on a hand-built worksheet rather than one from a corpus: the point is
+    that the merge refuses, which must hold on a machine with no corpus cached and
+    no pandas installed.
+    """
+    from benchmarks import label_worksheet as lw
+
+    worksheet = {
+        "corpus": "unit-test",
+        "items": [
+            {"id": "001", "transcript": "t#1", "entity": "cabin_class",
+             "value": "economy", "turn_index": 3, "verdict": "unlabelled",
+             "note": "", "labelled_by": "", "turn_in_context": ">>> [3] user: economy"},
+            {"id": "002", "transcript": "t#2", "entity": "cabin_class",
+             "value": "business", "turn_index": 4, "verdict": "correct",
+             "note": "", "labelled_by": "someone", "turn_in_context": ""},
+        ],
+    }
+    with pytest.raises(SystemExit) as excinfo:
+        lw.merge(worksheet, "travel")
+    assert "unlabelled" in str(excinfo.value)
+
+    worksheet["items"][0]["verdict"] = "correct"
+    worksheet["items"][0]["labelled_by"] = "someone"
+    with pytest.raises(SystemExit) as excinfo:
+        lw.merge(worksheet, "travel")
+    assert "no turn quoted" in str(excinfo.value)
+
+    worksheet["items"][1]["turn_in_context"] = ">>> [4] user: business"
+    with pytest.raises(SystemExit):
+        lw.merge(worksheet, "nosuchschema")
+
+
 def test_an_options_menu_is_not_recorded_as_a_booking():
     """
     Found by reading the registering turns of the second domain. A turn listed
