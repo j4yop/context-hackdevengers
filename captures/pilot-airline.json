@@ -1,0 +1,95 @@
+{
+  "version": 1,
+  "endpoint": "http://localhost:11434/v1",
+  "model": "qwen2.5:14b",
+  "transcript_path": null,
+  "corpus": "apigen",
+  "corpus_source": "apigen-mt-5k:airline",
+  "corpus_transcripts": 2,
+  "schema": "travel",
+  "legacy_prompt": false,
+  "prompt_fingerprint": "c9c5229cb690b7c3",
+  "prompt_version": 3,
+  "turns": [
+    {
+      "transcript": "apigen-0",
+      "index": 2,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"unsure\":{\"active_reservation\":\"0U4NPP\",\"reason_for_cancellation\":\"personal_reasons\"}}</contextgc-state>"
+    },
+    {
+      "transcript": "apigen-0",
+      "index": 4,
+      "role": "assistant",
+      "declared": false,
+      "content": "<\"contextgc-state\">{}</contextgc-state>"
+    },
+    {
+      "transcript": "apigen-0",
+      "index": 6,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"unsure\":{\"active_reservation\":\"0U4NPP\",\"cabin_class\":\"economy\"}}</contextgc-state>\n\nGiven the current details:\n- The reservation ID is 0U4NPP.\n- The trips on this reservation have already been completed.\n- You are seeking cancellation due to personal reasons.\n\nUnfortunately, cancellations are not possible for flights that have already landed, as per our airline policies. This applies to reservations without any pending future flights.\n\nIf you require further assistance or would prefer to speak to a human agent regarding this matter, please let me know."
+    },
+    {
+      "transcript": "apigen-0",
+      "index": 7,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"unsure\":{\"active_reservation\":\"0U4NPP\"},\"revoke\":[\"cabin_class\"]}</contextgc-state>"
+    },
+    {
+      "transcript": "apigen-0",
+      "index": 9,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"revoke\":[\"active_reservation\", \"cabin_class\"]}</contextgc-state>"
+    },
+    {
+      "transcript": "apigen-1",
+      "index": 2,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"unsure\":{\"active_reservation\":\"E3M58X\",\"cabin_class\":\"Economy\",\"flight_number\":\"HAT076\",\"flight_date\":\"2024-05-17\",\"origin\":\"Denver\",\"destination\":\"Philadelphia\"}}</contextgc-state>"
+    },
+    {
+      "transcript": "apigen-1",
+      "index": 4,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"unsure\":{\"active_reservation\":\"E3M58X\"}}</contextgc-state>"
+    },
+    {
+      "transcript": "apigen-1",
+      "index": 6,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"assert\":{\"reservation_id\":\"E3M58X\",\"origin\":\"DEN\",\"destination\":\"PHL\",\"flight_number\":\"HAT076\",\"date\":\"2024-05-17\",\"passengers\":[{\"first_name\":\"Daiki\",\"last_name\":\"Lopez\",\"dob\":\"1954-03-20\"},{\"first_name\":\"Lei\",\"last_name\":\"Khan\",\"dob\":\"1985-03-02\"}]}}</contextgc-state>"
+    },
+    {
+      "transcript": "apigen-1",
+      "index": 8,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"unsure\":{\"cancellation_details\":null}}</contextgc-state>"
+    }
+  ],
+  "declarations": {
+    "apigen-0": {
+      "2": "{\"unsure\":{\"active_reservation\":\"0U4NPP\",\"reason_for_cancellation\":\"personal_reasons\"}}",
+      "6": "{\"unsure\":{\"active_reservation\":\"0U4NPP\",\"cabin_class\":\"economy\"}}",
+      "7": "{\"unsure\":{\"active_reservation\":\"0U4NPP\"},\"revoke\":[\"cabin_class\"]}",
+      "9": "{\"revoke\":[\"active_reservation\", \"cabin_class\"]}"
+    },
+    "apigen-1": {
+      "2": "{\"unsure\":{\"active_reservation\":\"E3M58X\",\"cabin_class\":\"Economy\",\"flight_number\":\"HAT076\",\"flight_date\":\"2024-05-17\",\"origin\":\"Denver\",\"destination\":\"Philadelphia\"}}",
+      "4": "{\"unsure\":{\"active_reservation\":\"E3M58X\"}}",
+      "6": "{\"assert\":{\"reservation_id\":\"E3M58X\",\"origin\":\"DEN\",\"destination\":\"PHL\",\"flight_number\":\"HAT076\",\"date\":\"2024-05-17\",\"passengers\":[{\"first_name\":\"Daiki\",\"last_name\":\"Lopez\",\"dob\":\"1954-03-20\"},{\"first_name\":\"Lei\",\"last_name\":\"Khan\",\"dob\":\"1985-03-02\"}]}}",
+      "8": "{\"unsure\":{\"cancellation_details\":null}}"
+    }
+  },
+  "prompts_asked": 9,
+  "context_chars": 12000,
+  "context_truncated_prompts": 0
+}

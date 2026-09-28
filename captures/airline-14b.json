@@ -1,0 +1,320 @@
+{
+  "version": 1,
+  "endpoint": "http://localhost:11434/v1",
+  "model": "qwen2.5:14b",
+  "transcript_path": null,
+  "corpus": "apigen",
+  "corpus_source": "apigen-mt-5k:airline",
+  "corpus_transcripts": 6,
+  "schema": "travel",
+  "legacy_prompt": false,
+  "prompt_fingerprint": "2ff83b6351375cbd",
+  "prompt_version": 3,
+  "turns": [
+    {
+      "transcript": "apigen-0",
+      "index": 2,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"unsure\":{\"active_reservation\":\"0U4NPP\"},\"pin\":{\"origin_airport\":\"PHL\",\"destination_airport\":\"DEN\"}}</contextgc-state>"
+    },
+    {
+      "transcript": "apigen-0",
+      "index": 4,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"assert\":{\"active_reservation\":\"0U4NPP\"},\"unsure\":{\"cancellation_possible\":true}}</contextgc-state>"
+    },
+    {
+      "transcript": "apigen-0",
+      "index": 6,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"unsure\":{\"active_reservation\":\"0U4NPP\",\"flight_date\":\"2024-05-09\",\"flight_number\":\"0U4NPP\"}}</contextgc-state>\n\nRegarding your request to cancel flight reservation ID 0U4NPP from PHL to DEN, unfortunately, cancellations and refunds are not possible for flights that have already been completed. Since both legs of your flight have already taken place, we cannot process this cancellation request. If you have any further questions or need assistance with future travel arrangements, please feel free to contact our customer service team by calling 1-800-555-1234 or reach out via live chat."
+    },
+    {
+      "transcript": "apigen-0",
+      "index": 7,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"revoke\":[\"active_reservation\"]}</contextgc-state>"
+    },
+    {
+      "transcript": "apigen-0",
+      "index": 9,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state></contextgc-state>"
+    },
+    {
+      "transcript": "apigen-1",
+      "index": 2,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"unsure\":{\"passenger_id\":\"None\"}}</contextgc-state>"
+    },
+    {
+      "transcript": "apigen-1",
+      "index": 4,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"pin\":{\"active_reservation\":\"E3M58X\"},\"pin\":{\"flight_number\":\"HAT076\"},\"pin\":{\"flight_date\":\"2024-05-17\"},\"pin\":{\"origin_airport\":\"DEN\"},\"pin\":{\"destination_airport\":\"PHL\"}}</contextgc-state>"
+    },
+    {
+      "transcript": "apigen-1",
+      "index": 6,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"unsure\":{\"active_reservation\":\"E3M58X\",\"flight_date\":\"May 17, 2024\",\"flight_number\":\"HAT076\",\"origin_airport\":\"DEN\",\"destination_airport\":\"PHL\"}}</contextgc-state>"
+    },
+    {
+      "transcript": "apigen-1",
+      "index": 8,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"unsure\":{\"flight_number\"},\"pin\":{\"active_reservation\":\"E3M58X\",\"flight_date\":\"2024-05-17\",\"origin_airport\":\"PHL\",\"destination_airport\":\"DEN\",\"passenger_id\":\"Daiki Lopez\",\"passenger_id\":\"Lei Khan\"}}</contextgc-state>"
+    },
+    {
+      "transcript": "apigen-2",
+      "index": 2,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"unsure\":{\"active_reservation\":\"H0MVIE\"}}}</contextgc-state>"
+    },
+    {
+      "transcript": "apigen-2",
+      "index": 4,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"unsure\":{\"passenger_check_in_status\":null,\"cabin_class\":null,\"checked_bags\":null},\"assert\":{\"flight_date\":\"2024-05-20\",\"flight_number\":\"H0MVIE\",\"passenger_id\":\"olivia_martin_3924\"},\"pin\":{\"active_reservation\":\"H0MVIE\"}}</contextgc-state>"
+    },
+    {
+      "transcript": "apigen-2",
+      "index": 6,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"pin\":{\"passenger_id\":\"olivia_martin_3924\"},\"assert\":{\"active_reservation\":\"H0MVIE\",\"flight_date\":\"2024-05-20\",\"origin_airport\":\"CLT\",\"destination_airport\":\"BOS\"}}</contextgc-state>"
+    },
+    {
+      "transcript": "apigen-2",
+      "index": 8,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"assert\":{\"total_baggages\":1,\"nonfree_baggages\":0}}</contextgc-state>"
+    },
+    {
+      "transcript": "apigen-2",
+      "index": 9,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"assert\":{\"total_baggages\":1}}</contextgc-state>"
+    },
+    {
+      "transcript": "apigen-2",
+      "index": 11,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"assert\":{\"total_baggages\":\"1\",\"nonfree_baggages\":\"0\"},\"pin\":{\"reservation_id\":\"H0MVIE\",\"cabin_class\":\"economy\",\"active_reservation\":\"H0MVIE\",\"origin_airport\":\"CLT\",\"destination_airport\":\"BOS\",\"flight_number\":\"HAT216\",\"flight_date\":\"2024-05-20\",\"passenger_id\":\"olivia_martin_3924\"}}</contextgc-state>"
+    },
+    {
+      "transcript": "apigen-2",
+      "index": 13,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"assert\":{\"total_baggages\":\"1\",\"nonfree_baggages\":\"0\"},\"pin\":{\"cabin_class\":\"economy\",\"origin_airport\":\"CLT\",\"destination_airport\":\"BOS\",\"flight_number\":\"HAT216\",\"flight_date\":\"2024-05-20\",\"active_reservation\":\"H0MVIE\",\"passenger_id\":\"olivia_martin_3924\"}}</contextgc-state>"
+    },
+    {
+      "transcript": "apigen-3",
+      "index": 2,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"pin\":{\"active_reservation\":\"DVONGW\"}}</contextgc-state>"
+    },
+    {
+      "transcript": "apigen-3",
+      "index": 4,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"unsure\":{\"passenger_id\":\"DVONGW\"},\"assert\":{\"passenger_name\":\"Yusuf Jackson\"}}</contextgc-state>"
+    },
+    {
+      "transcript": "apigen-3",
+      "index": 6,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"pin\":{\"active_reservation\":\"DVONGW\"}}</contextgc-state>"
+    },
+    {
+      "transcript": "apigen-3",
+      "index": 8,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"pin\":{\"active_reservation\":\"DVONGW\",\"origin_airport\":\"DEN\",\"destination_airport\":\"JFK\",\"cabin_class\":\"economy\",\"flight_date\":\"2024-05-07T13:04:42\"}}</contextgc-state>"
+    },
+    {
+      "transcript": "apigen-3",
+      "index": 10,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"unsure\":{\"passenger_id\":\"Yusuf Jackson\",\"date_of_birth\":\"1995-08-10\"}}</contextgc-state>"
+    },
+    {
+      "transcript": "apigen-3",
+      "index": 12,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"unsure\":{\"passenger_id\":\"Yusuf Jackson 1995-08-10\"},\"pin\":{\"reservation_id\":\"DVONGW\"}}</contextgc-state>"
+    },
+    {
+      "transcript": "apigen-3",
+      "index": 14,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"pin\":{\"user_id\":\"olivia_martin_3924\",\"reservation_id\":\"DVONGW\",\"origin\":\"DEN\",\"destination\":\"JFK\",\"flight_type\":\"round_trip\",\"cabin\":\"economy\"},\"unsure\":{\"passenger_id\":\"Yusuf Jackson\"}}</contextgc-state>"
+    },
+    {
+      "transcript": "apigen-4",
+      "index": 2,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"unsure\":{\"active_reservation\":null}}</contextgc-state>"
+    },
+    {
+      "transcript": "apigen-4",
+      "index": 4,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"pin\":{\"active_reservation\":\"JVDVOV\"},\"pin\":{\"passenger_id\":\"mia_ito_4088\"}}</contextgc-state>"
+    },
+    {
+      "transcript": "apigen-4",
+      "index": 6,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"pin\":{\"passenger_id\":\"mia_ito_4088\",\"active_reservation\":\"JVDVOV\"}}</contextgc-state>"
+    },
+    {
+      "transcript": "apigen-4",
+      "index": 8,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"assert\":{\"passenger_id\":\"mia_ito_4088\",\"active_reservation\":\"JVDVOV\",\"unsure\":{\"new_last_name\":\"Rodriguez\"}}}</contextgc-state>"
+    },
+    {
+      "transcript": "apigen-4",
+      "index": 10,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"pin\":{\"passenger_id\":\"mia_ito_4088\"},\"assert\":{\"active_reservation\":\"JVDVOV\",\"destination_airport\":\"ORD\",\"origin_airport\":\"CLT\",\"flight_date\":\"2024-05-15\"},\"unsure\":{\"cabin_class\":\"economy\",\"flight_number\":\"unknown\"}}</contextgc-state>"
+    },
+    {
+      "transcript": "apigen-4",
+      "index": 12,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"assert\":{\"passenger_id\":\"mia_ito_4088\",\"active_reservation\":\"JVDVOV\",\"unsure\":{\"destination_airport\":null,\"origin_airport\":\"CLT\",\"flight_number\":null,\"flight_date\":null,\"cabin_class\":\"economy\"}}}</contextgc-state>"
+    },
+    {
+      "transcript": "apigen-4",
+      "index": 14,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"assert\":{\"active_reservation\":\"JVDVOV\",\"passenger_id\":\"mia_ito_4088\",\"unsure\":{\"updated_passenger_name\":\"Ava Rodriguez\"}}}</contextgc-state>"
+    },
+    {
+      "transcript": "apigen-5",
+      "index": 2,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"unsure\":{\"active_reservation\":\"KKKYCG\",\"cabin_class\":\"basic economy\",\"passenger_id\":\"provided\"}}</contextgc-state>"
+    },
+    {
+      "transcript": "apigen-5",
+      "index": 4,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"pin\":{\"passenger_id\":\"james_thomas_5421\"}}</contextgc-state>"
+    },
+    {
+      "transcript": "apigen-5",
+      "index": 6,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"pin\":{\"passenger_id\":\"james_thomas_5421\"}}</contextgc-state>\n\nI've found your reservation KKKYCG. It's for a one-way trip from Atlanta (ATL) to Los Angeles (LAX) via Dallas/Fort Worth (DFW) on May 17, 2024. I will proceed to add an extra checked bag to your reservation. Please confirm if you would like to proceed."
+    },
+    {
+      "transcript": "apigen-5",
+      "index": 8,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"assert\":{\"passenger_id\":\"james_thomas_5421\",\"origin_airport\":\"ATL\",\"destination_airport\":\"LAX\",\"flight_date\":\"May 17, 2024\",\"cabin_class\":\"economy\"},\"unsure\":{\"total_baggages\":3}}</contextgc-state>"
+    },
+    {
+      "transcript": "apigen-5",
+      "index": 10,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"assert\":{\"total_baggages\":\"3\",\"nonfree_baggages\":\"1\"},\"pin\":{\"cabin_class\":\"economy\",\"destination_airport\":\"LAX\",\"flight_date\":\"May 17, 2024\",\"origin_airport\":\"ATL\",\"passenger_id\":\"james_thomas_5421\"}}</contextgc-state>"
+    },
+    {
+      "transcript": "apigen-5",
+      "index": 12,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"assert\":{\"total_baggages\":\"3\",\"nonfree_baggages\":\"1\"},\"pin\":{\"cabin_class\":\"economy\",\"destination_airport\":\"LAX\",\"flight_date\":\"May 17, 2024\",\"origin_airport\":\"ATL\",\"passenger_id\":\"james_thomas_5421\"}}</contextgc-state>"
+    }
+  ],
+  "declarations": {
+    "apigen-0": {
+      "2": "{\"unsure\":{\"active_reservation\":\"0U4NPP\"},\"pin\":{\"origin_airport\":\"PHL\",\"destination_airport\":\"DEN\"}}",
+      "4": "{\"assert\":{\"active_reservation\":\"0U4NPP\"},\"unsure\":{\"cancellation_possible\":true}}",
+      "6": "{\"unsure\":{\"active_reservation\":\"0U4NPP\",\"flight_date\":\"2024-05-09\",\"flight_number\":\"0U4NPP\"}}",
+      "7": "{\"revoke\":[\"active_reservation\"]}",
+      "9": ""
+    },
+    "apigen-1": {
+      "2": "{\"unsure\":{\"passenger_id\":\"None\"}}",
+      "4": "{\"pin\":{\"active_reservation\":\"E3M58X\"},\"pin\":{\"flight_number\":\"HAT076\"},\"pin\":{\"flight_date\":\"2024-05-17\"},\"pin\":{\"origin_airport\":\"DEN\"},\"pin\":{\"destination_airport\":\"PHL\"}}",
+      "6": "{\"unsure\":{\"active_reservation\":\"E3M58X\",\"flight_date\":\"May 17, 2024\",\"flight_number\":\"HAT076\",\"origin_airport\":\"DEN\",\"destination_airport\":\"PHL\"}}",
+      "8": "{\"unsure\":{\"flight_number\"},\"pin\":{\"active_reservation\":\"E3M58X\",\"flight_date\":\"2024-05-17\",\"origin_airport\":\"PHL\",\"destination_airport\":\"DEN\",\"passenger_id\":\"Daiki Lopez\",\"passenger_id\":\"Lei Khan\"}}"
+    },
+    "apigen-2": {
+      "2": "{\"unsure\":{\"active_reservation\":\"H0MVIE\"}}}",
+      "4": "{\"unsure\":{\"passenger_check_in_status\":null,\"cabin_class\":null,\"checked_bags\":null},\"assert\":{\"flight_date\":\"2024-05-20\",\"flight_number\":\"H0MVIE\",\"passenger_id\":\"olivia_martin_3924\"},\"pin\":{\"active_reservation\":\"H0MVIE\"}}",
+      "6": "{\"pin\":{\"passenger_id\":\"olivia_martin_3924\"},\"assert\":{\"active_reservation\":\"H0MVIE\",\"flight_date\":\"2024-05-20\",\"origin_airport\":\"CLT\",\"destination_airport\":\"BOS\"}}",
+      "8": "{\"assert\":{\"total_baggages\":1,\"nonfree_baggages\":0}}",
+      "9": "{\"assert\":{\"total_baggages\":1}}",
+      "11": "{\"assert\":{\"total_baggages\":\"1\",\"nonfree_baggages\":\"0\"},\"pin\":{\"reservation_id\":\"H0MVIE\",\"cabin_class\":\"economy\",\"active_reservation\":\"H0MVIE\",\"origin_airport\":\"CLT\",\"destination_airport\":\"BOS\",\"flight_number\":\"HAT216\",\"flight_date\":\"2024-05-20\",\"passenger_id\":\"olivia_martin_3924\"}}",
+      "13": "{\"assert\":{\"total_baggages\":\"1\",\"nonfree_baggages\":\"0\"},\"pin\":{\"cabin_class\":\"economy\",\"origin_airport\":\"CLT\",\"destination_airport\":\"BOS\",\"flight_number\":\"HAT216\",\"flight_date\":\"2024-05-20\",\"active_reservation\":\"H0MVIE\",\"passenger_id\":\"olivia_martin_3924\"}}"
+    },
+    "apigen-3": {
+      "2": "{\"pin\":{\"active_reservation\":\"DVONGW\"}}",
+      "4": "{\"unsure\":{\"passenger_id\":\"DVONGW\"},\"assert\":{\"passenger_name\":\"Yusuf Jackson\"}}",
+      "6": "{\"pin\":{\"active_reservation\":\"DVONGW\"}}",
+      "8": "{\"pin\":{\"active_reservation\":\"DVONGW\",\"origin_airport\":\"DEN\",\"destination_airport\":\"JFK\",\"cabin_class\":\"economy\",\"flight_date\":\"2024-05-07T13:04:42\"}}",
+      "10": "{\"unsure\":{\"passenger_id\":\"Yusuf Jackson\",\"date_of_birth\":\"1995-08-10\"}}",
+      "12": "{\"unsure\":{\"passenger_id\":\"Yusuf Jackson 1995-08-10\"},\"pin\":{\"reservation_id\":\"DVONGW\"}}",
+      "14": "{\"pin\":{\"user_id\":\"olivia_martin_3924\",\"reservation_id\":\"DVONGW\",\"origin\":\"DEN\",\"destination\":\"JFK\",\"flight_type\":\"round_trip\",\"cabin\":\"economy\"},\"unsure\":{\"passenger_id\":\"Yusuf Jackson\"}}"
+    },
+    "apigen-4": {
+      "2": "{\"unsure\":{\"active_reservation\":null}}",
+      "4": "{\"pin\":{\"active_reservation\":\"JVDVOV\"},\"pin\":{\"passenger_id\":\"mia_ito_4088\"}}",
+      "6": "{\"pin\":{\"passenger_id\":\"mia_ito_4088\",\"active_reservation\":\"JVDVOV\"}}",
+      "8": "{\"assert\":{\"passenger_id\":\"mia_ito_4088\",\"active_reservation\":\"JVDVOV\",\"unsure\":{\"new_last_name\":\"Rodriguez\"}}}",
+      "10": "{\"pin\":{\"passenger_id\":\"mia_ito_4088\"},\"assert\":{\"active_reservation\":\"JVDVOV\",\"destination_airport\":\"ORD\",\"origin_airport\":\"CLT\",\"flight_date\":\"2024-05-15\"},\"unsure\":{\"cabin_class\":\"economy\",\"flight_number\":\"unknown\"}}",
+      "12": "{\"assert\":{\"passenger_id\":\"mia_ito_4088\",\"active_reservation\":\"JVDVOV\",\"unsure\":{\"destination_airport\":null,\"origin_airport\":\"CLT\",\"flight_number\":null,\"flight_date\":null,\"cabin_class\":\"economy\"}}}",
+      "14": "{\"assert\":{\"active_reservation\":\"JVDVOV\",\"passenger_id\":\"mia_ito_4088\",\"unsure\":{\"updated_passenger_name\":\"Ava Rodriguez\"}}}"
+    },
+    "apigen-5": {
+      "2": "{\"unsure\":{\"active_reservation\":\"KKKYCG\",\"cabin_class\":\"basic economy\",\"passenger_id\":\"provided\"}}",
+      "4": "{\"pin\":{\"passenger_id\":\"james_thomas_5421\"}}",
+      "6": "{\"pin\":{\"passenger_id\":\"james_thomas_5421\"}}",
+      "8": "{\"assert\":{\"passenger_id\":\"james_thomas_5421\",\"origin_airport\":\"ATL\",\"destination_airport\":\"LAX\",\"flight_date\":\"May 17, 2024\",\"cabin_class\":\"economy\"},\"unsure\":{\"total_baggages\":3}}",
+      "10": "{\"assert\":{\"total_baggages\":\"3\",\"nonfree_baggages\":\"1\"},\"pin\":{\"cabin_class\":\"economy\",\"destination_airport\":\"LAX\",\"flight_date\":\"May 17, 2024\",\"origin_airport\":\"ATL\",\"passenger_id\":\"james_thomas_5421\"}}",
+      "12": "{\"assert\":{\"total_baggages\":\"3\",\"nonfree_baggages\":\"1\"},\"pin\":{\"cabin_class\":\"economy\",\"destination_airport\":\"LAX\",\"flight_date\":\"May 17, 2024\",\"origin_airport\":\"ATL\",\"passenger_id\":\"james_thomas_5421\"}}"
+    }
+  },
+  "prompts_asked": 36,
+  "context_chars": 12000,
+  "context_truncated_prompts": 0
+}

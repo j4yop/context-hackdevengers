@@ -17,22 +17,25 @@
     "precision": "100% (n=36, CI 90-100%)",
     "value_contracts": {
       "derived": true,
+      "corpus_note": "read_path_* counts what the read path can see: customer and agent turns, minus tool output and minus an agent turn listing its options; in_tool_output is what those exclusions cost",
       "slots": {
         "current_file": {
           "basis": "structure from the slot's own capture group",
           "derived_from": "the slot's own entity patterns; see contextgc/value_shapes.py",
-          "read_path_observations": 194204,
-          "read_path_turns": 175854,
-          "distinct_values": 6919,
-          "fired": true
+          "read_path_observations": 45867,
+          "read_path_turns": 29387,
+          "distinct_values": 3904,
+          "fired": true,
+          "in_tool_output": 148337
         },
         "failing_test": {
           "basis": "structure from the slot's own capture group",
           "derived_from": "the slot's own entity patterns; see contextgc/value_shapes.py",
-          "read_path_observations": 740,
-          "read_path_turns": 307,
-          "distinct_values": 126,
-          "fired": true
+          "read_path_observations": 0,
+          "read_path_turns": 0,
+          "distinct_values": 0,
+          "fired": false,
+          "in_tool_output": 740
         }
       },
       "residual_false_accepts": {

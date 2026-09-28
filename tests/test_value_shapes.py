@@ -48,7 +48,9 @@ WRONG_SHAPED = {
         "403 Forbidden",
     ],
     "travel.cabin_class": ["None", "HTTPError: 403"],
-    "travel.active_reservation": ["None", "HTTPError: 403", "memset.py", "1234567"],
+    "travel.active_reservation": [
+        "None", "HTTPError: 403", "memset.py", "1234567", "memset", "abcdef", "h0mvie",
+    ],
     "logistics.delivery_address": ["None", "HTTPError: 403", "memset.py"],
     "logistics.payment_method": ["None", "HTTPError: 403", "memset.py"],
 }
@@ -72,8 +74,12 @@ def test_the_capture_scanner_handles_nesting():
     two attempts.
     """
     assert last_capture_group(r"([\w][\w./-]*\.(?:py|js|ts))") == r"[\w][\w./-]*\.(?:py|js|ts)"
+    # `(?i:` turns case-insensitivity *on*, which is already how the gate matches,
+    # so the scope states nothing new and is dropped.
+    # A case-INsensitive scope states nothing new: the gate already matches
+    # that way, so the wrapper carries no constraint and is dropped.
     assert last_capture_group(r"(?i:([A-Z0-9]{6}))") == "[A-Z0-9]{6}"
-    assert last_capture_group(r"(?-i:([A-Z0-9]{6}))") == "[A-Z0-9]{6}"
+    # A case-SENSITIVE scope is a real constraint and has to survive.
     assert last_capture_group(r"\breservation\s*(?:id|#)\s*([A-Z0-9]{6})") == "[A-Z0-9]{6}"
     assert last_capture_group(r"\bno groups here\b") is None
 
@@ -125,6 +131,29 @@ def test_test_anchoring_spans_underscores_and_dots():
         assert not re.search(contract, bad, re.IGNORECASE), bad
 
 
+
+
+def test_a_case_scope_in_the_pattern_survives_into_the_contract():
+    """
+    The travel schema writes its reservation id as `(?-i:([A-Z0-9]{6}))` and the
+    value gate matches case-insensitively. An earlier derivation returned the
+    group source alone, so the contract became `^(?:[A-Z0-9]{6})$` and accepted
+    `memset` and `abcdef` -- any six word characters -- as a reservation code.
+    A dropped flag is a lost constraint, not a cosmetic difference.
+    """
+    # A case-INsensitive scope states nothing new: the gate already matches
+    # that way, so the wrapper carries no constraint and is dropped.
+    assert last_capture_group(r"(?i:([A-Z0-9]{6}))") == "[A-Z0-9]{6}"
+    assert last_capture_group(r"(?-i:([A-Z0-9]{6}))") == "(?-i:[A-Z0-9]{6})"
+
+    contract, _ = derive_value_contract(load_schema("travel")["active_reservation"])
+    assert "(?-i:" in contract
+    for good in ("XR266K", "H0MVIE", "2SNACP"):
+        assert re.search(contract, good, re.IGNORECASE), good
+    for bad in ("memset", "abcdef", "h0mvie", "1234567"):
+        assert not re.search(contract, bad, re.IGNORECASE), bad
+
+
 def test_an_absolute_path_still_survives_the_contract():
     """The match is a search, not a full match, so a leading `/` is fine."""
     contract, _ = derive_value_contract(load_schema("coding")["current_file"])
@@ -163,16 +192,34 @@ def test_the_stored_contracts_still_match_the_derivation():
 def test_every_slot_records_how_often_its_read_path_fired():
     """
     A corpus-wide count hides which slots are carried. The count sits next to
-    the contract it is supposed to support.
+    the contract it is supposed to support, and a slot that never fired has to
+    say so rather than inherit a sibling's credibility.
     """
     for name in SCHEMAS:
         measurement = json.loads((SCHEMA_DIR / f"{name}.json").read_text())["_measurement"]
         evidence = measurement["value_contracts"]["slots"]
         assert set(evidence) == set(load_schema(name))
         for slot, record in evidence.items():
-            assert record["read_path_observations"] > 0, f"{name}.{slot} never fired"
-            assert record["read_path_turns"] > 0, f"{name}.{slot} never fired"
             assert record["derived_from"]
+            assert record["fired"] == (record["read_path_observations"] > 0)
+            assert "in_tool_output" in record
+
+
+def test_the_one_slot_that_never_fires_from_speech_says_so():
+    """
+    `coding.failing_test` matches 740 times in the coding corpus and not once in
+    speech: every mention is inside a pytest result, which is machine output the
+    read path is forbidden to infer from. So the read path never produces this
+    slot at all, and its contract has no evidence behind it. It stays, because the
+    gate still catches declared junk, but the evidence has to record the gap.
+    """
+    slots = json.loads((SCHEMA_DIR / "coding.json").read_text())["_measurement"][
+        "value_contracts"
+    ]["slots"]
+    failing = slots["failing_test"]
+    assert failing["fired"] is False
+    assert failing["read_path_observations"] == 0
+    assert failing["in_tool_output"] > 0
 
 
 def test_the_residual_false_accepts_are_recorded_not_swept_up():

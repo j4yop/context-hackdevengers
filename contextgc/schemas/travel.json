@@ -11,6 +11,25 @@
       "\\breservation\\s*(?:id|ID|number|#)\\s*(?:is\\s*)?[`\\\"']?(?-i:([A-Z0-9]{6}))\\b",
       "\\bunder\\s+reservation\\s+[`\\\"']?(?-i:([A-Z0-9]{6}))\\b",
       "\\breservation\\s+[`\\\"']?(?-i:([A-Z0-9]{6}))\\b\\s+(?:from|to)\\b"
+    ],
+    "origin_airport": [
+      "\\bfrom\\s+(?-i:([A-Z]{3}))\\b",
+      "\\b(?:flying|departing|leaving)\\s+(?:from\\s+)?(?-i:([A-Z]{3}))\\b"
+    ],
+    "destination_airport": [
+      "\\bto\\s+(?-i:([A-Z]{3}))\\b",
+      "\\b(?:arriving|arrives|landing)\\s+(?:in|at)\\s+(?-i:([A-Z]{3}))\\b"
+    ],
+    "flight_number": [
+      "\\bflights?\\s+(?:is\\s+|are\\s+|on\\s+)?(?-i:([A-Z]{3}\\d{2,4}))\\b"
+    ],
+    "passenger_id": [
+      "\\buser\\s*id\\s*(?:is|:)?\\s*[`\\\"']?([a-z]+_[a-z]+_\\d{3,4})\\b"
+    ],
+    "flight_date": [
+      "\\bflights?\\b[^.\\n]{0,60}?\\b((?:January|February|March|April|May|June|July|August|September|October|November|December)\\s+\\d{1,2},\\s+\\d{4})\\b",
+      "\\b((?:January|February|March|April|May|June|July|August|September|October|November|December)\\s+\\d{1,2},\\s+\\d{4})\\b[^.\\n]{0,40}?\\bflights?\\b",
+      "(?<!born )(?<!Born )(?<!Birth: )\\b(?:on|depart\\w*|departure|return\\w*|leaving|landing|arriv\\w*)\\s+(?:on\\s+)?((?:January|February|March|April|May|June|July|August|September|October|November|December)\\s+\\d{1,2},\\s+\\d{4})\\b"
     ]
   },
   "_measurement": {
@@ -20,28 +39,81 @@
     "precision": "100% (n=72, CI 95-100%)",
     "value_contracts": {
       "derived": true,
+      "corpus_note": "read_path_* counts what the read path can see: customer and agent turns, minus tool output and minus an agent turn listing its options; in_tool_output is what those exclusions cost",
       "slots": {
         "cabin_class": {
           "basis": "vocabulary from the slot's own alternation",
           "derived_from": "the slot's own entity patterns; see contextgc/value_shapes.py",
-          "read_path_observations": 1370,
-          "read_path_turns": 822,
+          "read_path_observations": 7529,
+          "read_path_turns": 3401,
           "distinct_values": 8,
-          "fired": true
+          "fired": true,
+          "in_tool_output": 925
         },
         "active_reservation": {
           "basis": "structure from the slot's own capture group",
           "derived_from": "the slot's own entity patterns; see contextgc/value_shapes.py",
-          "read_path_observations": 940,
-          "read_path_turns": 938,
-          "distinct_values": 644,
-          "fired": true
+          "read_path_observations": 1095,
+          "read_path_turns": 1092,
+          "distinct_values": 665,
+          "fired": true,
+          "in_tool_output": 7
+        },
+        "origin_airport": {
+          "basis": "structure from the slot's own capture group",
+          "derived_from": "the slot's own entity patterns; see contextgc/value_shapes.py",
+          "read_path_observations": 1480,
+          "read_path_turns": 1096,
+          "distinct_values": 20,
+          "fired": true,
+          "in_tool_output": 172
+        },
+        "destination_airport": {
+          "basis": "structure from the slot's own capture group",
+          "derived_from": "the slot's own entity patterns; see contextgc/value_shapes.py",
+          "read_path_observations": 4034,
+          "read_path_turns": 1902,
+          "distinct_values": 20,
+          "fired": true,
+          "in_tool_output": 789
+        },
+        "flight_number": {
+          "basis": "structure from the slot's own capture group",
+          "derived_from": "the slot's own entity patterns; see contextgc/value_shapes.py",
+          "read_path_observations": 1697,
+          "read_path_turns": 770,
+          "distinct_values": 263,
+          "fired": true,
+          "in_tool_output": 250
+        },
+        "passenger_id": {
+          "basis": "structure from the slot's own capture group",
+          "derived_from": "the slot's own entity patterns; see contextgc/value_shapes.py",
+          "read_path_observations": 1471,
+          "read_path_turns": 1471,
+          "distinct_values": 381,
+          "fired": true,
+          "in_tool_output": 5
+        },
+        "flight_date": {
+          "basis": "structure from the slot's own capture group",
+          "derived_from": "the slot's own entity patterns; see contextgc/value_shapes.py",
+          "read_path_observations": 1636,
+          "read_path_turns": 781,
+          "distinct_values": 32,
+          "fired": true,
+          "in_tool_output": 274
         }
       }
     }
   },
   "values": {
     "cabin_class": "(?:premium\\ economy)|(?:basic\\ economy)|(?:business)|(?:economy)|(?:first)",
-    "active_reservation": "^(?:[A-Z0-9]{6})$"
+    "active_reservation": "^(?:(?-i:[A-Z0-9]{6}))$",
+    "origin_airport": "^(?:(?-i:[A-Z]{3}))$",
+    "destination_airport": "^(?:(?-i:[A-Z]{3}))$",
+    "flight_number": "^(?:(?-i:[A-Z]{3}\\d{2,4}))$",
+    "passenger_id": "(?:[a-z]+_[a-z]+_\\d{3,4})",
+    "flight_date": "(?:(?:January|February|March|April|May|June|July|August|September|October|November|December)\\s+\\d{1,2},\\s+\\d{4})"
   }
 }

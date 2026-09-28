@@ -41,6 +41,7 @@ DOMAIN_MARKER = {"travel": "airline agent", "logistics": "retail"}
 
 
 def _apigen_turns(schema_name: str, limit: int) -> List[str]:
+    """Human turns only: the read path never sees an ``observation`` turn."""
     if not APIGEN.exists():
         return []
     marker = DOMAIN_MARKER.get(schema_name)
@@ -51,6 +52,62 @@ def _apigen_turns(schema_name: str, limit: int) -> List[str]:
         for turn in item.get("conversations", []):
             if turn.get("from") == "human":
                 out.append(turn.get("value", ""))
+        if limit and len(out) >= limit * 4:
+            break
+    return out
+
+
+def _apigen_turns_with_roles(schema_name: str, limit: int) -> List:
+    """
+    Customer and agent turns as ``(text, role)``.
+
+    Both, because the read path sees both: the engine reads every message, minus
+    machine output and minus an agent turn that is listing its options. Counting
+    only the customer's turns understates what the read path actually extracts,
+    and the number is filed in the schema as a measurement of the read path.
+    """
+    if not APIGEN.exists():
+        return []
+    marker = DOMAIN_MARKER.get(schema_name)
+    out: List = []
+    for item in json.loads(APIGEN.read_text()):
+        if marker and marker not in item.get("system", "").lower():
+            continue
+        for turn in item.get("conversations", []):
+            speaker = turn.get("from")
+            value = turn.get("value")
+            if not isinstance(value, str) or not value.strip():
+                continue
+            if speaker == "human":
+                out.append((value, "user"))
+            elif speaker == "gpt":
+                out.append((value, "assistant"))
+        if limit and len(out) >= limit * 4:
+            break
+    return out
+
+
+def _apigen_tool_output(schema_name: str, limit: int) -> List[str]:
+    """
+    Tool-result turns, which the read path is forbidden to infer from.
+
+    Kept separate so ``in_tool_output`` measures something. Returning an empty
+    list here made the column read 0 for every travel slot, which looks like
+    "these patterns never touch machine output" rather than "nothing was
+    measured".
+    """
+    if not APIGEN.exists():
+        return []
+    marker = DOMAIN_MARKER.get(schema_name)
+    out: List[str] = []
+    for item in json.loads(APIGEN.read_text()):
+        if marker and marker not in item.get("system", "").lower():
+            continue
+        for turn in item.get("conversations", []):
+            if turn.get("from") == "observation":
+                value = turn.get("value")
+                if isinstance(value, str) and value.strip():
+                    out.append(value)
         if limit and len(out) >= limit * 4:
             break
     return out
@@ -82,19 +139,55 @@ def _coding_turns(limit: int) -> List[str]:
     return out
 
 
+def _classified_texts(schema_name: str, limit: int = 0):
+    """
+    Corpus text split the way the read path sees it.
+
+    The read path refuses to infer state from machine output, so counting a hit
+    inside a tool payload as a "read path observation" reports a capability the
+    library does not have. The two are counted separately and only speech feeds
+    ``observations``.
+    """
+    from contextgc.sanitizer import ToolSanitizer
+
+    if schema_name == "coding":
+        texts = [(t, "") for t in _coding_turns(limit)]
+    else:
+        texts = _apigen_turns_with_roles(schema_name, limit)
+    speech, machine = [], []
+    for text, role in texts:
+        if ToolSanitizer.looks_like_tool_output(text, role):
+            machine.append(text)
+        elif ToolSanitizer.looks_like_option_menu(text, role):
+            # An agent listing its options is a listing, not a statement of
+            # intent, and the engine excludes it from inference. Counting it
+            # would report a capability the read path does not have.
+            machine.append(text)
+        else:
+            speech.append(text)
+    # For the non-coding corpora the tool results are a separate turn type the
+    # read path is excluded from upstream, so the cost of that rule is measured
+    # against them directly.
+    if schema_name != "coding":
+        machine.extend(_apigen_tool_output(schema_name, limit))
+    return speech, machine
+
+
 def slot_observations(schema_name: str, limit: int = 0) -> Dict[str, Dict]:
     """
     Per-slot observation counts from a read-path run over the fitted corpus.
 
-    ``observations`` counts every match, so a slot mentioned three times in one
-    turn counts three times; ``turns`` counts turns that produced at least one,
-    which is the number that says whether the slot is reachable at all. A slot
-    with 0 in both has never fired, and its contract is unfounded.
+    ``observations`` counts matches in *speech* only, so a slot mentioned three
+    times in one turn counts three times; ``turns`` counts turns that produced at
+    least one, which is the number that says whether the slot is reachable at all.
+    A slot with 0 in both has never fired, and its contract is unfounded.
+
+    ``in_tool_output`` is reported alongside rather than folded in. It is what the
+    patterns *would* match if the machine-output rule were lifted, so the cost of
+    that rule is visible instead of implied.
     """
     entities = load_schema(schema_name)
-    texts = (
-        _coding_turns(limit) if schema_name == "coding" else _apigen_turns(schema_name, limit)
-    )
+    speech, machine = _classified_texts(schema_name, limit)
     result: Dict[str, Dict] = {}
     for slot, patterns in entities.items():
         compiled = []
@@ -104,7 +197,7 @@ def slot_observations(schema_name: str, limit: int = 0) -> Dict[str, Dict]:
                 compiled.append(re.compile(f"(?:{pattern})", re.IGNORECASE))
         values: List[str] = []
         turns_with = 0
-        for text in texts:
+        for text in speech:
             found = []
             for rx in compiled:
                 for match in rx.finditer(text):
@@ -116,12 +209,22 @@ def slot_observations(schema_name: str, limit: int = 0) -> Dict[str, Dict]:
             values.extend(found)
             if found:
                 turns_with += 1
+        in_tool = 0
+        for text in machine:
+            for rx in compiled:
+                for match in rx.finditer(text):
+                    value = next(
+                        (g for g in match.groups() if g), match.group(0)
+                    ).strip()
+                    if value:
+                        in_tool += 1
         counts = Counter(values)
         result[slot] = {
             "observations": len(values),
             "turns": turns_with,
             "distinct": len(counts),
             "fired": bool(values),
+            "in_tool_output": in_tool,
             "top": counts.most_common(6),
         }
     return result
@@ -137,10 +240,12 @@ def main(argv: List[str] = None) -> int:
 
     stats = slot_observations(args.schema, args.limit)
     print(f"{args.schema}  ({CORPUS[args.schema]})")
+    print("  speech only -- the read path refuses to infer from tool output\n")
     for slot, s in stats.items():
         flag = "" if s["fired"] else "   <- never fired: contract is unfounded"
         print(f"  {slot:<20} {s['observations']:>4} obs  "
-              f"{s['turns']:>4} turns  {s['distinct']:>3} distinct{flag}")
+              f"{s['turns']:>4} turns  {s['distinct']:>3} distinct"
+              f"  {s['in_tool_output']:>4} in tool output{flag}")
         if s["top"]:
             print(f"       {', '.join(repr(v) for v, _ in s['top'])}")
 
@@ -150,7 +255,8 @@ def main(argv: List[str] = None) -> int:
         measurement = data.setdefault("_measurement", {})
         measurement["value_evidence"] = {
             slot: {"observations": s["observations"], "turns": s["turns"],
-                   "distinct": s["distinct"], "fired": s["fired"]}
+                   "distinct": s["distinct"], "fired": s["fired"],
+                   "in_tool_output": s["in_tool_output"]}
             for slot, s in stats.items()
         }
         path.write_text(json.dumps(data, indent=2) + "\n")

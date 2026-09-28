@@ -736,6 +736,126 @@ def test_a_drifted_label_file_is_visible_in_the_json(tmp_path):
     assert precision["precision"] is None
 
 
+def test_a_birthdate_is_not_recorded_as_a_flight_date():
+    """
+    Found by the shadow replay, not by an aggregate: its one disagreement on the
+    airline capture was the read path reading `August 10, 1995` against the
+    declared `2024-05-07T13:04:42`. A date this pattern matched from prose was a
+    passenger's date of birth.
+
+    A bare month-name pattern matched 1,494 dates of which 93 (6.2%) were
+    birthdates. Requiring flight context, plus a lookbehind for "born", took that
+    to 11 hits whose *matched* date was a real flight date with a birthdate
+    nearby. Filtering on the year would have been easier and wrong: it would fit
+    the corpus's fixed "current time" rather than the slot's meaning.
+    """
+    from contextgc.schemas import load_schema
+
+    result = harness.run(
+        [Transcript(
+            transcript_id="dob#1", source="unit-test",
+            messages=normalise_messages([
+                {"role": "user", "content": "hello"},
+                {"role": "assistant", "content":
+                    "Passenger details: 1. **Daiki Lopez** - Date of Birth: March 20, 1954. "
+                    "That is the only change you need."},
+            ]),
+        )],
+        schema=load_schema("travel"),
+    )
+    dates = {e["value"] for e in result.extractions if e["entity"] == "flight_date"}
+    assert not dates, f"a date of birth became a flight date: {dates}"
+
+
+def test_a_customer_booking_is_not_mistaken_for_a_menu():
+    """
+    The reason the option-menu guard is conditioned on the role.
+
+    Measured on the APIGen airline corpus, a content-only guard deletes the
+    single most important turn in the data: 2 customer turns contain option-menu
+    markers and both are a booking -- "Let's go with Option 1: Flight HAT148 from
+    Miami to Denver" and "I'd like to go with Option 1: departing Atlanta at
+    3:00 PM". The same strings in an agent turn mean it is listing what it could
+    offer, and nothing in the content tells the two apart.
+    """
+    from contextgc.sanitizer import ToolSanitizer
+
+    booking = (
+        "Let's go with Option 1: Flight HAT148 from Miami to Denver and then "
+        "Flight HAT084 from Denver to Las Vegas."
+    )
+    request = "I'd like to go with Option 1: departing Atlanta at 3:00 PM."
+    menu = (
+        "Here are the available options: 1. **Option 1:**  - **Flight 1:** ORD to IAH  "
+        "- Flight Number: HAT165  - Available Seats: Economy  - Price: $142"
+    )
+
+    assert ToolSanitizer.looks_like_option_menu(menu, "assistant")
+    # The customer chose; the library exists to remember that.
+    assert not ToolSanitizer.looks_like_option_menu(booking, "user")
+    assert not ToolSanitizer.looks_like_option_menu(request, "user")
+    # A tool role never counts as a menu, whatever the content.
+    assert not ToolSanitizer.looks_like_option_menu(menu, "tool")
+
+
+def test_the_corpus_derived_travel_slots_read_a_real_booking():
+    """
+    The five slots added from the airline corpus, on the turn that matters.
+
+    The menu guard must not cost these: a customer naming the route, the flight
+    and the date is the whole use case, and `passenger_id` has 1,471 read-path
+    observations behind it -- the largest of any travel slot.
+    """
+    from contextgc.schemas import load_schema
+
+    result = harness.run(
+        [Transcript(
+            transcript_id="booking#1", source="unit-test",
+            messages=normalise_messages([
+                {"role": "user", "content": "hello"},
+                {"role": "user", "content":
+                    "Please rebook me on flight HAT076 from PHL to DEN on May 17, 2024. "
+                    "My user ID is amelia_rossi_1651."},
+            ]),
+        )],
+        schema=load_schema("travel"),
+    )
+    found = {(e["entity"], e["value"]) for e in result.extractions}
+    for expected in (
+        ("flight_number", "HAT076"),
+        ("origin_airport", "PHL"),
+        ("destination_airport", "DEN"),
+        ("flight_date", "May 17, 2024"),
+        ("passenger_id", "amelia_rossi_1651"),
+    ):
+        assert expected in found, f"missing {expected}; got {sorted(found)}"
+
+
+def test_an_airport_slot_does_not_read_an_english_word():
+    """
+    Every pattern is compiled case-insensitively, so an unscoped `to ([A-Z]{3})`
+    read "to the" as the airport `the`. Measured, that produced 52 distinct
+    origin values where the corpus has 20 IATA codes. The same defect the travel
+    schema already documents for reservation ids, so the fix is the same: scope
+    the class case-sensitively.
+    """
+    from contextgc.schemas import load_schema
+
+    result = harness.run(
+        [Transcript(
+            transcript_id="prose#1", source="unit-test",
+            messages=normalise_messages([
+                {"role": "user", "content": "hello"},
+                {"role": "user", "content": "I want to use the add option and pay later."},
+            ]),
+        )],
+        schema=load_schema("travel"),
+    )
+    airports = {e["value"] for e in result.extractions
+                if e["entity"] in ("origin_airport", "destination_airport")}
+    assert not airports, f"an English word became an airport: {airports}"
+
+
 def test_an_options_menu_is_not_recorded_as_a_booking():
     """
     Found by reading the registering turns of the second domain. A turn listed

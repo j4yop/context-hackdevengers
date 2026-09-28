@@ -108,6 +108,50 @@ class ToolSanitizer:
             return False
         return True
 
+    #: Markers that identify an *enumeration of options* -- a menu, not a booking.
+    #:
+    #: This one is conditioned on the role, and it has to be. Measured on the
+    #: APIGen airline corpus, a content-only guard deletes the single most
+    #: important turn in the data: 2 customer turns contain these markers, and
+    #: both are a booking -- "Let's go with Option 1: Flight HAT148 from Miami to
+    #: Denver" and "I'd like to go with Option 1: departing Atlanta at 3:00 PM".
+    #: The same strings in a customer turn mean they chose; in an agent turn they
+    #: mean the agent is listing what it could offer. Role is the only thing that
+    #: tells the two apart.
+    OPTION_MENU_MARKERS = (
+        "Available Seats:",
+        "here are the available",
+        "**Flight 1:**",
+        "**Option 1:**",
+        "Option 1:",
+        "Flight Number:",
+    )
+
+    @classmethod
+    def looks_like_option_menu(cls, content: str, role: str = "") -> bool:
+        """
+        True when an *agent* turn is enumerating options rather than stating facts.
+
+        The airline corpus has 134 such turns, and the shipped ``cabin_class``
+        pattern already leaked 398 extractions out of them: its
+        ``(?<!Seats: )`` / ``(?<!Prices: )`` guards cover one menu layout and the
+        corpus also writes ``Price: $142`` and ``**Flight 1:**``. Widening those
+        guards per pattern does not scale, because the next layout is unguessable.
+
+        An options menu is a listing in the same sense a search listing is, and
+        the same reasoning applies: "flights from DFW to SEA are available" is
+        not a statement that the passenger is flying DFW to SEA. What a menu
+        *does* support -- that these routes exist -- is not what this library
+        tracks, which is what the user has decided.
+
+        Only an assistant turn can be an agent listing its own options, so a
+        customer turn is never claimed. That asymmetry is the whole point, and
+        ``test_a_customer_booking_is_not_mistaken_for_a_menu`` pins it.
+        """
+        if not content or role not in ("assistant", "ai"):
+            return False
+        return any(marker in content for marker in cls.OPTION_MENU_MARKERS)
+
     @staticmethod
     def is_error_payload(content: str) -> bool:
         """Detects if a tool message contains an error or failure stack trace."""
