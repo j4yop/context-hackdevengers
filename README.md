@@ -26,26 +26,52 @@ pip install contextgc
 > is reproducible from the repository; see below for how to get it.
 
 ```python
-from contextgc import compile_messages
+from contextgc import compile_messages, load_schema
 
 messages = [
-    {"role": "user", "content": "Deliver order ORD-1 to Tower B, Flat 402. Severe peanut allergy."},
-    {"role": "assistant", "content": "Confirmed, routing to Tower B."},
-    {"role": "user", "content": "The elevator is broken. Deliver to the Clubhouse desk."},
-    {"role": "assistant", "content": "Updated, routing to Clubhouse."},
-    {"role": "user", "content": "Actually reroute to Gate 2. Code 4921."},
-    {"role": "assistant", "content": "Rerouted to Gate 2."},
+    {"role": "user", "content": "Deliver order ORD-1 to 402 Oak Street, Apt 5, Springfield, IL 62704. Pay with my credit card."},
+    {"role": "assistant", "content": "Confirmed: 402 Oak Street, Apt 5, on the credit card."},
+    {"role": "user", "content": "Actually reroute to 900 Pine Avenue, Suite 12, Chicago, IL 60601."},
+    {"role": "assistant", "content": "Rerouted to 900 Pine Avenue, Suite 12."},
     {"role": "user", "content": "Thanks."},
 ]
 
-compiled, telemetry = compile_messages(messages)
+compiled, telemetry = compile_messages(messages, schema=load_schema("logistics"))
 
 telemetry["active_state_slots"]
-# {'destination_address': 'Gate 2', 'dietary_allergy': 'peanut'}
+# {'delivery_address': '900 Pine Avenue, Suite 12', 'payment_method': 'credit card'}
 
 telemetry["retired_turn_indices"]
-# [1, 3]  -- the two assistant turns that asserted a now-stale address
+# [1, 2]  -- the two turns that asserted a now-stale address
 ```
+
+```
+  system: [ACTIVE_AGENT_STATE]
+  - delivery_address = "900 Pine Avenue, Suite 12" (turn 3 [inferred])
+  - payment_method = "credit card" (turn 0 [inferred])
+     user: Deliver order ORD-1 to 402 Oak Street, Apt 5, Springfield, IL 62704. Pay with my credit card.
+  assistant: Rerouted to 900 Pine Avenue, Suite 12.
+     user: Thanks.
+```
+
+Five turns in, three out. The address that was current for one turn is gone, and
+the one that superseded it is in a header the model can read without re-reading
+the transcript.
+
+> **Two things this example has to get right, and the version that was here
+> first got both wrong.** It did not pass a `schema`, and it cannot: with no
+> schema the read path has no vocabulary and extracts **nothing** — that is
+> deliberate, not a bug, since a built-in default domain would match prose in
+> every other domain. And the content has to be something the shipped schema
+> actually matches. The earlier version of this example used *"Tower B, Flat
+> 402"*, *"Gate 2"* and *"the Clubhouse desk"*, and claimed an output of
+> `{'destination_address': 'Gate 2', 'dietary_allergy': 'peanut'}`. Those two
+> slot names exist nowhere in this project, and none of that prose matches the
+> `logistics` patterns, which want a US street address (`Oak Street`, `Pine
+> Avenue`) and a phrase like *"my credit card"*. Run it and you got `{}` and the
+> transcript straight back. **The first example in a README is the whole
+> product for someone evaluating it in thirty seconds, and it was returning
+> nothing while looking like it worked.**
 
 Try it on your own transcript at **[context-hackdevengers.vercel.app](https://context-hackdevengers.vercel.app)** —
 paste a conversation on the left, get the compiled context back on the right.
