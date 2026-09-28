@@ -761,6 +761,51 @@ to infer from tool output is a large part of why — it holds no value on the
 consecutive agent actions, which is a definition chosen here and not given by
 the data.
 
+#### The one staleness test that needs no edit signal
+
+The reason above is that a rate needs a ground truth for *when the file changed*.
+But there is a weaker question with a free answer, and it is the one that
+actually matters: **does the read path's value match the agent's most recent file
+statement?** If it does, the tracker is not stale, whatever the agent was doing
+in between. The vendored coding transcript answers it outright — 18 distinct
+file statements, in order:
+
+```
+memset.py -> reproduce.py -> memset.py -> lexicon/lexicon/cli.py
+```
+
+The read path reproduces that sequence exactly, including the round trip: the
+agent creates `reproduce.py`, works in it, then goes back to `cli.py`, and the
+read path follows it out of `reproduce.py` and back. Its final value equals the
+agent's final statement, so **the read path is not stale, and it is a faithful
+last-statement tracker.** 81% of its matches come from the agent's speech and
+19% from tool output; it takes the final one either way.
+
+Two things this does *not* license. It does not produce a staleness **rate**,
+because a rate needs the edit signal the corpus lacks. And it does not validate
+the confounded 44.9%: one trajectory agreeing with itself is not a measurement.
+
+The turn-by-turn version **is** available in the 14B capture, which records
+`declared` on every turn — and it is still not measurable, for a reason worth
+writing down. The capture has 6 transcripts; the vendored agent transcript is
+**one** file. Aligning each transcript's model declarations to a matching agent
+prefix requires slicing that one file six ways, which invents six trajectories
+out of one. I did it, got 8 apparent disagreements, and discarded all 8: they
+were artifacts of the slicing, and reporting them would have been the exact
+failure this section is about. **A measurement that needs data the corpus does
+not have is not a weak measurement, it is a fabricated one.**
+
+One oddity to leave alone on purpose. Half the values are doubled
+(`lexicon/lexicon/cli.py`, where the first `lexicon` is the conda prefix and the
+second is the repo). That is the **agent's own text**, faithfully captured, and
+normalising it would be fitting the tool to a transcript's confusion. Recorded
+here so it is not later "fixed".
+
+**Where this leaves the dimension.** Not unmeasured any more — measured, once,
+and negative: the tracker does not go stale on the trajectory available. Still
+no rate, and still n=1 trajectory. That is a better answer than the one it
+replaces, and it is still not a headline.
+
 **The two "confirmed errors" this project carried were mislabelled.** Both were
 recorded as `current_file` extractions judged incorrect because the turn's earlier
 prose discussed a different file. Re-reading the turns against the doctrine the

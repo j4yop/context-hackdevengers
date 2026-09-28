@@ -1018,6 +1018,41 @@ def test_a_slot_short_of_its_budget_says_so_rather_than_looking_empty():
     )
 
 
+def test_the_tracker_follows_the_agents_last_file_statement_through_a_round_trip():
+    """
+    The staleness *rate* needs a ground truth for when the file changed and the
+    corpus has none. This needs none. If the tracker's value is the agent's most
+    recent statement, the tracker is not stale -- whatever the agent did in
+    between, and whether or not we can parse its commands.
+
+    So the test is the round trip, not the final value. An agent that goes out
+    to a scratch file and back is the only sequence that distinguishes "holds
+    the agent's latest statement" from "sticks on the file it first settled on".
+    A test that only checked the last value would pass on a tracker that never
+    moved at all.
+    """
+    from benchmarks.staleness import follows_last_statement
+
+    transcript = """
+Let's start by examining the `memset.py` file.
+Now open lexicon/lexicon/providers/memset.py
+I will create a new file called `reproduce.py`
+Now update the `reproduce.py` to reproduce it
+That is fixed, open lexicon/providers/memset.py again
+Finally open lexicon/cli.py
+"""
+    result = follows_last_statement(transcript)
+    assert result["statements"] >= 4, "the sequence must be a sequence"
+    assert "reproduce.py" in result["sequence"], "the excursion must be captured"
+    assert result["final_value"].endswith("cli.py"), (
+        f"the tracker ended on {result['final_value']!r}, not the agent's last "
+        f"statement -- that is staleness"
+    )
+    assert result["sequence"][-1] == result["final_value"]
+    # And the caveat travels with the number, so it cannot be quoted bare.
+    assert "n=1" in result["caveat"]
+
+
 def test_a_suggestion_never_becomes_a_verdict(monkeypatch, tmp_path):
     """
     The suggestion pass exists so a reviewer does not start from a blank page. It
