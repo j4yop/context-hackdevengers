@@ -412,6 +412,54 @@ too, and renaming a shipped key is a breaking change not made to improve a
 sentence. **49 distinct values is thin** for precision, and the worksheet below
 exists to thicken it. It is measurable now, which it was not.
 
+#### A cheaper check that turns out not to be good enough
+
+With the slot reachable, the obvious next move is a check that needs no human.
+Every `failing_test` value the read path produces from speech can be tested for
+existence: does that path appear anywhere in what the agent's own tools listed?
+
+| slot | read from speech | names a file the tools listed | rate |
+|---|---|---|---|
+| `failing_test` | 78 | 78 | **100.0%** |
+| `current_file` | 38,375 | 38,253 | 99.7% |
+
+`failing_test` scores 100%. **So does `current_file`, and that is the whole
+finding: the check does not discriminate.** Both slots are near-perfect at it
+because both name files in a repository the agent is actively working in, so
+the file existing is nearly guaranteed and near-worthless as evidence that the
+read path chose *correctly*.
+
+It does rule out one real failure — the read path is not inventing paths that
+were never there — and it rules out nothing else. A `failing_test` naming the
+wrong-but-real test file passes it. So it is recorded as a floor, not a
+precision figure, and the human labels remain the only route to the number.
+
+#### The worksheet was a trap, and it is disarmed
+
+`failing_test` is now reachable, so the next step is a worksheet. The default
+window returns **2 rows**:
+
+```
+--limit  60 ->  2 rows       --limit 2000 -> 21 rows
+--limit 500 ->  7 rows       --limit 6000 -> 44 rows
+```
+
+Two rows read as *this slot cannot be labelled* when the shard holds 49 distinct
+values. A person who believed that would drop the slot and report coding
+precision as single-slot permanently — which is how it was single-slot in the
+first place, and the reason the 100% said so little. So the worksheet now names
+any slot short of its budget, and **refuses to guess the cause**: the window may
+be too small, or the corpus may have no more, and only raising `--limit` tells
+them apart. At `--limit 6000` the shortfall is real exhaustion — 44 of the 49
+available values, the other 5 already labelled — which is the answer the tool
+would not assert on its own.
+
+`ws.json` is built at `--per-entity 60 --limit 6000`: 44 `failing_test` rows and
+60 `current_file`, all `unlabelled`, no suggestions attached. It is waiting on
+a person. **Coding precision stays at 100% (n=36, all `current_file`) until
+someone fills it in**, and that sentence is the honest state of the number, not
+a rounding of it.
+
 #### The write path, checked at last
 
 Everything above scores what the **read path** inferred. The **write path** is the

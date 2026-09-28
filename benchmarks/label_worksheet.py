@@ -258,6 +258,25 @@ def sample_rows(
     return rows
 
 
+def starved_slots(counts: Dict[str, int], per_entity: int) -> Dict[str, int]:
+    """
+    Which slots got fewer rows than their budget, and by how many.
+
+    Split out for the same reason ``sample_rows`` is: the ambiguity is a policy,
+    and a policy should not need a 5,000-row download to check.
+
+    A slot short of its budget means one of two things, and the difference
+    matters more than the count. Either the transcript window never reached the
+    slot's values, or the corpus has no more distinct ones. `failing_test` is
+    the case that made this necessary: 49 distinct values across the shard, 2
+    inside the default 60-transcript window. Two rows read as "this slot cannot
+    be labelled", which is how a person comes to drop the slot and report
+    coding precision as single-slot for good. So the shortfall is reported, and
+    the cause is not guessed at -- raising ``--limit`` is what tells them apart.
+    """
+    return {e: per_entity - n for e, n in sorted(counts.items()) if n < per_entity}
+
+
 def build(
     schema_name: str,
     corpus: str = "swe-agent",
@@ -278,6 +297,8 @@ def build(
         row["schema"] = schema_name
     if with_suggestions:
         rows = suggest(rows, transcripts)
+    counts = Counter(r["entity"] for r in rows)
+    starved = starved_slots(counts, per_entity)
     return {
         "instructions": (
             "For each row, read the turn in context and set `verdict` to correct, "
@@ -289,7 +310,16 @@ def build(
         "corpus": corpus,
         "per_entity": per_entity,
         "rows": len(rows),
-        "entities": dict(Counter(r["entity"] for r in rows)),
+        "entities": dict(counts),
+        "starved_slots": starved,
+        "starved_note": (
+            "these slots got fewer rows than --per-entity asked for. Either the "
+            "transcript window was too small to reach their values, or the corpus "
+            "has no more distinct ones. Raise --limit to tell which: "
+            "`coding.failing_test` goes 2 -> 7 -> 21 -> 44 rows at limits "
+            "60, 500, 2000, 6000."
+            if starved else ""
+        ),
         "labelled": 0,
         "suggestions_attached": bool(with_suggestions),
         "suggestions_are_verdicts": False,
@@ -469,6 +499,14 @@ def main(argv: List[str] = None) -> int:
           f"{len(worksheet['entities'])} slots, {len(already)} existing labels excluded")
     for entity, count in sorted(worksheet["entities"].items()):
         print(f"  {entity:<22} {count}")
+    if worksheet["starved_slots"]:
+        print("\n  starved: " + ", ".join(
+            f"{entity} {count} short" for entity, count in
+            worksheet["starved_slots"].items()))
+        print("  these slots got fewer rows than --per-entity asked for. Either the")
+        print("  transcript window was too small to reach their values, or the corpus")
+        print("  has no more. Raise --limit to tell which -- failing_test goes 2 -> 7")
+        print("  -> 21 -> 44 rows at limits 60, 500, 2000, 6000.")
     if args.out:
         os.makedirs(os.path.dirname(os.path.abspath(args.out)), exist_ok=True)
         with open(args.out, "w", encoding="utf-8") as handle:
