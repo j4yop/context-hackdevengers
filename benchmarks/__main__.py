@@ -188,11 +188,14 @@ def cmd_capture(args):
         print("capture is usable: `benchmarks shadow --captures` can replay it")
         return 0
 
-    if not args.transcript:
+    if not args.transcript and getattr(args, "corpus", None) in (None, "synthetic"):
         sys.exit("capture needs --transcript (a transcript file) or --verify")
     payload = capture(
         args.transcript, args.out, limit=args.limit, schema_path=args.schema,
         legacy_prompt=getattr(args, "legacy_prompt", False),
+        corpus=getattr(args, "corpus", None) or "synthetic",
+        domain=getattr(args, "domain", None),
+        corpus_path=getattr(args, "corpus_path", None),
     )
     print(render_capture_summary(
         summarise(payload["turns"], schema=_load_capture_schema(payload)), payload
@@ -333,6 +336,18 @@ def main(argv=None):
         help="record what a real model declares, for shadow mode to replay",
     )
     capture_parser.add_argument("--transcript", help="transcript file to run")
+    capture_parser.add_argument(
+        "--corpus", default="synthetic",
+        choices=["synthetic", "apigen", "swe-agent"],
+        help="where the conversations come from; recorded in the capture so a "
+             "report can say where the numbers came from",
+    )
+    capture_parser.add_argument(
+        "--corpus-path", help="local APIGen JSON or SWE-agent parquet shard"
+    )
+    capture_parser.add_argument(
+        "--domain", help="for --corpus apigen: airline or retail"
+    )
     capture_parser.add_argument("--out", default="captures/run1.json")
     capture_parser.add_argument("--verify", action="store_true",
                                 help="check an existing capture instead of making one")

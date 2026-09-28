@@ -379,6 +379,9 @@ def capture(
     context_chars: Optional[int] = None,
     progress: bool = True,
     legacy_prompt: bool = False,
+    corpus: str = "synthetic",
+    domain: Optional[str] = None,
+    corpus_path: Optional[str] = None,
 ) -> Dict[str, Any]:
     """
     Run real conversations and record what the model actually declared.
@@ -386,12 +389,23 @@ def capture(
     Each turn sends the compiled context plus the protocol instruction, takes the
     model's reply verbatim, and stores it. The declarations are whatever the model
     emitted -- this function never adds, corrects or invents one.
+
+    ``corpus`` selects where the conversations come from, and it is recorded in
+    the capture so a report can say where a number came from. Routing a real
+    corpus through ``load_synthetic`` just to reuse this function would stamp the
+    result ``synthetic``, which the corpus module already calls worthless as
+    evidence -- so ``corpus`` is a parameter rather than a hardcoded loader.
     """
-    from benchmarks.corpus import load_synthetic
+    from benchmarks.corpus import load_apigen_mt, load_swe_agent, load_synthetic
     from contextgc import compile_messages, load_schema, render_instruction
 
     client, model_name = _client()
-    transcripts = load_synthetic(transcript_path)[:limit]
+    if corpus == "apigen":
+        transcripts = load_apigen_mt(limit=limit, path=corpus_path, domain=domain)
+    elif corpus == "swe-agent":
+        transcripts = load_swe_agent(limit=limit, path=corpus_path)
+    else:
+        transcripts = load_synthetic(transcript_path)[:limit]
     schema = load_schema(schema_path) if schema_path else None
     instruction = system or render_instruction()
 
@@ -463,6 +477,9 @@ def capture(
         "endpoint": os.environ.get("CONTEXTGC_CAPTURE_BASE_URL", "api.openai.com"),
         "model": model_name,
         "transcript_path": transcript_path,
+        "corpus": corpus,
+        "corpus_source": transcripts[0].source if transcripts else None,
+        "corpus_transcripts": len(transcripts),
         "schema": schema_path,
         "legacy_prompt": legacy_prompt,
         "prompt_fingerprint": fingerprint,
