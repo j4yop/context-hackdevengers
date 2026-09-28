@@ -372,6 +372,64 @@ labels are one slot**: precision is currently a statement about the
 `current_file` regex and nothing else. (`coding.failing_test` cannot be measured
 at all — it has 0 speech observations, so the read path never produces it.)
 
+#### A ground truth that is not a person: the booking database
+
+Every airline tool result in the corpus is the environment's own record of a
+reservation — `{"reservation_id": "0U4NPP", "origin": "PHL", "cabin": "economy",
+"flights": [{"flight_number": "HAT076", "date": "2024-05-09", ...}]}`. That is
+ground truth for exactly the slots the travel schema tracks, and it is already in
+the conversation.
+
+It is worth being precise about why using it is legitimate when the read path
+refuses to. The library must not *infer* state from a machine payload — a booking
+record is a database dump, not a statement of what the customer wants. Scoring
+against it is the opposite operation: the payload is the answer key, held aside
+from the system under test. Refusing to read the key and refusing to score
+against the key would be one and the same mistake.
+
+`python -m benchmarks.ground_truth travel --limit 200` puts an extraction in one
+of three buckets, and reports them apart:
+
+| | count | share |
+|---|---|---|
+| corroborated by the record | 557 | 90.3% |
+| **contradicted by the record** | **7** | **1.1%** |
+| unverifiable (no record for that slot) | 53 | 8.6% |
+
+The rate is over corroborated + contradicted. The unverifiable column is **not** a
+pass — it is extractions this check says nothing about, and folding it in would
+flatter the number.
+
+**This is a different measurement from the hand-labelled one, and it is not
+interchangeable with it.** It asks "is this value consistent with what the
+environment recorded", not "did a person read the turn and judge it true". It is
+stricter in one way, because the record is authoritative rather than a reader's
+impression, and looser in another, because it cannot see whether the customer had
+*moved on* by that turn. It scores a real but out-of-date value as correct — the
+same limitation that sank the staleness attempt.
+
+It also found two defects that 39 single-slot hand labels had not:
+
+- **`abella_anderson_9682`.** The `passenger_id` pattern's optional verb
+  `(?:is|:)?` matched the leading `is` of the *name*, so the read path produced a
+  corrupted user id that passed every key-level check. 15 occurrences in the
+  corpus, and the mechanical worksheet suggestion read `correct` on all of them,
+  because the string is in the turn. It now needs a word boundary after the verb.
+- **`cabin_class = "first"`.** "rescheduling my return flight to **the first**
+  one-stop option" matched `to\s+(?:the\s+)?(first)` and recorded a First Class
+  cabin. The database holds only `economy`, `business` and `basic_economy` across
+  3,030 records and never `first`. This is row 051 of the worksheet, where the
+  suggestion again said `correct`.
+
+**What is left, honestly.** 6 of the 7 remaining contradictions are `cabin_class`,
+and every one sampled is the agent *explaining a baggage-allowance table* — "2
+free bags for each basic economy passenger, 3 for each economy passenger" — while
+the record holds a different cabin. The slot conflates "a cabin class was
+mentioned" with "the passenger is in this cabin", and an explanatory list mentions
+all of them. That is not fixable by narrowing the pattern without losing the
+genuine cases, and it is the same shape of problem as an options menu: telling an
+assertion from an enumeration needs to know more than the text contains.
+
 #### Making labelling cheap enough to stop being the bottleneck
 
 `python -m benchmarks.label_worksheet travel --limit 200 --per-entity 12` writes
