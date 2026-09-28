@@ -74,8 +74,10 @@ def schema_summary(name: str) -> Dict[str, Any]:
     whether they were derived from a labelled corpus or invented, and that
     difference is the whole question: ``devtools`` shipped describing itself as
     "a schema for the corpus the benchmarks actually run on" while no benchmark
-    used it and it matched nothing in any of the three corpora. A caller choosing
-    a schema is now told which kind of thing they are holding.
+    used it and its four patterns fired zero times across all 180 transcripts.
+    It was deleted rather than relabelled. A caller choosing a schema is told
+    which corpus it came from, and a test fails the build if a shipped schema's
+    patterns never match anything.
 
     A schema with no ``_measurement`` block is reported as unmeasured rather than
     omitted, because a missing field is not evidence either way.

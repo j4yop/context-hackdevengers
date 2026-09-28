@@ -221,8 +221,9 @@ function syncSchemaNote(){
     note.className = 'note';
     // An unmeasured schema gets the warning colour, not the accent colour. Its
     // patterns look exactly as authoritative as a measured one's, and that is
-    // the whole risk: `devtools` shipped for weeks describing itself as the
-    // schema the benchmarks run on, having matched nothing anywhere.
+    // the whole risk: `devtools` shipped for weeks in this list, and its four
+    // patterns fired zero times across all 180 transcripts. It was deleted. The
+    // branch stays for the next schema someone writes before measuring.
     const unmeasured = meta && meta.measured === false;
     note.style.cssText = unmeasured
       ? 'margin-top:8px;background:var(--warn-bg);border-color:var(--warn-line);color:var(--warn)'

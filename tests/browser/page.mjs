@@ -172,26 +172,27 @@ const withSchema = await page.textContent('#result');
 ok(/Gate 2/.test(withSchema), 'state table now shows a tracked value');
 ok(!/No state tracked/i.test(withSchema), 'empty-state message is gone');
 
-console.log('\n5b. an unmeasured schema says so, in the picker');
-// `devtools` shipped describing itself as the schema the benchmarks run on,
-// having matched nothing in any of the three corpora. The API now carries the
-// evidence and the picker must surface it, or a caller adopts untested patterns
-// believing they were derived.
+console.log('\n5b. every schema in the catalog carries its evidence');
+// `devtools` shipped with patterns that fired zero times across all 180
+// transcripts and was deleted. The picker must now only ever offer schemas whose
+// provenance is stated, and the picker must show it.
 {
-  const unmeasured = catalog.schemas.find((s) => s.measured === false);
-  ok(!!unmeasured, 'the catalog marks at least one schema as unmeasured',
-     unmeasured ? unmeasured.name : 'none');
-  if (unmeasured) {
-    await page.selectOption('#schem', unmeasured.name);
-    await page.waitForTimeout(300);
-    const txt = await page.textContent('#schema-note');
-    ok(/not measured/i.test(txt), `selecting ${unmeasured.name} says it is unmeasured`);
-    await page.selectOption('#schem', pick.name);
-    await page.waitForTimeout(300);
-    const measuredTxt = await page.textContent('#schema-note');
-    ok(!/not measured/i.test(measuredTxt),
-       'and a measured schema is not tarred with it');
+  const unmeasured = catalog.schemas.filter((s) => s.measured === false);
+  ok(unmeasured.length === 0,
+     'the catalog offers no schema without a measurement record',
+     unmeasured.map((s) => s.name).join(', '));
+  for (const s of catalog.schemas) {
+    const m = s.measurement || {};
+    ok(s.measured === true && m.transcripts > 0 && !!m.corpus,
+       `${s.name} states its corpus and n`,
+       `measured=${s.measured} n=${m.transcripts} corpus=${m.corpus}`);
   }
+  await page.selectOption('#schem', pick.name);
+  await page.waitForTimeout(300);
+  const txt = await page.textContent('#schema-note');
+  ok(/Measured on \d+/.test(txt),
+     'the picker tells the reader which corpus the schema was measured on',
+     txt.replace(/\s+/g, ' ').slice(0, 90));
 }
 
 console.log('\n6. declared/inferred provenance tags appear');

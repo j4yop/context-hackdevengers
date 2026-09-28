@@ -1285,16 +1285,87 @@ def test_every_shipped_schema_declares_its_measurement_evidence():
 
 
 def test_an_unmeasured_schema_is_reported_as_unmeasured():
-    from contextgc.schemas import schema_summary
+    """
+    The capability the `devtools` deletion left behind.
 
-    devtools = schema_summary("devtools")
-    assert devtools["measured"] is False, (
-        "devtools has never matched anything in any corpus; reporting it as "
-        "measured would be a fabricated provenance claim"
+    `devtools` was the only shipped schema with no evidence, and it was deleted
+    on 2026-09-28: across all 180 transcripts in the three corpora its four
+    patterns fired **zero** times, so it was a hypothesis nobody had tested
+    offering itself in the console as though it worked. The `_measurement` block
+    stays because the next schema will need it, and it is proved here with a
+    synthetic schema rather than by shipping a broken one.
+    """
+    import json
+    import pathlib
+    import tempfile
+
+    from contextgc import schemas as schemas_module
+
+    synthetic = {
+        "_comment": "A schema with no measurement record at all.",
+        "_measurement": {"transcripts": 0, "note": "never run against a corpus"},
+        "entities": {"thing": ["thing"]},
+    }
+    with tempfile.TemporaryDirectory() as tmp:
+        path = pathlib.Path(tmp) / "probe.json"
+        path.write_text(json.dumps(synthetic))
+        original_dir, original_list = schemas_module.SCHEMA_DIR, schemas_module.list_schemas
+        schemas_module.SCHEMA_DIR = tmp
+        schemas_module.list_schemas = lambda: ["probe"]
+        try:
+            summary = schemas_module.schema_summary("probe")
+        finally:
+            schemas_module.SCHEMA_DIR = original_dir
+            schemas_module.list_schemas = original_list
+
+    assert summary["measured"] is False, (
+        "a schema with no transcripts is unmeasured, whatever its comment claims"
     )
-    assert devtools["measurement"]["transcripts"] == 0
-    assert devtools["measurement"]["note"], (
+    assert summary["measurement"]["transcripts"] == 0
+    assert summary["measurement"]["note"], (
         "an unmeasured schema must say why, not merely that it is unmeasured"
+    )
+
+
+def test_every_shipped_schema_has_ever_fired():
+    """
+    The check that would have caught `devtools` before it shipped. A schema whose
+    patterns have never matched anything is not a tuned schema, it is a guess, and
+    the console should not offer it beside three that work.
+    """
+    import os
+
+    from benchmarks.corpus import load_apigen_mt, load_swe_agent
+    from contextgc import load_schema
+    from contextgc.client import compile_messages
+    from contextgc.schemas import list_schemas
+
+    if not (os.path.exists(os.path.expanduser(
+            "~/.cache/contextgc/swe-agent-trajectories-00000.parquet"))):
+        pytest.skip("corpora not cached; the nightly exercises this")
+    plan = []
+    for name in list_schemas():
+        if name == "travel":
+            plan.append((name, load_apigen_mt(domain="airline", limit=30)))
+        elif name == "logistics":
+            plan.append((name, load_apigen_mt(domain="retail", limit=30)))
+        elif name == "coding":
+            plan.append((name, load_swe_agent(limit=15, per_repo=1)))
+    dead = []
+    for name, transcripts in plan:
+        schema = load_schema(name)
+        fired = False
+        for transcript in transcripts:
+            _, telemetry = compile_messages(transcript.messages, schema=schema)
+            if telemetry.get("active_state_slots"):
+                fired = True
+                break
+        if not fired:
+            dead.append(name)
+    assert not dead, (
+        f"these shipped schemas never fired on any corpus: {dead}. Either measure "
+        f"them against a corpus that contains their entities, or delete them -- a "
+        f"user selecting one in the console gets a state tracker that never fires."
     )
 
 
