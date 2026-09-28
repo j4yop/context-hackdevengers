@@ -972,6 +972,52 @@ def test_a_worksheet_never_asks_twice_about_one_value_or_one_file():
     assert len(lw.sample_rows(same, {}, per_entity=5)) == 1
 
 
+def test_a_slot_short_of_its_budget_says_so_rather_than_looking_empty():
+    """
+    The default window returns 2 `failing_test` rows, and 2 rows read as "this
+    slot cannot be labelled" when the shard holds 49 distinct values. A person
+    who believed that would drop the slot and report coding precision as
+    single-slot for good -- which is how it was single-slot in the first place.
+
+    So a starved slot is named, and the cause is refused rather than guessed:
+    the window may be too small, or the corpus may have no more, and raising
+    --limit is what tells them apart.
+
+        failing_test rows:  2 ->  7 -> 21 -> 44
+        at --limit:        60 -> 500 -> 2000 -> 6000
+    """
+    from benchmarks.label_worksheet import sample_rows, starved_slots
+
+    def _one(entity, value, transcript):
+        return {"entity": entity, "value": value, "transcript": transcript, "turn": 0}
+
+    # The same slot, the same 6 distinct values, in transcripts that only a wide
+    # window reaches -- which is exactly the shape of the real corpus.
+    spread = [_one("failing_test", f"test_{i}.py", f"t{i}") for i in range(6)]
+
+    def counts(rows):
+        c = {}
+        for r in rows:
+            c[r["entity"]] = c.get(r["entity"], 0) + 1
+        return c
+
+    full = counts(sample_rows(spread, {}, per_entity=6))
+    assert starved_slots(full, 6) == {}, "a slot that met its budget is not starved"
+
+    short = counts(sample_rows(spread[:2], {}, per_entity=6))
+    assert starved_slots(short, 6) == {"failing_test": 4}, (
+        "a genuine shortfall is reported, with the number short"
+    )
+
+    # And the name is never a false alarm on the slot that did fill.
+    mixed = counts(sample_rows(
+        [_one("current_file", f"mod_{i}.py", f"c{i}") for i in range(6)] + spread[:2],
+        {}, per_entity=6))
+    assert set(starved_slots(mixed, 6)) == {"failing_test"}, (
+        "one starved slot must not make the other look starved too"
+    )
+
+
 def test_a_suggestion_never_becomes_a_verdict(monkeypatch, tmp_path):
     """
     The suggestion pass exists so a reviewer does not start from a blank page. It
