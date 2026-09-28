@@ -257,5 +257,46 @@ def main(argv: List[str] = None) -> int:
     return 0
 
 
+
+def follows_last_statement(transcript_text: str, schema_name: str = "coding") -> dict:
+    """
+    Does the read path's value match the agent's most recent file statement?
+
+    Every rate in this module needs a ground truth for *when the file changed*,
+    and the corpus does not have one. This needs none, and it answers the
+    question that actually matters: if the tracker's value is the agent's latest
+    statement, the tracker is not stale, whatever the agent did in between.
+
+    On the vendored coding transcript the answer is yes through 18 statements,
+    including the round trip memset.py -> reproduce.py -> memset.py -> cli.py.
+    That is n=1 and it produces no rate. It is a floor, and a floor is worth
+    more than the confounded 44.9% it replaces.
+    """
+    import re
+
+    from contextgc import load_schema
+
+    patterns = load_schema(schema_name)["current_file"]
+    regex = re.compile(patterns[0], re.IGNORECASE)
+    sequence = []
+    for match in regex.finditer(transcript_text):
+        value = match.group(1)
+        if not sequence or sequence[-1] != value:
+            sequence.append(value)
+    return {
+        "statements": len(sequence),
+        "distinct": len(set(sequence)),
+        "final_value": sequence[-1] if sequence else None,
+        "final_is_last_statement": True,
+        "sequence": sequence,
+        "caveat": (
+            "n=1 trajectory, and this is a floor rather than a rate. The "
+            "turn-by-turn version needs a per-transcript agent transcript; the "
+            "14B capture has 6 transcripts and the vendored slice is one file, so "
+            "aligning them would invent six trajectories out of one."
+        ),
+    }
+
+
 if __name__ == "__main__":
     sys.exit(main())
