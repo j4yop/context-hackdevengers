@@ -369,8 +369,48 @@ because fixing the repeat bug in defect 6 changed what the compiler extracts.
 The 100% is not a claim that the tracker is perfect. It is 100% of what was
 labelled, and labelling is the bottleneck. Concretely, the limit is that **all 39
 labels are one slot**: precision is currently a statement about the
-`current_file` regex and nothing else. (`coding.failing_test` cannot be measured
-at all — it has 0 speech observations, so the read path never produces it.)
+`current_file` regex and nothing else. A worksheet for the second slot is built
+below.
+
+#### The second coding slot, unreachable and then not
+
+`coding.failing_test` matched **740 times** in the coding corpus and **not once in
+speech**. Every hit sat inside a pytest result — `FAILED tests/test_x.py::test_y` —
+which is machine output the read path is *forbidden* to infer from. So the slot
+could never fire, could never be labelled, and had no evidence behind its
+contract. It was carried in a shipping schema by a number that was large and
+true and meant nothing.
+
+The number hid this because a corpus-wide count cannot tell you where the
+matches were. `test_the_one_slot_that_never_fires_from_speech_says_so` existed
+precisely to catch it, and the fix was to the **pattern**, not to the
+measurement. Requiring the noun phrase that actually introduces a file — *the
+test file `test_dispatcher.py`*, *the tests in `test_run.py`*, *the failing test
+`test_x.py`*:
+
+| `coding.failing_test` | before | after |
+|---|---|---|
+| speech observations | **0** | **78** |
+| distinct values | 0 | **49** |
+| observations in tool output | 740 | 14 |
+
+Across 174,815 agent turns there are 81 noun-phrase hits, 71 of them not beside a
+shell command. Those are assertions, not commands — which is the distinction the
+old pattern had collapsed. Nothing the read path actually used is lost: it was
+already discarding the other 740.
+
+The read path now extracts `test_dispatcher.py`, `test_cognitive_complexity.py`
+and `tests/test_cognitive_complexity.py` from the first 40 transcripts, which
+before produced **zero**.
+
+Two honest costs. The derived contract is now `[...]test[...].py`, which accepts
+any path containing `test` — so it also accepts `latest_file.py` and
+`my_test_helper.py`, and those are recorded as residual false accepts rather than
+fitted away with a lookup table. And the slot is named `failing_test` while the
+prose it now matches says only *a test file*; that was true of the old pattern
+too, and renaming a shipped key is a breaking change not made to improve a
+sentence. **49 distinct values is thin** for precision, and the worksheet below
+exists to thicken it. It is measurable now, which it was not.
 
 #### The write path, checked at last
 
@@ -1109,9 +1149,17 @@ measurement for a guess:
 ```json
 "values": {
   "current_file": "(?:[\\w][\\w./-]*\\.(?:py|js|ts|tsx|jsx|go|rs|java|rb|cpp|hpp))",
-  "failing_test": "(?:(?<![A-Za-z0-9])test_[\\w./\\[\\]-]+)"
+  "failing_test": "(?:[\\w./-]*test[\\w./-]*\\.py)"
 }
 ```
+
+The second line is worth pausing on, because it is a contract that accepts
+`latest_file.py` — `la`+`test` — and `my_test_helper.py`. The `test_` anchoring
+this slot used to have is gone, because the pattern that reaches it from speech
+no longer requires a `test_` prefix. Both junk cases are recorded as residual
+false accepts. The trade is deliberate: a contract that rejects 2 of 49 real
+values and is unreachable buys less than one that accepts everything the read
+path can reach and admits its 2 false accepts in the open.
 
 Deriving them mattered more than the hand-written versions looked. The old
 `logistics.delivery_address` was `[\w\s.,'/-]+` and `payment_method` was

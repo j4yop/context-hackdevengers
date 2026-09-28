@@ -12,6 +12,8 @@ produced, found by running it against the corpora rather than by inspection:
   names put an underscore or a dot in front of ``test_``
 * ``[A-Z0-9]{6}`` matched the ``HTTPError`` inside ``HTTPError: 403`` and the
   ``memset`` inside ``memset.py``
+* ``coding.failing_test`` matched 740 times in tool output and **not once in
+  speech**, so the read path could never produce it and the slot was unreachable
 
 The corpus-dependent tests skip when the cached corpora are absent, so the suite
 still runs on a clean checkout.
@@ -23,6 +25,7 @@ from pathlib import Path
 
 import pytest
 
+from benchmarks.value_evidence import slot_observations
 from contextgc import load_schema
 from contextgc.value_shapes import derive_value_contract, last_capture_group
 
@@ -118,17 +121,40 @@ def test_a_reservation_code_is_a_whole_value_not_a_fragment():
         assert not re.search(contract, other, re.IGNORECASE), other
 
 
-def test_test_anchoring_spans_underscores_and_dots():
+def test_a_test_slot_is_reachable_from_the_agents_own_speech():
     """
-    Not preceded by an alphanumeric. Separators would be too strict: the read
-    path really produces `base_test_test.py` and `tests.test_flask_pyoidc`.
+    `failing_test` was unreachable, and the fix belonged to the pattern rather
+    than to the measurement. It matched 740 times in the coding corpus and
+    **not once in speech** -- every hit sat inside a pytest result, which the
+    read path is forbidden to infer from. So the slot could never fire, could
+    never be labelled, and contributed nothing to precision past `current_file`.
+
+    Requiring the noun phrase that actually introduces a file -- "the test file
+    `test_dispatcher.py`", "the tests in `test_run.py`" -- makes it reachable:
+
+        before:    0 speech observations,  0 distinct values
+        after:    78 speech observations, 49 distinct values
+
+    Those are assertions, not commands: of 81 noun-phrase hits in the shard, 10
+    sit beside a shell command and 71 do not. And the read path was already
+    discarding the other 740, so nothing it used is lost by narrowing.
     """
     contract, _ = derive_value_contract(load_schema("coding")["failing_test"])
-    for good in ("test_memset.py", "tests/test_x.py::TestY",
-                 "tests/mobly/base_test_test.py", "tests.test_flask_pyoidc"):
+    for good in ("test_header.py", "tests/test_models.py",
+                 "tests/parsers/test_header.py", "unicode_literals_test.py",
+                 "control/tests/sisotool_test.py"):
         assert re.search(contract, good, re.IGNORECASE), good
-    for bad in ("latest_file.py", "HTTPError: 403 Forbidden", "None"):
+    for bad in ("HTTPError: 403 Forbidden", "None", "reproduce.py"):
         assert not re.search(contract, bad, re.IGNORECASE), bad
+
+    stats = slot_observations("coding")["failing_test"]
+    assert stats["fired"] is True, "the slot must be reachable from speech at all"
+    assert stats["distinct"] >= 20, (
+        f"only {stats['distinct_values']} distinct values -- too few to label"
+    )
+    assert stats["in_tool_output"] < stats["observations"], (
+        "if the slot still mostly fires in tool output, the read path discards it"
+    )
 
 
 
@@ -205,21 +231,34 @@ def test_every_slot_records_how_often_its_read_path_fired():
             assert "in_tool_output" in record
 
 
-def test_the_one_slot_that_never_fires_from_speech_says_so():
+def test_no_slot_is_carried_by_a_contract_with_nothing_behind_it():
     """
-    `coding.failing_test` matches 740 times in the coding corpus and not once in
-    speech: every mention is inside a pytest result, which is machine output the
-    read path is forbidden to infer from. So the read path never produces this
-    slot at all, and its contract has no evidence behind it. It stays, because the
-    gate still catches declared junk, but the evidence has to record the gap.
+    `coding.failing_test` was the reason this needed saying out loud. It matched
+    740 times in the coding corpus and not once in speech -- every mention inside
+    a pytest result, which the read path is forbidden to infer from -- so the
+    read path never produced the slot and its contract had no evidence behind it.
+    A corpus-wide count hid that, because the count was large and true.
+
+    Its pattern now requires the noun phrase that introduces a file, and the slot
+    fires 78 times from speech over 49 distinct values. That is the whole fix: a
+    pattern change, validated against the corpus, with the reachability counted
+    before and after rather than asserted.
+
+    This test is the ratchet. If a future pattern edit leaves a slot unfired, it
+    fails here instead of quietly widening the precision denominator.
     """
-    slots = json.loads((SCHEMA_DIR / "coding.json").read_text())["_measurement"][
-        "value_contracts"
-    ]["slots"]
-    failing = slots["failing_test"]
-    assert failing["fired"] is False
-    assert failing["read_path_observations"] == 0
-    assert failing["in_tool_output"] > 0
+    unfired = []
+    for name in SCHEMAS:
+        slots = json.loads((SCHEMA_DIR / f"{name}.json").read_text())["_measurement"][
+            "value_contracts"
+        ]["slots"]
+        for slot, record in slots.items():
+            if not record["fired"]:
+                unfired.append(f"{name}.{slot}")
+    assert not unfired, (
+        f"unreachable from speech, so their contracts are unfounded and no "
+        f"precision may be claimed for them: {unfired}"
+    )
 
 
 def test_the_residual_false_accepts_are_recorded_not_swept_up():

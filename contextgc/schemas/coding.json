@@ -6,7 +6,7 @@
       "\\b(?:working on|changes (?:to|in)|making changes (?:to|in)|should be editing|need(?:ed)? to edit(?: the)?|instead of)\\s+(?:^|[\\s`'\\\"/(])([\\w][\\w./-]*\\.(?:py|js|ts|tsx|jsx|go|rs|java|rb|cpp|hpp))\\b"
     ],
     "failing_test": [
-      "\\b(?:FAILED|ERROR|failed|error)\\s+([\\w./\\[\\]-]*test_[\\w./\\[\\]-]+)\\b"
+      "(?:failing\\s+test(?:s)?|test\\s+file|test\\s+suite|tests?\\s+in|test\\s+case)\\s+(?:is\\s+|are\\s+|at\\s+|:)?\\s*`?([\\w./-]*test[\\w./-]*\\.py)\\b"
     ]
   },
   "__immutable__": [],
@@ -31,16 +31,17 @@
         "failing_test": {
           "basis": "structure from the slot's own capture group",
           "derived_from": "the slot's own entity patterns; see contextgc/value_shapes.py",
-          "read_path_observations": 0,
-          "read_path_turns": 0,
-          "distinct_values": 0,
-          "fired": false,
-          "in_tool_output": 740
+          "read_path_observations": 78,
+          "read_path_turns": 74,
+          "distinct_values": 49,
+          "fired": true,
+          "in_tool_output": 14
         }
       },
       "residual_false_accepts": {
         "failing_test": {
           "wrong_shaped_still_accepted": [
+            "latest_file.py",
             "my_test_helper.py"
           ],
           "why": "the pattern's own boundary is looser than this case needs"
@@ -50,6 +51,6 @@
   },
   "values": {
     "current_file": "(?:[\\w][\\w./-]*\\.(?:py|js|ts|tsx|jsx|go|rs|java|rb|cpp|hpp))",
-    "failing_test": "(?:(?<![A-Za-z0-9])test_[\\w./\\[\\]-]+)"
+    "failing_test": "(?:[\\w./-]*test[\\w./-]*\\.py)"
   }
 }
