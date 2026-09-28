@@ -82,9 +82,12 @@ intervals, and a documented list of what the thing cannot do.
 - The write path depends on the model cooperating, and at the one model measured
   (qwen2.5:7b) it contributed zero verified information. `declaration_policy`
   exists so a deployment can hold declarations to its schema.
-- Four shipped entity schemas; three are measured against a corpus and one
-  (`devtools`) is not and says so in its own file, in `/api/schemas`, and in the
-  console picker.
+- Three shipped entity schemas, every one measured against a labelled corpus and
+  stating its evidence in `/api/schemas` and in the console picker. A fourth,
+  `devtools`, was deleted on 2026-09-28: its four patterns fired zero times
+  across all 180 transcripts, so it was an untested hypothesis offering itself in
+  the console beside three that work. A schema that has never fired is not a
+  tuned schema.
 - Supported on Python 3.9, 3.11 and 3.13. A test that cannot run on 3.9 is not a
   guard, and one did not.
 
@@ -116,7 +119,9 @@ a capture from a model stronger than the one measured.
   because the turn's prose discussed a different file. The correction is recorded
   beside the empty list, and the file plus its tests remain so the first real
   error is checkable from the moment it is recorded.
-- **One schema with no evidence:** `devtools`, labelled as such in three places.
+- **No schema ships without evidence.** Every entry in `/api/schemas` names its
+  corpus, its sample size and its precision, and a test fails if a shipped
+  schema's patterns never fire.
 
 **Must not be fabricated:** customer names, testimonials, adoption or download
 figures, any performance claim not in the README, and any comparison to another

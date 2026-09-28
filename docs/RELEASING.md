@@ -14,7 +14,7 @@ configuration, and it has to be done in a browser.
 | `python -m build` | `contextgc-0.4.0-py3-none-any.whl` + `.tar.gz` |
 | `twine check --strict` | PASSED on both artifacts |
 | wheel installs into an empty venv | yes, from `site-packages` |
-| wheel ships the schemas | `['coding', 'devtools', 'logistics', 'travel']` |
+| wheel ships the schemas | `['coding', 'logistics', 'travel']` |
 | wheel compiles with a shipped schema | `{'current_file': 'a/b.py'}` |
 | wheel scope | only `contextgc/` — no `benchmarks`, `server` or `web` leakage |
 | sdist | carries schemas, README and LICENSE |
