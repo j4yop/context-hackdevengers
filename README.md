@@ -392,8 +392,8 @@ of three buckets, and reports them apart:
 
 | | count | share |
 |---|---|---|
-| corroborated by the record | 557 | 90.3% |
-| **contradicted by the record** | **7** | **1.1%** |
+| corroborated by the record | 557 | 90.6% |
+| **contradicted by the record** | **5** | **0.8%** |
 | unverifiable (no record for that slot) | 53 | 8.6% |
 
 The rate is over corroborated + contradicted. The unverifiable column is **not** a
@@ -421,14 +421,36 @@ It also found two defects that 39 single-slot hand labels had not:
   3,030 records and never `first`. This is row 051 of the worksheet, where the
   suggestion again said `correct`.
 
-**What is left, honestly.** 6 of the 7 remaining contradictions are `cabin_class`,
-and every one sampled is the agent *explaining a baggage-allowance table* — "2
-free bags for each basic economy passenger, 3 for each economy passenger" — while
-the record holds a different cabin. The slot conflates "a cabin class was
-mentioned" with "the passenger is in this cabin", and an explanatory list mentions
-all of them. That is not fixable by narrowing the pattern without losing the
-genuine cases, and it is the same shape of problem as an options menu: telling an
-assertion from an enumeration needs to know more than the text contains.
+**What is left, honestly.** 4 of the 5 remaining contradictions are
+`cabin_class`, and they are the residue of three fixes that were **measured
+rather than reasoned about**. Two were tried and reverted because they were worse:
+
+| attempt | effect |
+|---|---|
+| require the mention near "your" / "you are flying" | lost 50 of 122 corroborated to fix 4 of 6 |
+| take the **last** mention in a turn as the conclusion | contradictions 6 → **10** |
+| treat 2+ distinct cabins in a turn as an enumeration | lost 16 of 122 corroborated to fix 3 of 6 |
+| **negative lookahead for policy framing** | contradictions 7 → **5**, coverage unchanged |
+
+That last one is the keeper: "basic economy **flights cannot be modified**" is a
+rule about the category, not the passenger's cabin. It removes 69 of 1,361
+`basic economy` matches, and reading all 69 found every one is a policy statement
+with no genuine mention among them — which is why it cost nothing in coverage
+while the other three cost a lot.
+
+The last-wins result is the instructive one. Taking the final mention as the
+turn's conclusion is intuitively right — an agent lists categories, then states
+the answer — and it made things worse, because agents state the current cabin and
+*then* offer an upgrade: "you are in economy, would you like business?" First-wins
+happens to suit this corpus, and the reason is a property of airline
+conversations rather than a principle.
+
+The 4 that remain are two turns where the correct value is also present and the
+wrong one was picked, one hypothetical ("would two separate bookings work, one in
+economy and one in business?"), and **one genuine agent-versus-record
+disagreement** where the agent says Economy, the record says `basic_economy`, and
+the read path faithfully recorded what the agent said. That last one is not a
+pattern bug at all, and it is the most interesting row in the table.
 
 #### Making labelling cheap enough to stop being the bottleneck
 

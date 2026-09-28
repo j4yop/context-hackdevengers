@@ -1185,6 +1185,51 @@ def test_ground_truth_scores_only_what_the_record_can_settle():
     assert gt.slot_values(record, "no_such_slot") == set()
 
 
+def test_a_policy_statement_about_a_cabin_is_not_the_passengers_cabin():
+    """
+    Found by scoring against the booking database, and the third of three
+    `cabin_class` attempts that were measured rather than reasoned about.
+
+    "Change flights (note: basic economy flights cannot be modified)" is a rule
+    about the category, and the read path recorded the passenger's cabin as Basic
+    Economy. The booking record held `business`, and the value was contradicted.
+
+    Two earlier fixes were tried and measured worse, so they are not here:
+
+    * requiring the mention to sit near "your"/"you are flying" would have lost
+      50 of 122 corroborated extractions to fix 4 of 6
+    * taking the *last* mention in a turn as the conclusion raised contradictions
+      from 6 to 10, because agents state the current cabin and then offer an
+      upgrade -- "you are in economy, would you like business?"
+
+    This guard removes 69 of 1,361 `basic economy` matches, and reading all 69
+    showed every one is a policy statement about the category, with no genuine
+    mention among them.
+    """
+    from benchmarks.harness import run
+    from contextgc import load_schema
+
+    policy = (
+        "I can help with that. Here are some options: 1. Change flights "
+        "(note: basic economy flights cannot be modified). 2. Change cabin class."
+    )
+    genuine = "I booked a basic economy ticket and need to add a checked bag."
+
+    for text, should_extract in ((policy, False), (genuine, True)):
+        result = run(
+            [Transcript(
+                transcript_id="policy#1", source="unit-test",
+                messages=normalise_messages([
+                    {"role": "user", "content": "hello"},
+                    {"role": "assistant", "content": text},
+                ]),
+            )],
+            schema=load_schema("travel"),
+        )
+        cabins = {e["value"] for e in result.extractions if e["entity"] == "cabin_class"}
+        assert bool(cabins) is should_extract, (text[:50], cabins)
+
+
 def test_an_options_menu_is_not_recorded_as_a_booking():
     """
     Found by reading the registering turns of the second domain. A turn listed
