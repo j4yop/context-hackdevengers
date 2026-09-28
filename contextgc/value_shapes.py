@@ -45,6 +45,13 @@ from typing import List, Optional, Sequence, Tuple
 #: ``(?<!``, ``(?P=``, and any scoped flag group such as ``(?i:`` or ``(?-i:``.
 _NOT_CAPTURE = re.compile(r"\(\?(?:[a-zA-Z]*-?[a-zA-Z]*)?[:=!]|\(\?<[=!]|\(\?P=")
 
+#: ``(?-i:`` switches case-sensitivity *back on* inside a group. Losing it
+#: silently costs a real constraint: the travel schema writes its reservation id
+#: as ``(?-i:([A-Z0-9]{6}))``, and the value gate compiles contracts
+#: case-insensitively, so a contract derived from the bare group accepted
+#: ``memset`` and ``abcdef`` -- any six word characters -- as a reservation code.
+_CASE_SCOPE = re.compile(r"\(\?-i:")
+
 #: A literal alternative: letters, digits, spaces and address punctuation.
 _LITERAL = re.compile(r"[A-Za-z0-9 .'/()-]+")
 
@@ -64,6 +71,11 @@ def last_capture_group(pattern: str) -> Optional[str]:
     problem. A first attempt tracked only depth-zero groups and returned nothing
     for the second shape, and a second returned a stray ``)``; both are pinned by
     ``test_the_capture_scanner_handles_nesting``.
+
+    A capture inside ``(?-i:...)`` is returned still wrapped in that scope. The
+    scope is a constraint the pattern states, and the gate matches
+    case-insensitively, so dropping it would hand every uppercase class to any
+    lowercase string of the same length.
     """
     stack: List[Tuple[int, bool]] = []
     last: Optional[str] = None
@@ -90,6 +102,10 @@ def last_capture_group(pattern: str) -> Optional[str]:
                 start, is_capture = stack.pop()
                 if is_capture:
                     last = pattern[start + 1:index]
+                    # Any enclosing group may have switched case-sensitivity back
+                    # on; carry the scope into the contract rather than lose it.
+                    if any(_CASE_SCOPE.match(pattern, opener) for opener, _ in stack):
+                        last = f"(?-i:{last})"
         index += 1
     return last
 

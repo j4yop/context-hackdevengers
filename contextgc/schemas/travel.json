@@ -20,6 +20,7 @@
     "precision": "100% (n=72, CI 95-100%)",
     "value_contracts": {
       "derived": true,
+      "corpus_note": "read_path_* counts speech only; in_tool_output is what the patterns would match if the machine-output rule were lifted",
       "slots": {
         "cabin_class": {
           "basis": "vocabulary from the slot's own alternation",
@@ -27,7 +28,8 @@
           "read_path_observations": 1370,
           "read_path_turns": 822,
           "distinct_values": 8,
-          "fired": true
+          "fired": true,
+          "in_tool_output": 0
         },
         "active_reservation": {
           "basis": "structure from the slot's own capture group",
@@ -35,13 +37,14 @@
           "read_path_observations": 940,
           "read_path_turns": 938,
           "distinct_values": 644,
-          "fired": true
+          "fired": true,
+          "in_tool_output": 0
         }
       }
     }
   },
   "values": {
     "cabin_class": "(?:premium\\ economy)|(?:basic\\ economy)|(?:business)|(?:economy)|(?:first)",
-    "active_reservation": "^(?:[A-Z0-9]{6})$"
+    "active_reservation": "^(?:(?-i:[A-Z0-9]{6}))$"
   }
 }

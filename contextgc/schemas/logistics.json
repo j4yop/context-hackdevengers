@@ -16,6 +16,7 @@
     "precision": "100% (n=47, CI 92-100%)",
     "value_contracts": {
       "derived": true,
+      "corpus_note": "read_path_* counts speech only; in_tool_output is what the patterns would match if the machine-output rule were lifted",
       "slots": {
         "delivery_address": {
           "basis": "structure from the slot's own capture group",
@@ -23,7 +24,8 @@
           "read_path_observations": 237,
           "read_path_turns": 236,
           "distinct_values": 226,
-          "fired": true
+          "fired": true,
+          "in_tool_output": 7885
         },
         "payment_method": {
           "basis": "vocabulary from the slot's own alternation",
@@ -31,7 +33,8 @@
           "read_path_observations": 2108,
           "read_path_turns": 1850,
           "distinct_values": 6,
-          "fired": true
+          "fired": true,
+          "in_tool_output": 0
         }
       }
     }
