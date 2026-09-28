@@ -1,0 +1,1120 @@
+{
+  "version": 1,
+  "endpoint": "http://localhost:11434/v1",
+  "model": "qwen2.5:14b",
+  "transcript_path": null,
+  "corpus": "swe-agent",
+  "corpus_source": "swe-agent-trajectories",
+  "corpus_transcripts": 3,
+  "schema": "coding",
+  "legacy_prompt": false,
+  "prompt_fingerprint": "fffa59b295458280",
+  "prompt_version": 3,
+  "turns": [
+    {
+      "transcript": "AnalogJ__lexicon-336#0",
+      "index": 1,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"unsure\":{\"failing_test\":\"TypeError: string indices must be integers\"}}</contextgc-state>",
+      "read_path": {}
+    },
+    {
+      "transcript": "AnalogJ__lexicon-336#0",
+      "index": 3,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"assert\":{\"current_file\":\"memset.py\"},\"pin\":{\"failing_test\":\"requests.exceptions.HTTPError: 403 Client Error: Forbidden for url: https://api.memset.com/v1/json/dns.zone_domain_info?domain=example.com\"}}</contextgc-state>",
+      "read_path": {
+        "current_file": "memset.py"
+      }
+    },
+    {
+      "transcript": "AnalogJ__lexicon-336#0",
+      "index": 5,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"unsure\":{\"current_file\":\"memset.py\"},\"pin\":{\"failing_test\":\"lexicon memset create example.com TXT --name _acme-challenge.example.com --content BLAH --ttl 300\"}}</contextgc-state>",
+      "read_path": {
+        "current_file": "memset.py"
+      }
+    },
+    {
+      "transcript": "AnalogJ__lexicon-336#0",
+      "index": 7,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"assert\":{\"current_file\":\"lexicon/memset.py\"}}</contextgc-state>",
+      "read_path": {
+        "current_file": "memset.py"
+      }
+    },
+    {
+      "transcript": "AnalogJ__lexicon-336#0",
+      "index": 9,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"assert\":{\"current_file\":\"memset.py\",\"failing_test\":\"Runtime/Test\"},\"pin\":{\"current_file\":\"memset.py\",\"failing_test\":\"Runtime/Test\"}}</contextgc-state>",
+      "read_path": {
+        "current_file": "memset.py"
+      }
+    },
+    {
+      "transcript": "AnalogJ__lexicon-336#0",
+      "index": 11,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"assert\":{\"current_file\":\"lexicon/providers/memset.py\"}}</contextgc-state>",
+      "read_path": {
+        "current_file": "memset.py"
+      }
+    },
+    {
+      "transcript": "AnalogJ__lexicon-336#0",
+      "index": 13,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"assert\":{\"current_file\":\"memset.py\",\"failing_test\":\"lexicon/memset/tests/test_provider_memset.py\"}}</contextgc-state>",
+      "read_path": {
+        "current_file": "lexicon/lexicon/providers/memset.py"
+      }
+    },
+    {
+      "transcript": "AnalogJ__lexicon-336#0",
+      "index": 15,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"unsure\":{\"failing_test\":\"The exact cause of the failing test needs further investigation after initializing the domain attribute.\"}}</contextgc-state>",
+      "read_path": {
+        "current_file": "lexicon/lexicon/providers/memset.py"
+      }
+    },
+    {
+      "transcript": "AnalogJ__lexicon-336#0",
+      "index": 17,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"unsure\":{\"current_file\":\"reproduce.py\"}}</contextgc-state>",
+      "read_path": {
+        "current_file": "reproduce.py"
+      }
+    },
+    {
+      "transcript": "AnalogJ__lexicon-336#0",
+      "index": 19,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"assert\":{\"current_file\":\"reproduce.py\"}}</contextgc-state>",
+      "read_path": {
+        "current_file": "lexicon/reproduce.py"
+      }
+    },
+    {
+      "transcript": "AnalogJ__lexicon-336#0",
+      "index": 21,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"unsure\":{\"failing_test\":null}}</contextgc-state>",
+      "read_path": {
+        "current_file": "lexicon/reproduce.py"
+      }
+    },
+    {
+      "transcript": "AnalogJ__lexicon-336#0",
+      "index": 23,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"assert\":{\"current_file\":\"reproduce.py\"}}</contextgc-state>",
+      "read_path": {
+        "current_file": "lexicon/reproduce.py"
+      }
+    },
+    {
+      "transcript": "AnalogJ__lexicon-336#0",
+      "index": 25,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"unsure\":{\"failing_test\":null}}</contextgc-state>",
+      "read_path": {
+        "current_file": "reproduce.py"
+      }
+    },
+    {
+      "transcript": "AnalogJ__lexicon-336#0",
+      "index": 27,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"assert\":{\"current_file\":\"reproduce.py\",\"failing_test\":null}}</contextgc-state>",
+      "read_path": {
+        "current_file": "lexicon/reproduce.py"
+      }
+    },
+    {
+      "transcript": "AnalogJ__lexicon-336#0",
+      "index": 29,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"current_file\": \"reproduce.py\"}</contextgc-state>",
+      "read_path": {
+        "current_file": "config.py"
+      }
+    },
+    {
+      "transcript": "AnalogJ__lexicon-336#0",
+      "index": 31,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"unsure\":{\"failing_test\":null}}</contextgc-state>",
+      "read_path": {
+        "current_file": "reproduce.py"
+      }
+    },
+    {
+      "transcript": "AnalogJ__lexicon-336#0",
+      "index": 33,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"unsure\":{\"current_file\":\"reproduce.py\"},\"pin\":{\"failing_test\":false}}</contextgc-state>",
+      "read_path": {
+        "current_file": "reproduce.py"
+      }
+    },
+    {
+      "transcript": "AnalogJ__lexicon-336#0",
+      "index": 35,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"assert\":{\"current_file\":\"reproduce.py\"}}</contextgc-state>",
+      "read_path": {
+        "current_file": "reproduce.py"
+      }
+    },
+    {
+      "transcript": "AnalogJ__lexicon-336#0",
+      "index": 37,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"assert\":{\"current_file\":\"reproduce.py\"}}</contextgc-state>",
+      "read_path": {
+        "current_file": "lexicon/reproduce.py"
+      }
+    },
+    {
+      "transcript": "AnalogJ__lexicon-336#0",
+      "index": 39,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"unsure\":{\"current_file\":\"reproduce.py\"}}</contextgc-state>",
+      "read_path": {
+        "current_file": "lexicon/reproduce.py"
+      }
+    },
+    {
+      "transcript": "AnalogJ__lexicon-336#0",
+      "index": 41,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"unsure\":{\"current_file\":\"config.py\"},\"assert\":{\"current_file\":\"reproduce.py\"}}</contextgc-state>",
+      "read_path": {
+        "current_file": "config.py"
+      }
+    },
+    {
+      "transcript": "AnalogJ__lexicon-336#0",
+      "index": 43,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"current_file\":\"reproduce.py\"}</contextgc-state>",
+      "read_path": {
+        "current_file": "reproduce.py"
+      }
+    },
+    {
+      "transcript": "AnalogJ__lexicon-336#0",
+      "index": 45,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"current_file\":\"reproduce.py\"}</contextgc-state>",
+      "read_path": {
+        "current_file": "reproduce.py"
+      }
+    },
+    {
+      "transcript": "AnalogJ__lexicon-336#0",
+      "index": 47,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"unsure\":{\"current_file\":\"reproduce.py\"}}</contextgc-state>",
+      "read_path": {
+        "current_file": "reproduce.py"
+      }
+    },
+    {
+      "transcript": "AnalogJ__lexicon-336#0",
+      "index": 49,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"unsure\": {\"failing_test\": \"None\"}}</contextgc-state>",
+      "read_path": {
+        "current_file": "lexicon/reproduce.py"
+      }
+    },
+    {
+      "transcript": "AnalogJ__lexicon-336#0",
+      "index": 51,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"unsure\":{\"failing_test\":null}}</contextgc-state>",
+      "read_path": {
+        "current_file": "memset.py"
+      }
+    },
+    {
+      "transcript": "AnalogJ__lexicon-336#0",
+      "index": 53,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"current_file\": \"memset.py\"}</contextgc-state>",
+      "read_path": {
+        "current_file": "memset.py"
+      }
+    },
+    {
+      "transcript": "AnalogJ__lexicon-336#0",
+      "index": 55,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"assert\":{\"current_file\":\"/lexicon/lexicon/providers/memset.py\"}}</contextgc-state>",
+      "read_path": {
+        "current_file": "memset.py"
+      }
+    },
+    {
+      "transcript": "AnalogJ__lexicon-336#0",
+      "index": 57,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"current_file\":\"memset.py\"}</contextgc-state>",
+      "read_path": {
+        "current_file": "lexicon/lexicon/providers/memset.py"
+      }
+    },
+    {
+      "transcript": "AnalogJ__lexicon-336#0",
+      "index": 59,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"unsure\":{\"failing_test\":\"unknown\"},\"pin\":{\"current_file\":\"memset.py\"}}</contextgc-state>",
+      "read_path": {
+        "current_file": "lexicon/lexicon/providers/memset.py"
+      }
+    },
+    {
+      "transcript": "AnalogJ__lexicon-336#0",
+      "index": 61,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"pin\":{\"current_file\":\"memset.py\"}}</contextgc-state>",
+      "read_path": {
+        "current_file": "lexicon/lexicon/providers/memset.py"
+      }
+    },
+    {
+      "transcript": "AnalogJ__lexicon-336#0",
+      "index": 63,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"unsure\":{\"failing_test\":null}}</contextgc-state>",
+      "read_path": {
+        "current_file": "lexicon/lexicon/providers/memset.py"
+      }
+    },
+    {
+      "transcript": "AnalogJ__lexicon-336#0",
+      "index": 65,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"pin\":{\"current_file\":\"memset.py\"},\"unsure\":{\"failing_test\":\"requests.exceptions.HTTPError: 403 Client Error: Forbidden for url: https://api.memset.com/v1/json/dns.zone_domain_info\"}}</contextgc-state>",
+      "read_path": {
+        "current_file": "memset.py"
+      }
+    },
+    {
+      "transcript": "AnalogJ__lexicon-336#0",
+      "index": 67,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"unsure\":{\"failing_test\":null}}</contextgc-state>",
+      "read_path": {
+        "current_file": "lexicon/lexicon/providers/memset.py"
+      }
+    },
+    {
+      "transcript": "AnalogJ__lexicon-336#0",
+      "index": 69,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"unsure\":{\"failing_test\":null}}</contextgc-state>",
+      "read_path": {
+        "current_file": "lexicon/lexicon/providers/memset.py"
+      }
+    },
+    {
+      "transcript": "AnalogJ__lexicon-336#0",
+      "index": 71,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"unsure\":{\"current_file\":\"memset.py\"}}</contextgc-state>",
+      "read_path": {
+        "current_file": "lexicon/lexicon/providers/memset.py"
+      }
+    },
+    {
+      "transcript": "AnalogJ__lexicon-336#0",
+      "index": 73,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"unsure\":{\"failing_test\":\"E999 SyntaxError: '(' was never closed\"},\"pin\":{\"current_file\":\"/lexicon/lexicon/providers/memset.py\"}}</contextgc-state>",
+      "read_path": {
+        "current_file": "lexicon/lexicon/providers/memset.py"
+      }
+    },
+    {
+      "transcript": "AnalogJ__lexicon-336#0",
+      "index": 75,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"unsure\":{\"failing_test\":\"E999 SyntaxError: '(' was never closed\"}}</contextgc-state>",
+      "read_path": {
+        "current_file": "lexicon/lexicon/providers/memset.py"
+      }
+    },
+    {
+      "transcript": "AnalogJ__lexicon-336#0",
+      "index": 77,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"unsure\":{\"failing_test\":\"E999 SyntaxError: '(' was never closed\"}}</contextgc-state>",
+      "read_path": {
+        "current_file": "lexicon/lexicon/providers/memset.py"
+      }
+    },
+    {
+      "transcript": "AnalogJ__lexicon-336#0",
+      "index": 79,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"unsure\":{\"failing_test\":\"ERRORS: E999 SyntaxError: '(' was never closed\"}}</contextgc-state>",
+      "read_path": {
+        "current_file": "lexicon/lexicon/providers/memset.py"
+      }
+    },
+    {
+      "transcript": "AnalogJ__lexicon-336#0",
+      "index": 81,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"unsure\":{\"failing_test\":false}}</contextgc-state>",
+      "read_path": {
+        "current_file": "lexicon/lexicon/providers/memset.py"
+      }
+    },
+    {
+      "transcript": "AnalogJ__lexicon-336#0",
+      "index": 83,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"unsure\": {\"failing_test\": \"https://api.memset.com/v1/json/dns.zone_domain_info returned 403 Forbidden, need to verify auth-token\"}}</contextgc-state>",
+      "read_path": {
+        "current_file": "lexicon/lexicon/providers/memset.py"
+      }
+    },
+    {
+      "transcript": "AnalogJ__lexicon-336#0",
+      "index": 85,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"unsure\": {\"failing_test\": \"The issue may still persist due to syntax errors or incorrect token usage.\"}}</contextgc-state>",
+      "read_path": {
+        "current_file": "lexicon/lexicon/providers/memset.py"
+      }
+    },
+    {
+      "transcript": "AnalogJ__lexicon-336#0",
+      "index": 87,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"unsure\":{\"failing_test\":false}}</contextgc-state>",
+      "read_path": {
+        "current_file": "lexicon/lexicon/providers/memset.py"
+      }
+    },
+    {
+      "transcript": "AnalogJ__lexicon-336#0",
+      "index": 89,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"unsure\":{\"failing_test\":\"E999 SyntaxError: '(' was never closed\"}}</contextgc-state>",
+      "read_path": {
+        "current_file": "lexicon/lexicon/providers/memset.py"
+      }
+    },
+    {
+      "transcript": "AnalogJ__lexicon-336#0",
+      "index": 91,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"unsure\":{\"failing_test\":\"E999 SyntaxError: '(' was never closed\\nERRORS:\\n- E999 SyntaxError: closing parenthesis '}' does not match opening parenthesis '('\"}}</contextgc-state>",
+      "read_path": {
+        "current_file": "lexicon/lexicon/providers/memset.py"
+      }
+    },
+    {
+      "transcript": "AnalogJ__lexicon-336#1",
+      "index": 1,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"unsure\":{\"failing_test\":\"string indices must be integers\"}}</contextgc-state>",
+      "read_path": {}
+    },
+    {
+      "transcript": "AnalogJ__lexicon-336#1",
+      "index": 3,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"assert\":{\"current_file\":\"memset.py\"},\"unsure\":{\"failing_test\":\"lexicon memset create example.com TXT --name _acme-challenge.example.com --content BLAH --ttl 300\"}}</contextgc-state>",
+      "read_path": {
+        "current_file": "memset.py"
+      }
+    },
+    {
+      "transcript": "AnalogJ__lexicon-336#1",
+      "index": 5,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"pin\":{\"current_file\":\"memset.py\"},\"unsure\":{\"failing_test\":\"lexicon memset create example.com TXT --name _acme-challenge.example.com --content BLAH --ttl 300\"}}</contextgc-state>",
+      "read_path": {
+        "current_file": "lexicon/lexicon/providers/memset.py"
+      }
+    },
+    {
+      "transcript": "AnalogJ__lexicon-336#1",
+      "index": 7,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"pin\": {\"current_file\": \"memset.py\"}}</contextgc-state>",
+      "read_path": {
+        "current_file": "lexicon/lexicon/providers/memset.py"
+      }
+    },
+    {
+      "transcript": "AnalogJ__lexicon-336#1",
+      "index": 9,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"unsure\": {\"failing_test\": \"The cause of the 403 Forbidden error needs further investigation to ensure correct authorization setup.\"}}</contextgc-state>",
+      "read_path": {
+        "current_file": "lexicon/lexicon/providers/memset.py"
+      }
+    },
+    {
+      "transcript": "AnalogJ__lexicon-336#1",
+      "index": 11,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"pin\": {\"current_file\": \"/lexicon/lexicon/providers/memset.py\"}}</contextgc-state>",
+      "read_path": {
+        "current_file": "lexicon/lexicon/providers/memset.py"
+      }
+    },
+    {
+      "transcript": "AnalogJ__lexicon-336#1",
+      "index": 13,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"unsure\": {\"failing_test\": false}}</contextgc-state>",
+      "read_path": {
+        "current_file": "lexicon/lexicon/providers/memset.py"
+      }
+    },
+    {
+      "transcript": "AnalogJ__lexicon-336#1",
+      "index": 15,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"unsure\":{\"failing_test\":\"E999 SyntaxError: '(' was never closed\"}}</contextgc-state>",
+      "read_path": {
+        "current_file": "lexicon/lexicon/providers/memset.py"
+      }
+    },
+    {
+      "transcript": "AnalogJ__lexicon-336#1",
+      "index": 17,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"assert\":{\"current_file\":\"/lexicon/lexicon/providers/memset.py\",\"failing_test\":false}}</contextgc-state>",
+      "read_path": {
+        "current_file": "lexicon/lexicon/providers/memset.py"
+      }
+    },
+    {
+      "transcript": "AnalogJ__lexicon-336#1",
+      "index": 19,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"assert\":{\"current_file\":\"lexicon/providers/memset.py\",\"unsure\":{\"failing_test\":\"ERRORS: - E999 SyntaxError: '(' was never closed\"}}}</contextgc-state>",
+      "read_path": {
+        "current_file": "lexicon/providers/memset.py"
+      }
+    },
+    {
+      "transcript": "AnalogJ__lexicon-336#1",
+      "index": 21,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"assert\":{\"current_file\":\"lexicon/providers/memset.py\"},\"unsure\":{\"failing_test\":\"The auth_token is not being set correctly.\"}}</contextgc-state>",
+      "read_path": {
+        "current_file": "lexicon/lexicon/providers/memset.py"
+      }
+    },
+    {
+      "transcript": "AnalogJ__lexicon-336#1",
+      "index": 23,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"assert\":{\"current_file\":\"lexicon/providers/memset.py\",\"failing_test\":\"auth_token_not_set\"}}</contextgc-state>",
+      "read_path": {
+        "current_file": "lexicon/lexicon/providers/memset.py"
+      }
+    },
+    {
+      "transcript": "AnalogJ__lexicon-336#1",
+      "index": 25,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"current_file\": \"lexicon/providers/base.py\"}</contextgc-state>",
+      "read_path": {
+        "current_file": "lexicon/providers/base.py"
+      }
+    },
+    {
+      "transcript": "AnalogJ__lexicon-336#1",
+      "index": 27,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"unsure\":{\"current_file\":\"lexicon/lexicon/providers/memset.py\"}}</contextgc-state>",
+      "read_path": {
+        "current_file": "lexicon/providers/memset.py"
+      }
+    },
+    {
+      "transcript": "AnalogJ__lexicon-336#1",
+      "index": 29,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"current_file\": \"lexicon/lexicon/providers/memset.py\"}</contextgc-state>",
+      "read_path": {
+        "current_file": "lexicon/providers/memset.py"
+      }
+    },
+    {
+      "transcript": "AnalogJ__lexicon-336#1",
+      "index": 31,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"assert\":{\"current_file\":\"lexicon/providers/memset.py\",\"failing_test\":null}}</contextgc-state>",
+      "read_path": {
+        "current_file": "lexicon/providers/base.py"
+      }
+    },
+    {
+      "transcript": "AnalogJ__lexicon-336#1",
+      "index": 33,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"sure\":{\"current_file\":\"lexicon/lexicon/providers/base.py\"}}</contextgc-state>",
+      "read_path": {
+        "current_file": "lexicon/providers/memset.py"
+      }
+    },
+    {
+      "transcript": "AnalogJ__lexicon-336#1",
+      "index": 35,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"assert\":{\"current_file\":\"lexicon/lexicon/providers/memset.py\",\"failing_test\":\"auth_token_not_set_in_config_object\"},\"unsure\":{\"current_line\":11}}</contextgc-state>",
+      "read_path": {
+        "current_file": "lexicon/providers/base.py"
+      }
+    },
+    {
+      "transcript": "AnalogJ__lexicon-336#1",
+      "index": 37,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"unsure\":{\"current_file\":\"lexicon/lexicon/providers/base.py\"},\"pin\":{\"current_file\":\"lexicon/providers/memset.py\"}}</contextgc-state>",
+      "read_path": {
+        "current_file": "lexicon/providers/memset.py"
+      }
+    },
+    {
+      "transcript": "AnalogJ__lexicon-336#1",
+      "index": 39,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"unsure\":{\"current_file\":\"lexicon/lexicon/providers/memset.py\"}}</contextgc-state>",
+      "read_path": {
+        "current_file": "lexicon/providers/base.py"
+      }
+    },
+    {
+      "transcript": "AnalogJ__lexicon-336#1",
+      "index": 41,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"current_file\":\"/lexicon/lexicon/providers/base.py\"}</contextgc-state>",
+      "read_path": {
+        "current_file": "lexicon/providers/memset.py"
+      }
+    },
+    {
+      "transcript": "AnalogJ__lexicon-336#1",
+      "index": 43,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"current_file\": \"lexicon/lexicon/providers/memset.py\"}</contextgc-state>",
+      "read_path": {
+        "current_file": "lexicon/providers/base.py"
+      }
+    },
+    {
+      "transcript": "AnalogJ__lexicon-336#1",
+      "index": 45,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"unsure\":{\"current_file\":\"lexicon/lexicon/providers/base.py\"},\"pin\":{\"current_file\":\"lexicon/providers/memset.py\"}}</contextgc-state>",
+      "read_path": {
+        "current_file": "lexicon/providers/memset.py"
+      }
+    },
+    {
+      "transcript": "AnalogJ__lexicon-336#1",
+      "index": 47,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"current_file\": \"lexicon/lexicon/providers/memset.py\"}</contextgc-state>",
+      "read_path": {
+        "current_file": "lexicon/providers/base.py"
+      }
+    },
+    {
+      "transcript": "AnalogJ__lexicon-336#1",
+      "index": 49,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"unsure\":{\"current_file\":\"lexicon/lexicon/providers/base.py\"},\"pin\":{\"current_file\":\"lexicon/providers/memset.py\"},\"revoke\":[\"failing_test\"]}</contextgc-state>",
+      "read_path": {
+        "current_file": "lexicon/providers/memset.py"
+      }
+    },
+    {
+      "transcript": "AnalogJ__lexicon-336#2",
+      "index": 1,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"unsure\":{\"failing_test\":\"TypeError: string indices must be integers\"}}</contextgc-state>",
+      "read_path": {}
+    },
+    {
+      "transcript": "AnalogJ__lexicon-336#2",
+      "index": 3,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"assert\":{\"current_file\":\"memset.py\"},\"unsure\":{\"failing_test\":\"requests.exceptions.HTTPError: 403 Client Error: Forbidden for url: https://api.memset.com/v1/json/dns.zone_domain_info?domain=example.com\"}}</contextgc-state>",
+      "read_path": {
+        "current_file": "memset.py"
+      }
+    },
+    {
+      "transcript": "AnalogJ__lexicon-336#2",
+      "index": 5,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"assert\":{\"current_file\":\"lexicon/providers/memset.py\"}}</contextgc-state>",
+      "read_path": {
+        "current_file": "lexicon/lexicon/providers/memset.py"
+      }
+    },
+    {
+      "transcript": "AnalogJ__lexicon-336#2",
+      "index": 7,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"unsure\":{\"failing_test\":\"The exact issue causing the failing test is not yet clear, but it may be related to how the auth_token is being used in the API request.\"}}</contextgc-state>",
+      "read_path": {
+        "current_file": "lexicon/lexicon/providers/memset.py"
+      }
+    },
+    {
+      "transcript": "AnalogJ__lexicon-336#2",
+      "index": 9,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"unsure\":{\"failing_test\":\"unknown_auth_method\",\"current_file\":\"/lexicon/lexicon/providers/memset.py\"}}</contextgc-state>",
+      "read_path": {
+        "current_file": "lexicon/lexicon/providers/memset.py"
+      }
+    },
+    {
+      "transcript": "AnalogJ__lexicon-336#2",
+      "index": 11,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"unsure\":{\"failing_test\":null}}</contextgc-state>",
+      "read_path": {
+        "current_file": "lexicon/lexicon/providers/memset.py"
+      }
+    },
+    {
+      "transcript": "AnalogJ__lexicon-336#2",
+      "index": 13,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"unsure\":{\"failing_test\":null}}</contextgc-state>",
+      "read_path": {
+        "current_file": "lexicon/lexicon/providers/memset.py"
+      }
+    },
+    {
+      "transcript": "AnalogJ__lexicon-336#2",
+      "index": 15,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"unsure\":{\"failing_test\":null}}</contextgc-state>",
+      "read_path": {
+        "current_file": "lexicon/lexicon/providers/memset.py"
+      }
+    },
+    {
+      "transcript": "AnalogJ__lexicon-336#2",
+      "index": 17,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"unsure\":{\"failing_test\":null}}</contextgc-state>",
+      "read_path": {
+        "current_file": "lexicon/lexicon/providers/memset.py"
+      }
+    },
+    {
+      "transcript": "AnalogJ__lexicon-336#2",
+      "index": 19,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"unsure\":{\"failing_test\":null}}</contextgc-state>",
+      "read_path": {
+        "current_file": "lexicon/lexicon/providers/memset.py"
+      }
+    },
+    {
+      "transcript": "AnalogJ__lexicon-336#2",
+      "index": 21,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"unsure\":{\"failing_test\":\"The error message indicates that the config object does not have a `get` method, suggesting that `auth_token` is not being included in the `config` correctly.\"}}</contextgc-state>",
+      "read_path": {
+        "current_file": "lexicon/lexicon/providers/memset.py"
+      }
+    },
+    {
+      "transcript": "AnalogJ__lexicon-336#2",
+      "index": 23,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"unsure\":{\"failing_test\":\"The exact line causing the error in /lexicon/lexicon/providers/memset.py is not specified, but it is related to the usage of `config.get`.\"}}</contextgc-state>",
+      "read_path": {
+        "current_file": "lexicon/lexicon/providers/memset.py"
+      }
+    },
+    {
+      "transcript": "AnalogJ__lexicon-336#2",
+      "index": 25,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"unsure\":{\"failing_test\":null}}</contextgc-state>",
+      "read_path": {
+        "current_file": "lexicon/lexicon/providers/memset.py"
+      }
+    },
+    {
+      "transcript": "AnalogJ__lexicon-336#2",
+      "index": 27,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"unsure\":{\"failing_test\":\"AttributeError: 'ConfigResolver' object has no attribute 'get'\"},\"assert\":{\"current_file\":\"/lexicon/lexicon/providers/memset.py\"}}</contextgc-state>",
+      "read_path": {
+        "current_file": "lexicon/lexicon/providers/memset.py"
+      }
+    },
+    {
+      "transcript": "AnalogJ__lexicon-336#2",
+      "index": 29,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"pin\":{\"failing_test\":\"Runtime/Test failed due to missing 'get' method in config object, fixed by ensuring auth_token is correctly set in config.\"}}</contextgc-state>",
+      "read_path": {
+        "current_file": "lexicon/lexicon/providers/memset.py"
+      }
+    },
+    {
+      "transcript": "AnalogJ__lexicon-336#2",
+      "index": 31,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"unsure\":{\"failing_test\":null}}</contextgc-state>",
+      "read_path": {
+        "current_file": "lexicon/lexicon/providers/memset.py"
+      }
+    },
+    {
+      "transcript": "AnalogJ__lexicon-336#2",
+      "index": 33,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"unsure\":{\"failing_test\":\"AttributeError: 'ConfigResolver' object has no attribute 'auth_token'\"},\"assert\":{\"current_file\":\"/lexicon/lexicon/providers/memset.py\"}}</contextgc-state>",
+      "read_path": {
+        "current_file": "lexicon/lexicon/providers/memset.py"
+      }
+    },
+    {
+      "transcript": "AnalogJ__lexicon-336#2",
+      "index": 35,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"unsure\":{\"failing_test\":null}}</contextgc-state>",
+      "read_path": {
+        "current_file": "lexicon/lexicon/providers/memset.py"
+      }
+    },
+    {
+      "transcript": "AnalogJ__lexicon-336#2",
+      "index": 37,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"unsure\":{\"failing_test\":null}}</contextgc-state>",
+      "read_path": {
+        "current_file": "lexicon/lexicon/providers/memset.py"
+      }
+    },
+    {
+      "transcript": "AnalogJ__lexicon-336#2",
+      "index": 39,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"unsure\":{\"failing_test\":\"Unknown\", \"current_file\":\"/lexicon/lexicon/providers/memset.py\"}}</contextgc-state>",
+      "read_path": {
+        "current_file": "lexicon/lexicon/providers/memset.py"
+      }
+    },
+    {
+      "transcript": "AnalogJ__lexicon-336#2",
+      "index": 41,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"unsure\":{\"failing_test\":null}}</contextgc-state>",
+      "read_path": {
+        "current_file": "lexicon/lexicon/providers/memset.py"
+      }
+    },
+    {
+      "transcript": "AnalogJ__lexicon-336#2",
+      "index": 43,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"unsure\":{\"failing_test\":\"TypeError: can only concatenate str (not \\\"NoneType\\\") to str\"}}</contextgc-state>",
+      "read_path": {
+        "current_file": "lexicon/lexicon/providers/memset.py"
+      }
+    },
+    {
+      "transcript": "AnalogJ__lexicon-336#2",
+      "index": 45,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"unsure\":{\"failing_test\":null}}</contextgc-state>",
+      "read_path": {
+        "current_file": "lexicon/lexicon/providers/memset.py"
+      }
+    },
+    {
+      "transcript": "AnalogJ__lexicon-336#2",
+      "index": 47,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"pin\":{\"failing_test\":\"requests.exceptions.HTTPError: 401 Client Error: Unauthorized for url: https://api.memset.com/v1/json/dns.zone_domain_info?domain=example.com\"}}</contextgc-state>",
+      "read_path": {
+        "current_file": "lexicon/lexicon/providers/memset.py"
+      }
+    },
+    {
+      "transcript": "AnalogJ__lexicon-336#2",
+      "index": 49,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"unsure\": {\"failing_test\": null}}</contextgc-state>",
+      "read_path": {
+        "current_file": "lexicon/lexicon/providers/memset.py"
+      }
+    },
+    {
+      "transcript": "AnalogJ__lexicon-336#2",
+      "index": 51,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"unsure\": {\"failing_test\": null}}</contextgc-state>",
+      "read_path": {
+        "current_file": "lexicon/lexicon/providers/memset.py"
+      }
+    },
+    {
+      "transcript": "AnalogJ__lexicon-336#2",
+      "index": 53,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"unsure\":{},\"pin\":{},\"assert\":{},\"revoke\":[]}</contextgc-state>",
+      "read_path": {
+        "current_file": "lexicon/lexicon/providers/memset.py"
+      }
+    },
+    {
+      "transcript": "AnalogJ__lexicon-336#2",
+      "index": 55,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"unsure\":{\"failing_test\":null}}</contextgc-state>",
+      "read_path": {
+        "current_file": "lexicon/lexicon/providers/memset.py"
+      }
+    },
+    {
+      "transcript": "AnalogJ__lexicon-336#2",
+      "index": 57,
+      "role": "assistant",
+      "declared": true,
+      "content": "<contextgc-state>{\"unsure\":{\"failing_test\":null}}</contextgc-state>",
+      "read_path": {
+        "current_file": "lexicon/lexicon/providers/memset.py"
+      }
+    }
+  ],
+  "declarations": {
+    "AnalogJ__lexicon-336#0": {
+      "1": "{\"unsure\":{\"failing_test\":\"TypeError: string indices must be integers\"}}",
+      "3": "{\"assert\":{\"current_file\":\"memset.py\"},\"pin\":{\"failing_test\":\"requests.exceptions.HTTPError: 403 Client Error: Forbidden for url: https://api.memset.com/v1/json/dns.zone_domain_info?domain=example.com\"}}",
+      "5": "{\"unsure\":{\"current_file\":\"memset.py\"},\"pin\":{\"failing_test\":\"lexicon memset create example.com TXT --name _acme-challenge.example.com --content BLAH --ttl 300\"}}",
+      "7": "{\"assert\":{\"current_file\":\"lexicon/memset.py\"}}",
+      "9": "{\"assert\":{\"current_file\":\"memset.py\",\"failing_test\":\"Runtime/Test\"},\"pin\":{\"current_file\":\"memset.py\",\"failing_test\":\"Runtime/Test\"}}",
+      "11": "{\"assert\":{\"current_file\":\"lexicon/providers/memset.py\"}}",
+      "13": "{\"assert\":{\"current_file\":\"memset.py\",\"failing_test\":\"lexicon/memset/tests/test_provider_memset.py\"}}",
+      "15": "{\"unsure\":{\"failing_test\":\"The exact cause of the failing test needs further investigation after initializing the domain attribute.\"}}",
+      "17": "{\"unsure\":{\"current_file\":\"reproduce.py\"}}",
+      "19": "{\"assert\":{\"current_file\":\"reproduce.py\"}}",
+      "21": "{\"unsure\":{\"failing_test\":null}}",
+      "23": "{\"assert\":{\"current_file\":\"reproduce.py\"}}",
+      "25": "{\"unsure\":{\"failing_test\":null}}",
+      "27": "{\"assert\":{\"current_file\":\"reproduce.py\",\"failing_test\":null}}",
+      "29": "{\"current_file\": \"reproduce.py\"}",
+      "31": "{\"unsure\":{\"failing_test\":null}}",
+      "33": "{\"unsure\":{\"current_file\":\"reproduce.py\"},\"pin\":{\"failing_test\":false}}",
+      "35": "{\"assert\":{\"current_file\":\"reproduce.py\"}}",
+      "37": "{\"assert\":{\"current_file\":\"reproduce.py\"}}",
+      "39": "{\"unsure\":{\"current_file\":\"reproduce.py\"}}",
+      "41": "{\"unsure\":{\"current_file\":\"config.py\"},\"assert\":{\"current_file\":\"reproduce.py\"}}",
+      "43": "{\"current_file\":\"reproduce.py\"}",
+      "45": "{\"current_file\":\"reproduce.py\"}",
+      "47": "{\"unsure\":{\"current_file\":\"reproduce.py\"}}",
+      "49": "{\"unsure\": {\"failing_test\": \"None\"}}",
+      "51": "{\"unsure\":{\"failing_test\":null}}",
+      "53": "{\"current_file\": \"memset.py\"}",
+      "55": "{\"assert\":{\"current_file\":\"/lexicon/lexicon/providers/memset.py\"}}",
+      "57": "{\"current_file\":\"memset.py\"}",
+      "59": "{\"unsure\":{\"failing_test\":\"unknown\"},\"pin\":{\"current_file\":\"memset.py\"}}",
+      "61": "{\"pin\":{\"current_file\":\"memset.py\"}}",
+      "63": "{\"unsure\":{\"failing_test\":null}}",
+      "65": "{\"pin\":{\"current_file\":\"memset.py\"},\"unsure\":{\"failing_test\":\"requests.exceptions.HTTPError: 403 Client Error: Forbidden for url: https://api.memset.com/v1/json/dns.zone_domain_info\"}}",
+      "67": "{\"unsure\":{\"failing_test\":null}}",
+      "69": "{\"unsure\":{\"failing_test\":null}}",
+      "71": "{\"unsure\":{\"current_file\":\"memset.py\"}}",
+      "73": "{\"unsure\":{\"failing_test\":\"E999 SyntaxError: '(' was never closed\"},\"pin\":{\"current_file\":\"/lexicon/lexicon/providers/memset.py\"}}",
+      "75": "{\"unsure\":{\"failing_test\":\"E999 SyntaxError: '(' was never closed\"}}",
+      "77": "{\"unsure\":{\"failing_test\":\"E999 SyntaxError: '(' was never closed\"}}",
+      "79": "{\"unsure\":{\"failing_test\":\"ERRORS: E999 SyntaxError: '(' was never closed\"}}",
+      "81": "{\"unsure\":{\"failing_test\":false}}",
+      "83": "{\"unsure\": {\"failing_test\": \"https://api.memset.com/v1/json/dns.zone_domain_info returned 403 Forbidden, need to verify auth-token\"}}",
+      "85": "{\"unsure\": {\"failing_test\": \"The issue may still persist due to syntax errors or incorrect token usage.\"}}",
+      "87": "{\"unsure\":{\"failing_test\":false}}",
+      "89": "{\"unsure\":{\"failing_test\":\"E999 SyntaxError: '(' was never closed\"}}",
+      "91": "{\"unsure\":{\"failing_test\":\"E999 SyntaxError: '(' was never closed\\nERRORS:\\n- E999 SyntaxError: closing parenthesis '}' does not match opening parenthesis '('\"}}"
+    },
+    "AnalogJ__lexicon-336#1": {
+      "1": "{\"unsure\":{\"failing_test\":\"string indices must be integers\"}}",
+      "3": "{\"assert\":{\"current_file\":\"memset.py\"},\"unsure\":{\"failing_test\":\"lexicon memset create example.com TXT --name _acme-challenge.example.com --content BLAH --ttl 300\"}}",
+      "5": "{\"pin\":{\"current_file\":\"memset.py\"},\"unsure\":{\"failing_test\":\"lexicon memset create example.com TXT --name _acme-challenge.example.com --content BLAH --ttl 300\"}}",
+      "7": "{\"pin\": {\"current_file\": \"memset.py\"}}",
+      "9": "{\"unsure\": {\"failing_test\": \"The cause of the 403 Forbidden error needs further investigation to ensure correct authorization setup.\"}}",
+      "11": "{\"pin\": {\"current_file\": \"/lexicon/lexicon/providers/memset.py\"}}",
+      "13": "{\"unsure\": {\"failing_test\": false}}",
+      "15": "{\"unsure\":{\"failing_test\":\"E999 SyntaxError: '(' was never closed\"}}",
+      "17": "{\"assert\":{\"current_file\":\"/lexicon/lexicon/providers/memset.py\",\"failing_test\":false}}",
+      "19": "{\"assert\":{\"current_file\":\"lexicon/providers/memset.py\",\"unsure\":{\"failing_test\":\"ERRORS: - E999 SyntaxError: '(' was never closed\"}}}",
+      "21": "{\"assert\":{\"current_file\":\"lexicon/providers/memset.py\"},\"unsure\":{\"failing_test\":\"The auth_token is not being set correctly.\"}}",
+      "23": "{\"assert\":{\"current_file\":\"lexicon/providers/memset.py\",\"failing_test\":\"auth_token_not_set\"}}",
+      "25": "{\"current_file\": \"lexicon/providers/base.py\"}",
+      "27": "{\"unsure\":{\"current_file\":\"lexicon/lexicon/providers/memset.py\"}}",
+      "29": "{\"current_file\": \"lexicon/lexicon/providers/memset.py\"}",
+      "31": "{\"assert\":{\"current_file\":\"lexicon/providers/memset.py\",\"failing_test\":null}}",
+      "33": "{\"sure\":{\"current_file\":\"lexicon/lexicon/providers/base.py\"}}",
+      "35": "{\"assert\":{\"current_file\":\"lexicon/lexicon/providers/memset.py\",\"failing_test\":\"auth_token_not_set_in_config_object\"},\"unsure\":{\"current_line\":11}}",
+      "37": "{\"unsure\":{\"current_file\":\"lexicon/lexicon/providers/base.py\"},\"pin\":{\"current_file\":\"lexicon/providers/memset.py\"}}",
+      "39": "{\"unsure\":{\"current_file\":\"lexicon/lexicon/providers/memset.py\"}}",
+      "41": "{\"current_file\":\"/lexicon/lexicon/providers/base.py\"}",
+      "43": "{\"current_file\": \"lexicon/lexicon/providers/memset.py\"}",
+      "45": "{\"unsure\":{\"current_file\":\"lexicon/lexicon/providers/base.py\"},\"pin\":{\"current_file\":\"lexicon/providers/memset.py\"}}",
+      "47": "{\"current_file\": \"lexicon/lexicon/providers/memset.py\"}",
+      "49": "{\"unsure\":{\"current_file\":\"lexicon/lexicon/providers/base.py\"},\"pin\":{\"current_file\":\"lexicon/providers/memset.py\"},\"revoke\":[\"failing_test\"]}"
+    },
+    "AnalogJ__lexicon-336#2": {
+      "1": "{\"unsure\":{\"failing_test\":\"TypeError: string indices must be integers\"}}",
+      "3": "{\"assert\":{\"current_file\":\"memset.py\"},\"unsure\":{\"failing_test\":\"requests.exceptions.HTTPError: 403 Client Error: Forbidden for url: https://api.memset.com/v1/json/dns.zone_domain_info?domain=example.com\"}}",
+      "5": "{\"assert\":{\"current_file\":\"lexicon/providers/memset.py\"}}",
+      "7": "{\"unsure\":{\"failing_test\":\"The exact issue causing the failing test is not yet clear, but it may be related to how the auth_token is being used in the API request.\"}}",
+      "9": "{\"unsure\":{\"failing_test\":\"unknown_auth_method\",\"current_file\":\"/lexicon/lexicon/providers/memset.py\"}}",
+      "11": "{\"unsure\":{\"failing_test\":null}}",
+      "13": "{\"unsure\":{\"failing_test\":null}}",
+      "15": "{\"unsure\":{\"failing_test\":null}}",
+      "17": "{\"unsure\":{\"failing_test\":null}}",
+      "19": "{\"unsure\":{\"failing_test\":null}}",
+      "21": "{\"unsure\":{\"failing_test\":\"The error message indicates that the config object does not have a `get` method, suggesting that `auth_token` is not being included in the `config` correctly.\"}}",
+      "23": "{\"unsure\":{\"failing_test\":\"The exact line causing the error in /lexicon/lexicon/providers/memset.py is not specified, but it is related to the usage of `config.get`.\"}}",
+      "25": "{\"unsure\":{\"failing_test\":null}}",
+      "27": "{\"unsure\":{\"failing_test\":\"AttributeError: 'ConfigResolver' object has no attribute 'get'\"},\"assert\":{\"current_file\":\"/lexicon/lexicon/providers/memset.py\"}}",
+      "29": "{\"pin\":{\"failing_test\":\"Runtime/Test failed due to missing 'get' method in config object, fixed by ensuring auth_token is correctly set in config.\"}}",
+      "31": "{\"unsure\":{\"failing_test\":null}}",
+      "33": "{\"unsure\":{\"failing_test\":\"AttributeError: 'ConfigResolver' object has no attribute 'auth_token'\"},\"assert\":{\"current_file\":\"/lexicon/lexicon/providers/memset.py\"}}",
+      "35": "{\"unsure\":{\"failing_test\":null}}",
+      "37": "{\"unsure\":{\"failing_test\":null}}",
+      "39": "{\"unsure\":{\"failing_test\":\"Unknown\", \"current_file\":\"/lexicon/lexicon/providers/memset.py\"}}",
+      "41": "{\"unsure\":{\"failing_test\":null}}",
+      "43": "{\"unsure\":{\"failing_test\":\"TypeError: can only concatenate str (not \\\"NoneType\\\") to str\"}}",
+      "45": "{\"unsure\":{\"failing_test\":null}}",
+      "47": "{\"pin\":{\"failing_test\":\"requests.exceptions.HTTPError: 401 Client Error: Unauthorized for url: https://api.memset.com/v1/json/dns.zone_domain_info?domain=example.com\"}}",
+      "49": "{\"unsure\": {\"failing_test\": null}}",
+      "51": "{\"unsure\": {\"failing_test\": null}}",
+      "53": "{\"unsure\":{},\"pin\":{},\"assert\":{},\"revoke\":[]}",
+      "55": "{\"unsure\":{\"failing_test\":null}}",
+      "57": "{\"unsure\":{\"failing_test\":null}}"
+    }
+  },
+  "prompts_asked": 100,
+  "context_chars": 12000,
+  "context_truncated_prompts": 90
+}

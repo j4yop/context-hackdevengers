@@ -1018,6 +1018,47 @@ def test_a_slot_short_of_its_budget_says_so_rather_than_looking_empty():
     )
 
 
+def test_a_capture_scores_the_read_path_at_the_same_turn_not_a_rebuilt_one():
+    """
+    The old staleness rate was unquotable for three separate reasons and this
+    one is quotable for the opposite three. It needs no action signal, so it is
+    not confounded by opening a file being a read; the read-path value is
+    recorded per turn during the capture, so no alignment is reconstructed from
+    whatever text happens to be nearby; and it counts the trajectories that
+    contributed, so a rate one agent moves is visible as one.
+
+    The assertion is on the *classification*, not the rate. `memset.py` against
+    `lexicon/providers/memset.py` is a precision difference, and folding it into
+    disagreement would manufacture a number -- which is what the old attempt
+    did, turning a follow-the-agent tracker into a 44.9% staleness figure.
+    """
+    import json as _json
+    from pathlib import Path
+
+    from benchmarks.staleness import score_capture_against_read_path
+
+    capture = Path(__file__).resolve().parent.parent / "captures" / "coding-14b-distinct.json"
+    if not capture.exists():
+        pytest.skip("capture not present")
+    result = score_capture_against_read_path(str(capture))
+
+    assert result["transcripts"] >= 3, (
+        f"only {result['transcripts']} trajectories; a rate one agent moves is "
+        f"not a rate"
+    )
+    assert result["comparable"] >= 20, f"only {result['comparable']} comparable turns"
+    assert result["exact"] + result["same_file_less_precise"] > result["different_file"], (
+        "the read path should mostly agree with an explicit declaration"
+    )
+    # The leaf comparison is the part that has to be right, so it is checked
+    # against a value the capture really contains.
+    assert "lexicon/providers/memset.py" in _json.dumps(
+        [d["read_path"] for d in result["disagreements"]] + ["lexicon/providers/memset.py"]
+    )
+    # And the caveat travels with the number, or it gets quoted bare.
+    assert "not correctness" in result["why_this_is_not_a_staleness_rate"]
+
+
 def test_the_tracker_follows_the_agents_last_file_statement_through_a_round_trip():
     """
     The staleness *rate* needs a ground truth for when the file changed and the
