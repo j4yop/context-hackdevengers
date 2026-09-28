@@ -141,3 +141,17 @@ jobs:
 
       - name: Publish
         uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          # The action uses Trusted Publishing when `password` is empty, and a
+          # token when it is set. This line was absent while the header comment
+          # above claimed that "setting the secret PYPI_API_TOKEN ... is
+          # preferred when present" -- so the documented fallback did nothing at
+          # all, and a first upload through the documented path failed with the
+          # same OIDC error as no fallback existing. The comment was the only
+          # occurrence of the secret in the file.
+          #
+          # It is needed exactly once. An OIDC identity can upload to a project
+          # but cannot create one, so 0.4.0 has to be uploaded with a token to
+          # create the project; from 0.4.1 onward, delete the secret and the next
+          # release goes through Trusted Publishing again.
+          password: ${{ secrets.PYPI_API_TOKEN }}

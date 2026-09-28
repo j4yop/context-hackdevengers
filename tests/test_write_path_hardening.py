@@ -511,7 +511,40 @@ def test_the_disconnected_confidence_helper_is_not_exported():
     )
 
 
-def test_declared_value_confidence_object_is_rejected_not_silently_flattened():
+def test_the_release_workflow_can_actually_reach_the_token_it_documents():
+    """
+    The header comment claimed "set the secret PYPI_API_TOKEN and it is preferred
+    when present". The secret appeared exactly once in the file -- in that comment
+    -- because the publish step had no `with:` block, so the action always went
+    straight to OIDC. The documented fallback did nothing, and a first upload
+    through it failed with precisely the error as though no fallback existed.
+
+    A comment is not a capability. This reads the workflow, because the only way
+    to catch a claim like that is to check the code says it.
+    """
+    import re as _re
+    from pathlib import Path
+
+    workflow = (
+        Path(__file__).resolve().parent.parent
+        / ".github" / "workflows" / "release.yml"
+    ).read_text(encoding="utf-8")
+    step = _re.search(
+        r"- name: Publish\s+uses: pypa/gh-action-pypi-publish[^\n]*\n(?:\s+[^\n]*\n)*",
+        workflow,
+    )
+    assert step, "the publish step is missing or unrecognisable"
+    assert "secrets.PYPI_API_TOKEN" in step.group(0), (
+        "the publish step never passes the token it documents; an OIDC identity "
+        "cannot create a project, so without this a first upload cannot succeed"
+    )
+    # And the OIDC fallback must survive: an empty secret has to fall through to
+    # Trusted Publishing rather than fail.
+    assert "id-token: write" in workflow
+    assert "environment: pypi" in workflow
+
+
+def test_a_declared_value_confidence_object_is_rejected_not_silently_flattened():
     """It used to parse, then throw the number away. Now it must not parse."""
     declaration = parse_declaration(block({"unsure": {"rider": {"value": "west", "confidence": 0.4}}}))
     assert declaration.malformed is True
