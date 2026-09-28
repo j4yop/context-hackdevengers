@@ -1287,6 +1287,56 @@ def test_a_declared_date_in_either_format_is_the_same_date():
     )
 
 
+def test_a_value_gate_cannot_catch_the_one_declaration_it_missed():
+    """
+    `cabin_class = "basic economy"` where the record says `economy` is the one
+    false declaration the value gate lets through. The obvious fix is a
+    vocabulary gate: collect the values the outcomes actually take and reject
+    anything outside them.
+
+    **That fix is wrong, and this test is the reason it was not shipped.**
+
+    The APIGen booking records admit three cabins: `basic_economy`, `economy`,
+    `business`. `basic economy` is not outside that vocabulary -- it is the same
+    value as `basic_economy`, written the way a person writes it. So a
+    vocabulary gate would accept it, correctly, and catch nothing.
+
+    And it should accept it. The model did not invent a cabin; it attributed a
+    *real* cabin to the *wrong booking*. Every check that could catch that is a
+    check on meaning, and this project has no oracle for meaning in this
+    domain. The write path is 12/82 wrong and the twelfth is unfixable by
+    construction, which is worth more than a gate that looks better on a
+    table.
+    """
+    from collections import Counter
+
+    from benchmarks.ground_truth import (
+        _normalise_cabin,
+        load_apigen_mt,
+        records_by_transcript,
+    )
+
+    corpus = records_by_transcript(load_apigen_mt(limit=500), "travel")
+    if not corpus:
+        pytest.skip("APIGen corpus not present")
+    admitted = Counter()
+    for _rid, body in corpus.items():
+        for entry in body:
+            if isinstance(entry, (list, tuple)) and len(entry) >= 2:
+                cabin = entry[1].get("cabin")
+                if cabin:
+                    admitted[cabin] += 1
+
+    assert admitted, "no cabin values found in the outcomes"
+    assert "basic_economy" in admitted, (
+        "the outcomes admit basic_economy, so a vocabulary gate cannot reject "
+        "'basic economy' -- it is the same value, spelled the way people spell it"
+    )
+    # And the scorer already collapses the two spellings, so the 99.6% read-path
+    # figure is not resting on an unnormalised enum comparison.
+    assert _normalise_cabin("basic_economy") == _normalise_cabin("basic economy")
+
+
 def test_a_declaration_the_record_denies_is_reported_as_a_contradiction():
     """
     The write path, checked at last. A declared value wins over the read path by
