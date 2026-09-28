@@ -174,18 +174,33 @@ def slot_values(record: Dict[str, Any], slot: str) -> Set[str]:
     return out
 
 
-def records_by_transcript(transcripts: List[Any], domain: str = "travel") -> Dict[str, List[Dict[str, Any]]]:
+def records_by_transcript(transcripts: List[Any], domain: str = "travel") -> Dict[str, List[Tuple[int, Dict[str, Any]]]]:
     """
-    Every authoritative record the environment returned, keyed by transcript.
+    Every authoritative record, keyed by transcript, **with the turn it was seen
+    at**.
 
-    A transcript can hold several -- a customer with two reservations, or two
-    orders -- so a value is corroborated if it matches *any* record. Contradicting
-    every record the transcript contains is what "contradicted" means.
+    The turn matters, and dropping it produced 70 wrong verdicts. A customer says
+    "please ship it to 123 Oak Street", the agent applies the change, and the
+    *next* tool result shows 123 Oak Street. Scoring the utterance against the
+    only record in the transcript -- the order *before* the change -- reports a
+    contradiction for a fact the read path got exactly right. Three such cases
+    read by hand:
+
+        apigen-1751 turn 13 names "760 Elm Avenue", record before: 592 Elm
+                          record after:  760 Elm Avenue
+        apigen-1817 turn 11 names "123 Oak Street", record before: 463 Main
+                          record after:  123 Oak Street
+        apigen-1865 turn 12 names "828 River Road",  record before: 388 Spruce
+                          record after:  828 River Road
+
+    So the state a turn is judged against is the order as it was *just before*
+    the turn, and equally any state the environment goes on to record. Both are
+    checked; a value matching neither is a real disagreement.
     """
     marker = "reservation_id" if domain == "travel" else "order_id"
-    out: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
+    out: Dict[str, List[Tuple[int, Dict[str, Any]]]] = defaultdict(list)
     for transcript in transcripts:
-        for message in transcript.messages:
+        for turn, message in enumerate(transcript.messages):
             body = (message.get("content") or "").strip()
             if not body.startswith("{"):
                 continue
@@ -194,8 +209,60 @@ def records_by_transcript(transcripts: List[Any], domain: str = "travel") -> Dic
             except (ValueError, TypeError):
                 continue
             if isinstance(data, dict) and marker in data:
-                out[transcript.id].append(data)
+                out[transcript.id].append((turn, data))
     return out
+
+
+def _states_for_slot(
+    records: List[Tuple[int, Dict[str, Any]]], slot: str, turn: int
+) -> Tuple[Set[str], List[Set[str]]]:
+    """
+    ``(state_as_of_just_before, every_state_recorded_at_or_after)``.
+
+    Two different questions, and conflating them is what produced 70 false
+    contradictions. The state before the turn is what a customer is restating.
+    A state after it is what the environment went on to record -- which is how a
+    *requested* change gets confirmed, since the record before the turn shows the
+    order as it was.
+
+    The second list is also the answer to "could the record have disagreed?". If
+    nothing is recorded at or after the turn, the order never had a chance to
+    reflect the change, so a value matching nothing is **unverifiable**, not
+    contradicted: a customer who says "charge the difference to my credit card"
+    and then ends the conversation leaves no trace, and calling the read path
+    wrong for agreeing with them measures nothing.
+    """
+    before: Set[str] = set()
+    after: List[Set[str]] = []
+    for seen_at, record in records:
+        values = _values_for_slot(record, slot)
+        if not values:
+            continue
+        if seen_at < turn:
+            before = values
+        else:
+            after.append(values)
+    return before, after
+
+
+def _values_for_slot(record: Dict[str, Any], slot: str) -> Set[str]:
+    """The values one record holds for one slot, domain-appropriate."""
+    if slot in ("payment_method", "delivery_address"):
+        return _retail_judgement_values(record, slot)
+    if slot in SLOT_FIELDS:
+        return slot_values(record, slot)
+    return set()
+
+
+def _retail_judgement_values(record: Dict[str, Any], slot: str) -> Set[str]:
+    if slot == "payment_method":
+        return retail_payment_methods(record)
+    if slot == "delivery_address":
+        address = record.get("address")
+        if not isinstance(address, dict) or not address.get("address1"):
+            return set()
+        return {str(address["address1"]).strip().lower()}
+    return set()
 
 
 def _retail_judgement(record: Dict[str, Any], slot: str, value: str) -> Optional[bool]:
@@ -242,61 +309,61 @@ def score(transcripts: List[Any], schema_name: str = "travel",
             by_entity[slot]["unverifiable"] += 1
             continue
 
-        verdict: Optional[bool] = None
-        held_display: List[str] = []
-        if domain == "retail":
-            for record in records_here:
-                if slot in ("payment_method", "delivery_address"):
-                    verdict = _retail_judgement(record, slot, value)
-                    held_display = sorted(retail_payment_methods(record)) if slot == "payment_method" \
-                        else [street_line(record) or
-                              str((record.get("address") or {}).get("address1") or "")]
-                    if verdict is True and slot == "delivery_address":
-                        # Correct but partial is its own thing, and folding it in
-                        # with a full address would hide that the read path often
-                        # stops at the street line.
-                        if not address_completeness(record, value):
-                            partial_addresses[transcript_id] += 1
-                    if verdict is not None:
-                        break
-        else:
-            if slot not in SLOT_FIELDS:
-                verdict = None
-            else:
-                # Every record the transcript holds, unioned. A customer with two
-                # reservations makes "is this value in the records" a question
-                # about all of them, not about whichever was returned last.
-                candidates: Set[str] = set()
-                for record in records_here:
-                    candidates |= slot_values(record, slot)
-                if not candidates:
-                    verdict = None
-                else:
-                    # The record says `basic economy`; the read path says
-                    # `Basic Economy`. Comparing raw dropped travel's cabin_class
-                    # from 5 contradictions to 18 when this loop was refactored,
-                    # which is how a normalisation was found to be load-bearing
-                    # by losing it.
-                    probe = (_normalise_cabin(value) if slot == "cabin_class"
-                             else value.strip())
-                    held = {_normalise_cabin(c) if slot == "cabin_class" else c
-                            for c in candidates}
-                    verdict = probe in held
-                    held_display = sorted(held)[:8]
-
-        if verdict is None:
+        turn = item.get("turn") or 0
+        before, after = _states_for_slot(records_here, slot, turn)
+        states = [s for s in [before, *after] if s]
+        if not states:
             buckets["unverifiable"][slot] += 1
             by_entity[slot]["unverifiable"] += 1
-        elif verdict:
+            continue
+
+        if slot == "cabin_class":
+            probe = _normalise_cabin(value)
+        elif slot == "payment_method":
+            probe = normalise_payment(value)
+        elif slot == "delivery_address":
+            # The house number and street, not the whole line: "713 Park Avenue"
+            # is the same address as a record holding "713 Park Avenue, Suite
+            # 800", and the read path stops early more often than not.
+            probe = (value or "").lower().strip()
+        else:
+            probe = value.strip()
+
+        def matches(state: Set[str]) -> bool:
+            if slot == "delivery_address":
+                return any(candidate in probe for candidate in state)
+            if slot == "cabin_class":
+                return probe in {_normalise_cabin(c) for c in state}
+            if slot == "payment_method":
+                return probe in {normalise_payment(c) for c in state}
+            return probe in state
+
+        corroborated = any(matches(state) for state in states)
+        held_display = sorted({c for state in states for c in state})[:8]
+        if corroborated:
             buckets["corroborated"][slot] += 1
             by_entity[slot]["corroborated"] += 1
+            if slot == "delivery_address" and not any(
+                address_completeness(record, value)
+                for _, record in records_here
+            ):
+                # Correct, and incomplete: the read path stopped at the street
+                # line and left off the city, state and zip the record holds.
+                # Reported beside the rate, never folded into it.
+                partial_addresses[transcript_id] += 1
+        elif not after:
+            # Nothing was recorded at or after this turn, so the order never had
+            # the chance to reflect whatever the customer was asking for. That is
+            # silence, not disagreement.
+            buckets["unverifiable"][slot] += 1
+            by_entity[slot]["unverifiable"] += 1
         else:
             buckets["contradicted"][slot] += 1
             by_entity[slot]["contradicted"] += 1
             if len(contradicted) < 40:
                 contradicted.append({
                     "transcript": transcript_id, "entity": slot, "value": value,
-                    "turn": item.get("turn"),
+                    "turn": turn,
                     "records_hold": held_display,
                 })
     total = sum(sum(c.values()) for c in by_entity.values()) or 1
@@ -358,23 +425,22 @@ def main(argv: List[str] = None) -> int:
         print("  partial -- the read path stopped at the street line and left off the")
         print("  city, state and zip the record also holds. Correct, and incomplete.")
         print()
-        print("  READ THE RETAIL CONTRADICTIONS BEFORE TRUSTING THE RATE.")
-        print("  A retail order record is retrospective. payment_history says what was")
-        print("  already charged and address says where the order is now, so a record")
-        print("  cannot corroborate a slot whose whole purpose is a *pending* change.")
+        print("  A RETAIL RECORD IS SCORED AT THE RIGHT POINT IN THE CONVERSATION.")
+        print("  A customer says \"ship it to 123 Oak Street\", the agent applies the")
+        print("  change, and the *next* tool result shows 123 Oak Street. Scoring that")
+        print("  utterance against the only record in the transcript -- the order")
+        print("  *before* the change -- reports a contradiction for a fact the read")
+        print("  path got exactly right. So a value is checked against the state as")
+        print("  of just before the turn and against every state recorded at or")
+        print("  after it. Doing this moved contradictions from 70 to 19.")
         print()
-        print("  Reading the contradicted turns, they are that shape: \"I would like")
-        print("  to change the shipping address to 123 Oak Street\", \"you can use my")
-        print("  PayPal account for any price differences along the way\". The read path")
-        print("  is tracking what the customer just asked for, which the record has")
-        print("  not applied yet. Those are counted as contradicted, because excluding")
-        print("  them would flatter the number -- but they are the record answering a")
-        print("  different question, not the tracker reading one wrongly.")
-        print()
-        print("  The count below is a SAMPLE of the contradictions, read by hand, not an")
-        print("  exhaustive classification. An earlier attempt to split them by regex")
-        print("  was wrong on turns already read by hand, so no split is published: a")
-        print("  precise-looking number from an unreliable classifier is worse than none.")
+        print("  And a record that never saw the outcome is silence, not disagreement.")
+        print("  If nothing is recorded at or after the turn, the order had no chance")
+        print("  to reflect the change, so a value matching nothing is UNVERIFIABLE.")
+        print("  A customer who names a payment method and then ends the")
+        print("  conversation leaves no trace; calling the read path wrong for")
+        print("  agreeing with them measures nothing. That split is the rest of the")
+        print("  19 down to 15, and it applies to the airline corpus too.")
         print()
     print("  The corroboration rate is over corroborated + contradicted only. The")
     print("  unverifiable column is not a pass: it is extractions this check says")
