@@ -39,7 +39,20 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - run: pip install -e ".[dev,bench]"
+      # `.[dev,bench]` was installed here and nothing in this job used any of
+      # it: the command below is `benchmarks run --corpus synthetic`, which
+      # imports no server and no arrow loader, and the job runs no pytest. That
+      # mattered for a concrete reason -- `uvicorn` pulls in `click`, and a
+      # pypi.org read timeout on `click` failed this job twice while every
+      # other check passed. A job should depend on what it runs, and a
+      # transient index timeout should not be able to fail a pull request.
+      - name: Install
+        run: |
+          for attempt in 1 2 3; do
+            pip install -e . && break
+            echo "pip install failed (attempt $attempt), retrying"
+            sleep $((attempt * 10))
+          done
       - name: Retirement must not orphan a live fact; context must not grow
         run: |
           python -m benchmarks run \
