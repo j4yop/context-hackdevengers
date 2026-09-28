@@ -535,6 +535,38 @@ is still wrong — the exact failure this project has said all along a contract
 cannot catch, now with a row in a table rather than an assurance. A contract
 checks shape, never truth.
 
+#### And the twelfth is not fixable, which was worth measuring
+
+The obvious repair is a **vocabulary gate**: collect the values the outcomes
+actually take, reject anything outside them. So the booking records were
+counted, and they admit three cabins:
+
+```
+basic_economy    business    economy
+```
+
+`basic economy` is **not** outside that vocabulary. It is `basic_economy`
+written the way a person writes it. A vocabulary gate would accept it, catch
+nothing, and look like an improvement in a diff.
+
+And it *should* accept it. The model did not invent a cabin. It attributed a
+**real** cabin to the **wrong booking** — `basic economy` is admissible, and
+attributing it to a reservation that is `economy` is the error. Catching that
+requires a check on meaning, and this project has no oracle for meaning in this
+domain.
+
+So the write path is 12 wrong in 82 decidable declarations, and the twelfth is
+unfixable by construction. That is a better thing to know than a gate that
+looks better on a table, and it is asserted in
+`test_a_value_gate_cannot_catch_the_one_declaration_it_missed` so nobody
+re-attempts it.
+
+The read path's 99.6% is not resting on the same gap: `_normalise_cabin`
+already collapses the two spellings, so the enum-versus-prose comparison is
+sound. **This was checked rather than assumed**, because a headline figure
+sitting next to a known normalisation gap is exactly the number that should not
+be trusted until someone looks.
+
 Two of the numbers above are only trustworthy because of bugs found while
 producing them:
 
