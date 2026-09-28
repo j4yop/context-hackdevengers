@@ -45,11 +45,11 @@
         "cabin_class": {
           "basis": "vocabulary from the slot's own alternation",
           "derived_from": "the slot's own entity patterns; see contextgc/value_shapes.py",
-          "read_path_observations": 7529,
-          "read_path_turns": 3401,
+          "read_path_observations": 7448,
+          "read_path_turns": 3371,
           "distinct_values": 8,
           "fired": true,
-          "in_tool_output": 925
+          "in_tool_output": 922
         },
         "active_reservation": {
           "basis": "structure from the slot's own capture group",
@@ -92,7 +92,7 @@
           "derived_from": "the slot's own entity patterns; see contextgc/value_shapes.py",
           "read_path_observations": 1471,
           "read_path_turns": 1471,
-          "distinct_values": 381,
+          "distinct_values": 379,
           "fired": true,
           "in_tool_output": 5
         },
