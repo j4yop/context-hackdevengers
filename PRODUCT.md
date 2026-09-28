@@ -65,7 +65,9 @@ intervals, and a documented list of what the thing cannot do.
   deterministically without a GPU, and the nightly compares it to a baseline so a
   change in model behaviour fails a build.
 - Release is via PyPI Trusted Publishing; `docs/RELEASING.md` holds the
-  procedure.
+  procedure. The pipeline is verified end to end and has never been published:
+  `pip install contextgc` in the README does not yet work, which is the one
+  place a documented instruction is ahead of reality.
 
 ## Capabilities and Constraints
 
