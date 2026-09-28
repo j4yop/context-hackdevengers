@@ -532,7 +532,92 @@ because the compiler will treat it as authoritative. Making declarations earn th
 place in the schema is a prerequisite for the travel case, not a detail.
 
 What is left reachable is cabin class, which is spoken often and changes in 41% of
-conversations. That is the whole of the travel schema.
+conversations.
+
+#### What the corpus could actually reach, and what it cost
+
+The first capture on this domain was refused by `benchmarks capture --verify`: only
+**7 of 19** declared keys (37%) named a slot the two-slot travel schema defined.
+Not because the model was wrong — an airline conversation is about
+`flight_number`, `origin`, `destination`, `flight_date` and `passenger_id`, and
+the schema had no pattern for any of them, so the read path could not corroborate
+what the model said. The fix is to derive those slots from the corpus, **not**
+from the model's output, which would be fitting the schema to the metric.
+
+Five slots were added, each fitted to the APIGen airline corpus and each carrying
+its own observation count. Two precision defects surfaced in the process, both
+found by measuring rather than by reading:
+
+- An airport pattern written as `to ([A-Z]{3})` is compiled case-insensitively, so
+  **"to the" was read as the airport `the`**, and the slot produced 52 distinct
+  values where the corpus has 20 IATA codes. This is the same defect the schema
+  already documents for reservation ids, so the fix is the same: scope the class
+  case-sensitively with `(?-i:...)`.
+- `passenger_id` written as a bare `name_name_1234` token fired **543 times
+  inside tool output**, contradicting this schema's own rule that a pattern must
+  require a phrasing and never a bare token. It survived only because the
+  sanitizer happened to catch those messages.
+
+A third defect was pre-existing and is described next, because it is the more
+interesting one: an agent's *options menu* was becoming state.
+
+#### An options menu is a listing, and a listing is not a booking
+
+The shipped `cabin_class` pattern has `(?<!Seats: )` and `(?<!Prices: )`
+lookbehinds, added when a turn listed every cabin with its price and the pattern
+took `Basic Economy` off the price list as the passenger's cabin. Those guards
+cover one layout. The airline corpus also writes `Price: $142` and
+`**Flight 1:**`, and across 134 menu-shaped agent turns the shipped schema leaked
+**905 extractions**; the new slots would have added about 1,470 more.
+
+The obvious fix — a content-based "this is a listing" guard — was measured and
+rejected. A content-only guard **deletes the single most important turn in the
+corpus**: 2 customer turns contain option-menu markers and both are a booking,
+including "Let's go with Option 1: Flight HAT148 from Miami to Denver". The same
+strings in an agent turn mean it is listing what it could offer, and nothing in
+the content tells the two apart.
+
+So the guard is conditioned on the role, in `ToolSanitizer.looks_like_option_menu`:
+only an *assistant* turn can be an agent listing its own options, so a customer
+turn is never claimed. Measured on the airline corpus that suppresses 440 of 6,538
+agent turns (6.7%) and **0** customer turns. An options menu is a listing in
+exactly the sense a search listing is — "flights from DFW to SEA are available"
+does not mean the passenger is flying DFW to SEA — and what the menu *does* support,
+that these routes exist, is not what this library tracks.
+
+#### A birthdate read as a flight date, found by a disagreement
+
+The shadow replay's single disagreement on the airline capture was the read path
+producing `August 10, 1995` against a declared `2024-05-07T13:04:42`. The read
+path was right about the disagreement existing and wrong about the value: it had
+matched a passenger's *date of birth*. No aggregate had shown this. A bare
+month-name date pattern matched 1,494 dates of which 93 (6.2%) were birthdates.
+
+Requiring flight context, plus a lookbehind for "born", took that to 11 hits whose
+matched date was a genuine flight date with a birthdate nearby — and dropped the
+slot from 82 distinct values to 32, while keeping 1,636 observations. Filtering
+on the year would have been easier and wrong: it fits the corpus's fixed "current
+time" rather than the slot's meaning. After the fix the replay reports 0 changed
+keys and 16 agreements.
+
+The travel schema is now 7 slots, 18,800 read-path observations.
+
+#### The second capture, on the airline corpus
+
+With the corpus-derived slots in place, the same model on the same domain
+(`qwen2.5:14b`, 6 transcripts, 36 turns) goes from **37%** of declared keys
+naming a schema slot to **76%** — 80 of 105. Every turn declared, and the six
+off-schema keys it invents are genuine airline entities the schema still does not
+cover (`total_baggages`, `nonfree_baggages`, `passenger_check_in_status`).
+
+Two numbers here are worse than on the coding corpus, and both are findings rather
+than noise:
+
+- **6 of 36 blocks do not parse as JSON**, so `capture --verify` still refuses
+  this capture. On the coding corpus it was 0 of 42. Malformed output is worse in
+  a domain with longer, more structured turns.
+- **16 of 37 shadow additions are off-schema**, so nothing can say whether any of
+  them is true. That fraction is the same problem as before, smaller.
 
 ### Measuring the write path, when there is a model
 

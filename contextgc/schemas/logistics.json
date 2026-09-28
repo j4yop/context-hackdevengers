@@ -16,22 +16,22 @@
     "precision": "100% (n=47, CI 92-100%)",
     "value_contracts": {
       "derived": true,
-      "corpus_note": "read_path_* counts speech only; in_tool_output is what the patterns would match if the machine-output rule were lifted",
+      "corpus_note": "read_path_* counts what the read path can see: customer and agent turns, minus tool output and minus an agent turn listing its options; in_tool_output is what those exclusions cost",
       "slots": {
         "delivery_address": {
           "basis": "structure from the slot's own capture group",
           "derived_from": "the slot's own entity patterns; see contextgc/value_shapes.py",
-          "read_path_observations": 237,
-          "read_path_turns": 236,
-          "distinct_values": 226,
+          "read_path_observations": 1250,
+          "read_path_turns": 1207,
+          "distinct_values": 667,
           "fired": true,
           "in_tool_output": 7885
         },
         "payment_method": {
           "basis": "vocabulary from the slot's own alternation",
           "derived_from": "the slot's own entity patterns; see contextgc/value_shapes.py",
-          "read_path_observations": 2108,
-          "read_path_turns": 1850,
+          "read_path_observations": 2582,
+          "read_path_turns": 2264,
           "distinct_values": 6,
           "fired": true,
           "in_tool_output": 0

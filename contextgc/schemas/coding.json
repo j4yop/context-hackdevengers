@@ -17,7 +17,7 @@
     "precision": "100% (n=36, CI 90-100%)",
     "value_contracts": {
       "derived": true,
-      "corpus_note": "read_path_* counts speech only; in_tool_output is what the patterns would match if the machine-output rule were lifted",
+      "corpus_note": "read_path_* counts what the read path can see: customer and agent turns, minus tool output and minus an agent turn listing its options; in_tool_output is what those exclusions cost",
       "slots": {
         "current_file": {
           "basis": "structure from the slot's own capture group",

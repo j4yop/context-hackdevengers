@@ -57,6 +57,36 @@ def _apigen_turns(schema_name: str, limit: int) -> List[str]:
     return out
 
 
+def _apigen_turns_with_roles(schema_name: str, limit: int) -> List:
+    """
+    Customer and agent turns as ``(text, role)``.
+
+    Both, because the read path sees both: the engine reads every message, minus
+    machine output and minus an agent turn that is listing its options. Counting
+    only the customer's turns understates what the read path actually extracts,
+    and the number is filed in the schema as a measurement of the read path.
+    """
+    if not APIGEN.exists():
+        return []
+    marker = DOMAIN_MARKER.get(schema_name)
+    out: List = []
+    for item in json.loads(APIGEN.read_text()):
+        if marker and marker not in item.get("system", "").lower():
+            continue
+        for turn in item.get("conversations", []):
+            speaker = turn.get("from")
+            value = turn.get("value")
+            if not isinstance(value, str) or not value.strip():
+                continue
+            if speaker == "human":
+                out.append((value, "user"))
+            elif speaker == "gpt":
+                out.append((value, "assistant"))
+        if limit and len(out) >= limit * 4:
+            break
+    return out
+
+
 def _apigen_tool_output(schema_name: str, limit: int) -> List[str]:
     """
     Tool-result turns, which the read path is forbidden to infer from.
@@ -121,13 +151,20 @@ def _classified_texts(schema_name: str, limit: int = 0):
     from contextgc.sanitizer import ToolSanitizer
 
     if schema_name == "coding":
-        texts = _coding_turns(limit)
+        texts = [(t, "") for t in _coding_turns(limit)]
     else:
-        texts = _apigen_turns(schema_name, limit)
+        texts = _apigen_turns_with_roles(schema_name, limit)
     speech, machine = [], []
-    for text in texts:
-        target = machine if ToolSanitizer.looks_like_tool_output(text) else speech
-        target.append(text)
+    for text, role in texts:
+        if ToolSanitizer.looks_like_tool_output(text, role):
+            machine.append(text)
+        elif ToolSanitizer.looks_like_option_menu(text, role):
+            # An agent listing its options is a listing, not a statement of
+            # intent, and the engine excludes it from inference. Counting it
+            # would report a capability the read path does not have.
+            machine.append(text)
+        else:
+            speech.append(text)
     # For the non-coding corpora the tool results are a separate turn type the
     # read path is excluded from upstream, so the cost of that rule is measured
     # against them directly.

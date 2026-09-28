@@ -589,10 +589,19 @@ class ContextGCEngine:
             # The declared path is unaffected -- only the agent may write there,
             # and it is reasoning about its own work rather than reading a blob.
             is_machine_output = self.sanitizer.looks_like_tool_output(content, role)
+            #
+            # An agent enumerating its options is a listing, not a statement of
+            # intent, for the same reason a search listing is: "flights from DFW
+            # to SEA are available" does not mean the passenger is flying DFW to
+            # SEA. The shipped cabin_class pattern leaked 398 extractions across
+            # 134 such turns in the airline corpus. A content-only guard cannot
+            # fix it without deleting the customer's own booking turn, so this is
+            # conditioned on the role.
+            is_option_menu = self.sanitizer.looks_like_option_menu(content, role)
             inferrable = (
                 strip_blocks(content)
                 if has_block(content)
-                else ("" if is_machine_output else content)
+                else ("" if (is_machine_output or is_option_menu) else content)
             )
             # A declared key must never be re-matched out of its own JSON, so
             # inference is told which keys are already accounted for.
