@@ -372,6 +372,48 @@ labels are one slot**: precision is currently a statement about the
 `current_file` regex and nothing else. (`coding.failing_test` cannot be measured
 at all — it has 0 speech observations, so the read path never produces it.)
 
+#### The same check on the third shipped schema, and what it cannot settle
+
+`python -m benchmarks.ground_truth logistics --corpus apigen-retail --limit 1000`
+runs the same scoring over the retail half of APIGen-MT. The records are shaped
+differently enough that reusing the airline mapping would have been a lie about
+them, so both sides are reduced instead: `payment_method_id` is
+`credit_card_5843230` / `gift_card_8633125` / `paypal_5334408` while the read path
+says "Credit Card" / "Gift Card" / "Paypal" / "paypal account" / "gift card
+balance", and an address is tested on the house number and street rather than the
+whole line.
+
+| | count | share |
+|---|---|---|
+| corroborated by the record | 509 | 86.0% |
+| contradicted by the record | 70 | 11.8% |
+| unverifiable | 13 | 2.2% |
+
+Three things that number needs beside it.
+
+**A partial address is not a contradiction.** "464 Oak Street, Suite 664" is
+correct, and the record also holds "San Diego, CA 92135". 11 of the 35
+corroborated addresses stopped at the street line; they are counted as
+corroborated and the incompleteness is reported beside the rate. Demanding the
+full line first turned one of two address contradictions at 200 transcripts into
+exactly that, and reading the turn showed the address was right.
+
+**The retail record cannot settle a slot about a pending change.** `payment_history`
+says what was already charged; `address` says where the order is now. A
+`delivery_address` slot exists to capture a *requested* change, so the moment a
+conversation is about changing something, the record is behind by definition.
+Reading the contradicted turns, they are that shape — "I would like to change the
+shipping address to 123 Oak Street", "you can use my PayPal account for any price
+differences along the way" — and the read path is tracking what the customer just
+asked for. They stay counted as contradicted, because excluding them would flatter
+the number, but they are the record answering a different question rather than the
+tracker misreading one.
+
+**No split of those 70 is published.** An attempt to classify them by regex was
+wrong on turns that had already been read by hand, and a precise-looking number
+from an unreliable classifier is worse than none. The tool prints a hand-read
+sample and says so.
+
 #### A ground truth that is not a person: the booking database
 
 Every airline tool result in the corpus is the environment's own record of a
