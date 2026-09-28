@@ -14,15 +14,16 @@ no network, no API key, no dependencies. Same input, same output, microseconds.
 pip install contextgc
 ```
 
-> **Not on PyPI yet.** This line was here before the project had ever been
-> published, which made it a lie in the most load-bearing spot in the README.
-> Publishing is wired up (`.github/workflows/release.yml`, tag `v0.4.0`) and
-> verifies the artifacts before uploading, but until a tag is pushed the
-> install has to come from the repository:
+> **On PyPI** as `contextgc`, published via Trusted Publishing with no stored
+> credentials. `pip install contextgc` gets you the library and nothing else —
+> it has **zero runtime dependencies** by design, and it is a library, not a
+> CLI: there is no `contextgc` command. The entry points are
+> `compile_messages`, `load_schema`, `patch_openai` and `StateDAG`.
 >
-> ```bash
-> pip install git+https://github.com/j4yop/context-hackdevengers
-> ```
+> If you found an earlier version of this README saying "Not on PyPI yet", it
+> was true when written and then stopped being true, which is how a README
+> starts lying in the most load-bearing spot it has. Every number in this file
+> is reproducible from the repository; see below for how to get it.
 
 ```python
 from contextgc import compile_messages
@@ -185,10 +186,22 @@ last-write-wins state register only earns its keep where a conversation keeps
 changing its mind about one thing.
 
 ```bash
-pip install 'contextgc[bench]'
+git clone https://github.com/j4yop/context-hackdevengers
+cd context-hackdevengers
+pip install -e '.[bench]'
 python -m benchmarks fetch          # 85 MB parquet shard
 python -m benchmarks run --limit 40 --schema contextgc/schemas/coding.json
 ```
+
+> **A clone is required, and `pip install 'contextgc[bench]'` is not enough.**
+> The `bench` extra installs `pandas` and `pyarrow` and nothing else. The
+> harness lives in `benchmarks/`, which is not in the wheel — the wheel ships
+> `contextgc` only, deliberately, so the library stays dependency-free. So the
+> command above reads
+> `ModuleNotFoundError: No module named 'benchmarks'` from a pip install, and
+> that is the correct behaviour, not a bug to report. Every figure in this
+> README is reproducible from a clone; none of them is reproducible from the
+> wheel, because the wheel does not contain the thing that measured them.
 
 ```
 CORPUS  swe-agent-trajectories
