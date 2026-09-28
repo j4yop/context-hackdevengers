@@ -147,10 +147,27 @@ def test_a_test_slot_is_reachable_from_the_agents_own_speech():
     for bad in ("HTTPError: 403 Forbidden", "None", "reproduce.py"):
         assert not re.search(contract, bad, re.IGNORECASE), bad
 
+    # The reachability count needs the corpus, so it is recomputed where the
+    # corpus is. What is asserted everywhere is the shipped schema's own record.
+    shipped = json.loads((SCHEMA_DIR / "coding.json").read_text())["_measurement"][
+        "value_contracts"
+    ]["slots"]["failing_test"]
+    assert shipped["fired"] is True
+    assert shipped["read_path_observations"] > 0
+    assert shipped["distinct_values"] >= 20
+    assert shipped["in_tool_output"] < shipped["read_path_observations"]
+
+
+@pytest.mark.skipif(not _corpus_available(), reason="corpus not cached")
+def test_failing_test_really_fires_from_speech():
+    """
+    The numbers in the schema are stored; this recomputes them from the corpus so
+    a pattern edit that quietly made the slot unreachable again cannot pass.
+    """
     stats = slot_observations("coding")["failing_test"]
     assert stats["fired"] is True, "the slot must be reachable from speech at all"
     assert stats["distinct"] >= 20, (
-        f"only {stats['distinct_values']} distinct values -- too few to label"
+        f"only {stats['distinct']} distinct values -- too few to label"
     )
     assert stats["in_tool_output"] < stats["observations"], (
         "if the slot still mostly fires in tool output, the read path discards it"
