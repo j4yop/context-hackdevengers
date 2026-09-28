@@ -366,13 +366,38 @@ the old labels against the widened corpus collapsed to **n=2**, which is what
 exposed the problem in the first place. It then had to be re-read a second time,
 because fixing the repeat bug in defect 6 changed what the compiler extracts.
 
-The 100% is not a claim that the tracker is perfect. Two confirmed errors survive,
-and `--per-repo` structurally excludes the rows they came from (it takes the first
-N trajectories per repository). They live in
-`benchmarks/labels/known_failures.json` — same defect, a path named in one
-sentence while the agent's subject is a different file in another — and a test
-re-runs those exact rows and fails if they stop being wrong. That is deliberate:
-the entry should be deleted on purpose, not vanish into a sampling change.
+The 100% is not a claim that the tracker is perfect. It is 100% of what was
+labelled, and labelling is the bottleneck.
+
+**The two "confirmed errors" this project carried were mislabelled.** Both were
+recorded as `current_file` extractions judged incorrect because the turn's earlier
+prose discussed a different file. Re-reading the turns against the doctrine the
+labels themselves state — *"agent opens/edits/creates or restates this exact
+value"* — shows the opposite. At each turn the agent says it is navigating to
+`dispatcher.py`, emits
+
+```
+open azure_functions_worker/dispatcher.py
+```
+
+and **the very next turn is the tool result confirming the open happened**:
+`[File: .../dispatcher.py (717 lines total)]`. By the doctrine, both extractions
+are correct. The label judged the turn by the file its prose discussed; the
+doctrine asks what the agent *did*, and the next turn answers that.
+
+This mattered beyond tidying, because it is also the answer to why a proposed fix
+had to be abandoned. Stripping fenced blocks before pattern matching — treating a
+shown command as a quotation rather than an action — cost **48% of the measured
+supersession signal** (77 → 40 re-assertions). In this corpus a fenced command
+in an assistant turn *is* the action, not a hypothetical, and the measurement was
+right to stop that change.
+
+`benchmarks/labels/known_failures.json` is now empty, with the correction
+recorded beside it. Neither file is the right home for the two cases: they are
+not errors, and they sit in rows `--per-repo 2` skips, so adding them to
+`precision.json` would trip the label-drift check — the same check that caught 20
+of 24 labels matching nothing when it was written. The file and its tests stay,
+so the first real error is checkable from the moment it is recorded.
 
 ### What the corpus says the problem actually is
 
