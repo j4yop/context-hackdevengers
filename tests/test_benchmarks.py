@@ -1162,6 +1162,62 @@ def test_the_ordinal_first_is_not_a_first_class_cabin():
     assert not cabins, f"an ordinal became a cabin class: {cabins}"
 
 
+def test_a_requested_change_is_scored_against_the_record_that_showed_it():
+    """
+    The union of every record in a transcript is the wrong ground truth, and it
+    manufactured 70 contradictions on the retail corpus.
+
+    A customer says "ship it to 123 Oak Street", the agent applies the change,
+    and the *next* tool result shows 123 Oak Street. The only record available at
+    the time of the utterance is the order *before* the change, so scoring against
+    it calls a fact the read path got exactly right a contradiction. Three read
+    by hand:
+
+        apigen-1751 turn 13  "760 Elm Avenue"   before: 592 Elm    after: 760 Elm
+        apigen-1817 turn 11  "123 Oak Street"   before: 463 Main    after: 123 Oak
+        apigen-1865 turn 12  "828 River Road"  before: 388 Spruce  after: 828 River
+
+    A value is therefore checked against the state as of just before the turn and
+    against every state recorded at or after it.
+    """
+    from benchmarks.ground_truth import _states_for_slot
+
+    records = [
+        (5, {"address": {"address1": "592 Elm Avenue", "city": "Houston"}}),
+        (17, {"address": {"address1": "760 Elm Avenue", "city": "Houston"}}),
+    ]
+    before, after = _states_for_slot(records, "delivery_address", turn=13)
+    assert before == {"592 elm avenue"}
+    assert after == [{"760 elm avenue"}]
+    # The value the customer named at turn 13 matches neither the state before it
+    # nor... it matches the one after, which is the whole point.
+    assert "760 elm avenue" in {v for state in [before, *after] for v in state}
+
+    # A turn after the change is judged against the new state.
+    before2, after2 = _states_for_slot(records, "delivery_address", turn=20)
+    assert before2 == {"760 elm avenue"}
+    assert after2 == []
+
+
+def test_a_record_that_never_saw_the_outcome_is_silence_not_disagreement():
+    """
+    A customer who names a payment method and then ends the conversation leaves
+    no trace. Nothing is recorded at or after the turn, so the order had no chance
+    to reflect the change, and a value matching nothing is UNVERIFIABLE rather
+    than contradicted. Calling the read path wrong for agreeing with them measures
+    nothing. This split took retail contradictions from 19 to 15, and it applies to
+    the airline corpus too.
+    """
+    from benchmarks.ground_truth import _states_for_slot
+
+    records = [(3, {"payment_history": [{"payment_method_id": "gift_card_8633125"}]})]
+    before, after = _states_for_slot(records, "payment_method", turn=11)
+    assert before == {"gift card"}
+    assert after == [], "nothing recorded after the turn, so no outcome to check"
+    # `after` being empty is exactly the signal that this is silence, and the
+    # scorer reads it as such rather than as a contradiction.
+
+
 def test_a_retail_record_reduces_to_bare_payment_names():
     """
     Neither side is canonical. The record says `credit_card_5843230`; the read
