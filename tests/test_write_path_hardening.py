@@ -807,3 +807,128 @@ def test_the_http_layer_refuses_an_unknown_value_policy():
         json={"messages": [{"role": "user", "content": "x"}], "value_policy": "quietly"},
     )
     assert response.status_code == 422
+
+
+# ===========================================================================
+# every entry point must honour both gates
+# ===========================================================================
+#
+# A gate that exists in the library and is inert on one path is worse than no
+# gate, because the caller is told it is protected. Three have happened:
+#
+#   - `MessagesRequest` never gained the field, so the API raised AttributeError
+#   - `_entities_for` rebuilt the entities mapping by hand and dropped the value
+#     contracts, so `value_policy: "reject"` returned the value it was asked to
+#     remove
+#   - `patch_openai` accepted `value_policy` and never passed it to
+#     compile_messages, so the most documented integration path ignored the gate
+#
+# So this drives all four entry points with the same input and requires the same
+# answer. A new path added later without a gate fails here rather than in a
+# user's transcript.
+
+GATE_INPUT = [
+    {"role": "user", "content": "fix it"},
+    {"role": "assistant", "content":
+        'x\n<contextgc-state>{"assert": {"failing_test": "HTTPError: 403 Forbidden",'
+        ' "unheard_of_key": "x", "current_file": "/a/b/memset.py"}}'
+        "</contextgc-state>"},
+    {"role": "user", "content": "go"},
+]
+
+
+def _assert_gates_honoured(result, where):
+    state = result["active_state_slots"]
+    declarations = result["declarations"]
+    assert "failing_test" in state, (
+        f"{where}: the wrong-shaped value is not in state under 'flag'"
+    )
+    assert "unheard_of_key" in state, (
+        f"{where}: the off-schema key is not in state under 'flag'"
+    )
+    assert declarations["value_shape_rejected"] == 1, (
+        f"{where}: the value gate did not fire -- {declarations}"
+    )
+    assert declarations["off_schema_keys"] == 1, (
+        f"{where}: the key gate did not fire -- {declarations}"
+    )
+
+
+def _assert_gates_enforced(state, where):
+    assert "failing_test" not in state, (
+        f"{where}: a wrong-shaped value survived value_policy='reject'"
+    )
+    assert "unheard_of_key" not in state, (
+        f"{where}: an off-schema key survived declaration_policy='reject'"
+    )
+    assert "current_file" in state, (
+        f"{where}: the well-shaped value in the same declaration was dropped too"
+    )
+
+
+def test_every_entry_point_honours_both_gates():
+    from contextgc import compile_messages, load_schema
+    from contextgc.client import compile_transcript, patch_openai
+
+    schema = load_schema("coding")
+    transcript = "assistant: x\n" + GATE_INPUT[1]["content"].split("\n", 1)[1] + "\nuser: go"
+    # 1. the library
+    _assert_gates_honoured(
+        compile_messages(GATE_INPUT, schema=schema, value_policy="flag",
+                         declaration_policy="flag")[1], "compile_messages")
+    _assert_gates_enforced(
+        compile_messages(GATE_INPUT, schema=schema, value_policy="reject",
+                         declaration_policy="reject")[1]["active_state_slots"],
+        "compile_messages")
+
+    # 2. the transcript helper
+    _assert_gates_honoured(
+        compile_transcript(transcript, schema=schema, value_policy="flag",
+                           declaration_policy="flag")[1], "compile_transcript")
+
+    # 3. the OpenAI wrapper -- the most documented integration path
+    seen = {}
+
+    class _Resp:
+        context_gc = None
+
+    class _Completions:
+        def create(self, **kwargs):
+            seen["messages"] = kwargs["messages"]
+            return _Resp()
+
+    class _Client:
+        chat = type("Chat", (), {"completions": _Completions()})()
+
+    client = patch_openai(_Client(), schema=schema, value_policy="reject",
+                          declaration_policy="reject")
+    client.chat.completions.create(messages=GATE_INPUT, model="x")
+    state_block = "\n".join(m.get("content") or "" for m in seen["messages"])
+    assert "HTTPError: 403" not in state_block, (
+        "patch_openai accepted value_policy='reject' and still sent the "
+        "wrong-shaped value to the model"
+    )
+    assert "unheard_of_key" not in state_block, (
+        "patch_openai accepted declaration_policy='reject' and still sent the "
+        "off-schema key to the model"
+    )
+    assert "memset.py" in state_block, (
+        "patch_openai dropped the well-shaped value along with the rest"
+    )
+
+    # 4. the HTTP API
+    from fastapi.testclient import TestClient
+
+    from server.main import app
+
+    http = TestClient(app)
+    flagged = http.post("/api/compile/messages", json={
+        "messages": GATE_INPUT, "entity_schema": "coding",
+        "declaration_policy": "flag", "value_policy": "flag"}).json()["telemetry"]
+    _assert_gates_honoured(flagged, "the HTTP API")
+    _assert_gates_enforced(
+        http.post("/api/compile/messages", json={
+            "messages": GATE_INPUT, "entity_schema": "coding",
+            "declaration_policy": "reject", "value_policy": "reject"}).json()
+        ["telemetry"]["active_state_slots"],
+        "the HTTP API")

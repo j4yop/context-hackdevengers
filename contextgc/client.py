@@ -114,6 +114,7 @@ def patch_openai(
     schema: Optional[Dict[str, Any]] = None,
     session_id: Optional[str] = None,
     declaration_policy: str = "flag",
+    value_policy: str = "flag",
 ) -> Any:
     """
     Wrap ``client.chat.completions.create`` so outgoing message histories are
@@ -159,6 +160,7 @@ def patch_openai(
             schema=schema,
             session_id=session_id,
             declaration_policy=declaration_policy,
+            value_policy=value_policy,
         )
 
     @functools.wraps(original_create)
