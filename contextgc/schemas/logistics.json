@@ -13,10 +13,31 @@
     "corpus": "APIGen-MT-5k, retail domain",
     "transcripts": 80,
     "repos": null,
-    "precision": "100% (n=47, CI 92-100%)"
+    "precision": "100% (n=47, CI 92-100%)",
+    "value_contracts": {
+      "derived": true,
+      "slots": {
+        "delivery_address": {
+          "basis": "structure from the slot's own capture group",
+          "derived_from": "the slot's own entity patterns; see contextgc/value_shapes.py",
+          "read_path_observations": 237,
+          "read_path_turns": 236,
+          "distinct_values": 226,
+          "fired": true
+        },
+        "payment_method": {
+          "basis": "vocabulary from the slot's own alternation",
+          "derived_from": "the slot's own entity patterns; see contextgc/value_shapes.py",
+          "read_path_observations": 2108,
+          "read_path_turns": 1850,
+          "distinct_values": 6,
+          "fired": true
+        }
+      }
+    }
   },
   "values": {
-    "delivery_address": "[\\w\\s.,'/-]+",
-    "payment_method": "[\\w ]+"
+    "delivery_address": "(?:\\d{1,5}\\s+[A-Z][A-Za-z.'-]+(?:\\s+[A-Z][A-Za-z.'-]+)?\\s+(?:Street|St|Avenue|Ave|Road|Rd|Drive|Dr|Lane|Ln|Boulevard|Blvd|Way|Court|Ct|Place|Pl|Terrace|Ter|Circle|Cir|Parkway|Pkwy)\\b(?:\\s*,\\s*(?:Apt|Apartment|Suite|Ste|Unit|Rm)\\s*[\\w-]+)?(?:\\s*,\\s*[A-Z][A-Za-z]+(?:\\s+[A-Z][A-Za-z]+)?)?(?:\\s*,\\s*[A-Z]{2})?(?:\\s*,?\\s*\\d{5}(?:-\\d{4})?)?)",
+    "payment_method": "(?:gift\\ card\\ balance)|(?:paypal\\ account)|(?:credit\\ card)|(?:debit\\ card)|(?:gift\\ card)|(?:paypal)"
   }
 }

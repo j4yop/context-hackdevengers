@@ -17,10 +17,31 @@
     "corpus": "APIGen-MT-5k, airline domain",
     "transcripts": 60,
     "repos": null,
-    "precision": "100% (n=72, CI 95-100%)"
+    "precision": "100% (n=72, CI 95-100%)",
+    "value_contracts": {
+      "derived": true,
+      "slots": {
+        "cabin_class": {
+          "basis": "vocabulary from the slot's own alternation",
+          "derived_from": "the slot's own entity patterns; see contextgc/value_shapes.py",
+          "read_path_observations": 1370,
+          "read_path_turns": 822,
+          "distinct_values": 8,
+          "fired": true
+        },
+        "active_reservation": {
+          "basis": "structure from the slot's own capture group",
+          "derived_from": "the slot's own entity patterns; see contextgc/value_shapes.py",
+          "read_path_observations": 940,
+          "read_path_turns": 938,
+          "distinct_values": 644,
+          "fired": true
+        }
+      }
+    }
   },
   "values": {
-    "cabin_class": "[a-z ]*(?:economy|business|first|premium)",
-    "active_reservation": "[A-Za-z0-9]{6}"
+    "cabin_class": "(?:premium\\ economy)|(?:basic\\ economy)|(?:business)|(?:economy)|(?:first)",
+    "active_reservation": "^(?:[A-Z0-9]{6})$"
   }
 }
