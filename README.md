@@ -372,6 +372,59 @@ labels are one slot**: precision is currently a statement about the
 `current_file` regex and nothing else. (`coding.failing_test` cannot be measured
 at all — it has 0 speech observations, so the read path never produces it.)
 
+#### The write path, checked at last
+
+Everything above scores what the **read path** inferred. The **write path** is the
+model declaring facts, and until now nothing had ever checked whether a declared
+fact was *true* — which is the gap that mattered, because a declared value wins
+over the read path by design. An unchecked declaration silently overrides
+everything the read path got right.
+
+The same records settle it: a capture is keyed by transcript and turn, the corpus
+has the booking record for that transcript, and the turn indices line up.
+
+```
+python -m benchmarks.ground_truth travel --declarations captures/airline-14b.json
+```
+
+| 14B airline capture | count |
+|---|---|
+| declared values | 109 |
+| corroborated by the record | **70** |
+| **contradicted by the record** | **12** |
+| unverifiable (no record saw the outcome) | 2 |
+| unchecked (slot has no record field) | 25 |
+
+**So the write path is wrong 12 times in 82 decidable declarations — 85.4%
+corroborated.** And the value gate rejects **11 of those 12**. Those it catches
+are the ones the earlier capture already showed: `passenger_id = "None"`,
+`flight_number = "H0MVIE"` (a reservation id declared as a flight),
+`flight_date = "2024-05-07T13:04:42"` (a timestamp, not a date), `passenger_id =
+"Yusuf Jackson"` (a name where an id belongs).
+
+**The twelfth is the one worth reading twice.** `cabin_class = "basic economy"`
+where the record says `economy`. It satisfies its contract, passes the gate, and
+is still wrong — the exact failure this project has said all along a contract
+cannot catch, now with a row in a table rather than an assurance. A contract
+checks shape, never truth.
+
+Two of the numbers above are only trustworthy because of bugs found while
+producing them:
+
+- The record was looked up by **corpus** name (`airline`) while the marker is
+  keyed by **schema** (`travel`), so every airline record resolved to nothing and
+  109 declarations scored 0 corroborated. That reads like a finding about the
+  write path and was a lookup that found nothing.
+- `2024-05-20` and `May 20, 2024` are the same flight date. Scoring them
+  differently called a *true* declaration a contradiction three times in one
+  conversation.
+
+**What this does not establish.** 25 declarations sit in slots with no record
+field at all — `total_baggages`, `cancellation_possible` — and nothing here can
+settle them either way. And n=82 across 6 transcripts on one model is a small
+base. The write path is *measured* now, which it was not, and it is still not
+*proven*: one well-formed false value in twelve is the number to remember.
+
 #### The same check on the third shipped schema, and what it cannot settle
 
 `python -m benchmarks.ground_truth logistics --corpus apigen-retail --limit 1000`

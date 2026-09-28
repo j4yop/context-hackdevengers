@@ -1162,6 +1162,96 @@ def test_the_ordinal_first_is_not_a_first_class_cabin():
     assert not cabins, f"an ordinal became a cabin class: {cabins}"
 
 
+def test_a_record_is_looked_up_by_the_schema_not_the_corpus_name():
+    """
+    The airline half of APIGen carries `reservation_id` and the retail half
+    carries `order_id`, and the two spellings of "which half" do not match:
+    `airline` versus `travel`. Keying the lookup on the corpus name made every
+    airline declaration resolve to zero records, so 109 declarations scored
+    0 corroborated and 84 unverifiable -- and it read like a finding about the
+    write path rather than a lookup that found nothing.
+    """
+    from benchmarks.ground_truth import RECORD_MARKER, records_by_transcript
+
+    assert RECORD_MARKER["travel"] == "reservation_id"
+    assert RECORD_MARKER["logistics"] == "order_id"
+
+    class _T:
+        def __init__(self, tid, body):
+            self.id = tid
+            self.messages = [{"role": "user", "content": body}]
+
+    airline = [_T("apigen-0", '{"reservation_id": "0U4NPP", "cabin": "economy"}')]
+    retail = [_T("apigen-0", '{"order_id": "#W9045919", "cabin": "economy"}')]
+    assert records_by_transcript(airline, "travel")
+    assert not records_by_transcript(airline, "logistics")
+    assert records_by_transcript(retail, "logistics")
+    assert not records_by_transcript(retail, "travel")
+
+
+def test_a_declared_date_in_either_format_is_the_same_date():
+    """
+    The model may say a flight date the way the record stores it or the way a
+    person says it. `2024-05-20` and `May 20, 2024` are the same flight date,
+    and scoring them differently called a *true* declaration a contradiction
+    three times in one conversation -- which is how a scorer starts reporting
+    the write path as wrong when it is not.
+    """
+    from benchmarks.ground_truth import _normalise_date
+
+    assert _normalise_date("2024-05-20") == "May 20, 2024"
+    assert _normalise_date("May 20, 2024") == "May 20, 2024"
+    assert _normalise_date("2024-05-07T13:04:42") == "2024-05-07T13:04:42", (
+        "a full timestamp is not a date and must not be silently truncated"
+    )
+
+
+def test_a_declaration_the_record_denies_is_reported_as_a_contradiction():
+    """
+    The write path, checked at last. A declared value wins over the read path by
+    design, so an unchecked declaration silently overrides everything the read
+    path got right -- and until now nothing had ever checked one.
+
+    On the 14B airline capture: 109 declared values, 70 corroborated, **12 the
+    record denies**, 2 unverifiable, and 25 in slots with no record field at all
+    so nothing can settle them either way. The value gate rejects 11 of the 12.
+
+    The twelfth is the one worth reading twice: `cabin_class = "basic economy"`
+    where the record says `economy`. It satisfies its contract and is still
+    wrong. A contract checks shape, never truth.
+    """
+    import json as _json
+    from pathlib import Path
+
+    from benchmarks.ground_truth import score_declarations
+
+    capture = Path(__file__).resolve().parent.parent / "captures" / "airline-14b.json"
+    if not capture.exists():
+        pytest.skip("airline capture not present")
+    result = score_declarations(str(capture), "travel", "airline")
+
+    assert result["corroborated"] > 0, "nothing was checked at all"
+    assert result["contradicted"] > 0, (
+        "a write path with no false declarations would be a claim worth a "
+        "re-read of the scorer, not a reason to relax the assertion"
+    )
+    assert result["corroborated"] > result["contradicted"], (
+        "the model is mostly right, which is the expected shape"
+    )
+    # Unchecked declarations are reported apart, never folded into the rate.
+    assert result["no_ground_truth"] > 0
+    assert result["corroboration_rate"] is not None
+
+    # And the gate must catch the large majority of what the record denies.
+    denied = result["contradicted_examples"]
+    caught = [e for e in denied if e["gate_would_reject"]]
+    assert len(caught) >= len(denied) - 1, (
+        f"the value gate caught {len(caught)} of {len(denied)} false declarations; "
+        f"a contract that stops catching them is not doing its job"
+    )
+    _json.dumps(result)  # must stay JSON-serialisable
+
+
 def test_a_requested_change_is_scored_against_the_record_that_showed_it():
     """
     The union of every record in a transcript is the wrong ground truth, and it

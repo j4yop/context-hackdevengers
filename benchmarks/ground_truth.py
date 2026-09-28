@@ -43,6 +43,7 @@ import json
 import re
 import sys
 from collections import Counter, defaultdict
+from pathlib import Path
 from typing import Any, Dict, List, Optional, Set, Tuple
 
 from benchmarks.corpus import load_apigen_mt
@@ -174,7 +175,16 @@ def slot_values(record: Dict[str, Any], slot: str) -> Set[str]:
     return out
 
 
-def records_by_transcript(transcripts: List[Any], domain: str = "travel") -> Dict[str, List[Tuple[int, Dict[str, Any]]]]:
+#: Which key identifies a record, per schema. Keyed by *schema*, not by corpus
+#: name: the airline half of APIGen carries `reservation_id` and the retail half
+#: carries `order_id`, and the two spellings of "which half" (`airline` vs
+#: `travel`) did not match -- so passing the corpus name here looked airline
+#: records up by `order_id`, found none, and scored every declaration
+#: unverifiable. 109 declarations, 0 corroborated, and it looked like a finding.
+RECORD_MARKER = {"travel": "reservation_id", "logistics": "order_id"}
+
+
+def records_by_transcript(transcripts: List[Any], schema_name: str = "travel") -> Dict[str, List[Tuple[int, Dict[str, Any]]]]:
     """
     Every authoritative record, keyed by transcript, **with the turn it was seen
     at**.
@@ -197,7 +207,7 @@ def records_by_transcript(transcripts: List[Any], domain: str = "travel") -> Dic
     the turn, and equally any state the environment goes on to record. Both are
     checked; a value matching neither is a real disagreement.
     """
-    marker = "reservation_id" if domain == "travel" else "order_id"
+    marker = RECORD_MARKER.get(schema_name, "reservation_id")
     out: Dict[str, List[Tuple[int, Dict[str, Any]]]] = defaultdict(list)
     for transcript in transcripts:
         for turn, message in enumerate(transcript.messages):
@@ -291,7 +301,7 @@ def score(transcripts: List[Any], schema_name: str = "travel",
     from benchmarks.harness import run
 
     result = run(transcripts, schema=load_schema(schema_name), max_extractions=100000)
-    records = records_by_transcript(transcripts, domain)
+    records = records_by_transcript(transcripts, schema_name)
 
     buckets: Dict[str, Counter] = defaultdict(Counter)
     by_entity: Dict[str, Counter] = defaultdict(Counter)
@@ -380,6 +390,48 @@ def score(transcripts: List[Any], schema_name: str = "travel",
 
 
 
+def _render_declarations(args: Any) -> int:
+    result = score_declarations(args.declarations, args.schema,
+                                "airline" if args.schema == "travel" else "retail")
+    rate = result["corroboration_rate"]
+    print("=" * 78)
+    print("THE WRITE PATH -- was a fact the model ASSERTED actually true?")
+    print("=" * 78)
+    print(f"  capture        {result['capture']}")
+    print(f"  model          {result['model']}")
+    print(f"  transcripts    {result['transcripts']}")
+    print()
+    print("  A declared value wins over the read path by design, so an unchecked")
+    print("  declaration silently overrides everything the read path got right.")
+    print("  These are the first numbers for that.")
+    print()
+    print("  declared values with a record to check them against")
+    print(f"    corroborated  {result['corroborated']}")
+    print(f"    contradicted  {result['contradicted']}"
+          + (f"  ({rate:.1%} of the decidable pair is corroborated)" if rate else ""))
+    print(f"    unverifiable  {result['unverifiable']}  (no record saw the outcome)")
+    print("  declared values with NO ground truth at all")
+    print(f"    unchecked     {result['no_ground_truth']}  (the slot has no field in any")
+    print("                    record, so nothing here can settle them either way)")
+    print()
+    print(f"  the value gate would reject {result['rejected_by_the_value_gate']} of the declared values")
+    wrong = result["contradicted_examples"]
+    caught = sum(1 for e in wrong if e["gate_would_reject"])
+    print(f"  ... and {caught} of the {len(wrong)} the record contradicts")
+    print()
+    if wrong:
+        print("  WHAT THE RECORD DENIES:")
+        for e in wrong:
+            mark = "caught" if e["gate_would_reject"] else "MISSED"
+            print(f"    [{mark:>6}] {e['entity']} = {str(e['value'])[:44]!r}")
+            print(f"             record holds {e['records_hold'][:3]}")
+    print()
+    print("  A MISSED one is the interesting one: a value that satisfies its")
+    print("  contract and is still wrong. A contract checks shape, never truth, so")
+    print("  the write path cannot be called proven while any of these survive.")
+    return 0
+
+
 def main(argv: List[str] = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -389,9 +441,17 @@ def main(argv: List[str] = None) -> int:
     parser.add_argument("--corpus-path")
     parser.add_argument("--show", type=int, default=0, metavar="N",
                         help="print N contradicted extractions")
+    parser.add_argument(
+        "--declarations", metavar="CAPTURE",
+        help="score a capture's *declarations* against the records instead of the "
+             "read path's extractions. This is the write path: whether a fact the "
+             "model asserted was true",
+    )
     parser.add_argument("--json")
     args = parser.parse_args(argv)
 
+    if args.declarations:
+        return _render_declarations(args)
     corpus = args.corpus or ("apigen-airline" if args.schema == "travel" else "apigen-retail")
     transcripts = load_apigen_mt(
         limit=args.limit, path=args.corpus_path,
@@ -456,6 +516,134 @@ def main(argv: List[str] = None) -> int:
             json.dump(result, handle, indent=2)
         print(f"\n  wrote {args.json}")
     return 0
+
+
+
+
+# --- the write path --------------------------------------------------------
+#
+# Everything above scores what the *read path* inferred. The write path is the
+# model declaring facts, and until now nothing had ever checked whether a
+# declared fact was true. A declared value wins over the read path by design --
+# that is the whole point of letting an agent state its own facts -- so an
+# unchecked declaration is the one failure mode that silently overrides
+# everything the read path got right.
+#
+# The same records settle it. A capture is keyed by transcript and turn, the
+# corpus has the booking record for that transcript, and the turn indices line
+# up, so a declaration can be scored against the state the environment held when
+# the model said it.
+
+
+def score_declarations(
+    capture_path: str, schema_name: str = "travel", domain: str = "travel",
+    transcripts: Optional[List[Any]] = None,
+) -> Dict[str, Any]:
+    """
+    Score every declaration in a capture against the environment's records.
+
+    Four buckets, and the fourth is the one that was previously invisible:
+
+    ``corroborated``
+        the record supports the declared value
+    ``contradicted``
+        the record disagrees -- the write path stated something false, and it
+        would have won over the read path
+    ``no_ground_truth``
+        the slot has no field in any record, so nothing here can say
+    ``unverifiable``
+        the slot has a field, but the record never saw the outcome
+    """
+    from contextgc.state_protocol import parse_declaration
+
+    with open(capture_path, encoding="utf-8") as handle:
+        capture = json.load(handle)
+    if transcripts is None:
+        transcripts = load_apigen_mt(limit=500, domain=domain)
+    records = records_by_transcript(transcripts, schema_name)
+    schema = load_schema(schema_name)
+    known = set(schema)
+    contracts = json.loads(
+        (Path(__file__).resolve().parent.parent / "contextgc" / "schemas"
+         / f"{schema_name}.json").read_text(encoding="utf-8")
+    ).get("values", {})
+
+    buckets: Dict[str, Counter] = defaultdict(Counter)
+    wrong: List[Dict[str, Any]] = []
+    gate_rejected = 0
+    for transcript_id, turns in capture.get("declarations", {}).items():
+        for turn, raw in turns.items():
+            declaration = parse_declaration(f"<contextgc-state>{raw}</contextgc-state>")
+            values: List[Tuple[str, str]] = []
+            for group in (declaration.asserts, declaration.pins, declaration.unsure):
+                values += list(group.items())
+            for slot, value in values:
+                if slot not in known:
+                    buckets["no_ground_truth"][slot] += 1
+                    continue
+                if slot not in contracts:
+                    buckets["no_ground_truth"][slot] += 1
+                    continue
+                pattern = re.compile(contracts[slot], re.IGNORECASE)
+                shape_ok = bool(pattern.search(str(value)))
+                if not shape_ok:
+                    gate_rejected += 1
+                before, after = _states_for_slot(
+                    records.get(transcript_id, []), slot, int(turn)
+                )
+                states = [s for s in [before, *after] if s]
+                if not states:
+                    buckets["unverifiable"][slot] += 1
+                    continue
+                raw = str(value).strip()
+                if slot == "cabin_class":
+                    probe = _normalise_cabin(raw)
+                elif slot == "flight_date":
+                    # A model may say a date the way the record stores it, or the
+                    # way a person says it. `2024-05-20` and `May 20, 2024` are
+                    # the same flight date; scoring them different called a true
+                    # declaration a contradiction three times in one conversation.
+                    probe = _normalise_date(raw)
+                else:
+                    probe = raw
+                def in_states(state: Set[str]) -> bool:
+                    if slot == "cabin_class":
+                        return probe in {_normalise_cabin(c) for c in state}
+                    if slot == "flight_date":
+                        return probe in {_normalise_date(c) for c in state}
+                    return probe in state
+
+                held = any(in_states(s) for s in states)
+                if held:
+                    buckets["corroborated"][slot] += 1
+                elif not after:
+                    buckets["unverifiable"][slot] += 1
+                else:
+                    buckets["contradicted"][slot] += 1
+                    if len(wrong) < 40:
+                        wrong.append({
+                            "transcript": transcript_id, "turn": int(turn),
+                            "entity": slot, "value": value,
+                            "records_hold": sorted({c for s in states for c in s})[:6],
+                            "gate_would_reject": not shape_ok,
+                        })
+    decidable = sum(buckets["corroborated"].values()) + sum(buckets["contradicted"].values())
+    return {
+        "capture": capture_path,
+        "model": capture.get("model"),
+        "transcripts": len(capture.get("declarations", {})),
+        "declarations": sum(sum(c.values()) for c in buckets.values()),
+        "corroborated": sum(buckets["corroborated"].values()),
+        "contradicted": sum(buckets["contradicted"].values()),
+        "unverifiable": sum(buckets["unverifiable"].values()),
+        "no_ground_truth": sum(buckets["no_ground_truth"].values()),
+        "corroboration_rate": (
+            sum(buckets["corroborated"].values()) / decidable if decidable else None
+        ),
+        "by_entity": {b: dict(c) for b, c in sorted(buckets.items())},
+        "rejected_by_the_value_gate": gate_rejected,
+        "contradicted_examples": wrong,
+    }
 
 
 if __name__ == "__main__":
