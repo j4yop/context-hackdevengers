@@ -877,6 +877,50 @@ and negative: the tracker does not go stale on the trajectory available. Still
 no rate, and still n=1 trajectory. That is a better answer than the one it
 replaces, and it is still not a headline.
 
+#### The rate that can be quoted, and why the earlier ones were not
+
+The reason there was no rate is that the read path's value could not be lined up
+with the model's declaration **at the same turn**. It can now, and the reason is
+not a cleverer scorer — it is that the read path's value is recorded *per turn
+during the capture*, from that trajectory's own prefix:
+
+```python
+"read_path": _read_path_state(schema, history)
+```
+
+Previously it had to be reconstructed afterwards, which means slicing whatever
+text is nearby. The old 14B capture has **6 transcripts and one vendored agent
+file**, so any re-derivation has to invent six trajectories out of one. Slicing
+it produced 8 apparent disagreements, all artifacts — which is why they were
+discarded rather than reported.
+
+`benchmarks/capture.py` now records the read path alongside every declaration,
+over three **genuinely distinct** real trajectories:
+
+```
+python -m benchmarks.staleness --capture captures/coding-14b-distinct.json
+```
+
+| | turns |
+|---|---|
+| model declared `current_file` | 33 |
+| exact agreement | 10 |
+| same file, model less precise (`memset.py` vs `lexicon/providers/memset.py`) | 20 |
+| **genuinely different file** | **3** |
+
+**9.1% disagreement over 3 trajectories.** It qualifies where the 44.9% did not:
+no action signal, so not confounded by opening a file being a read; no rebuilt
+alignment; and the contributing trajectories are counted, so a rate one agent
+moves is visible as one. **The worst trajectory still holds 67% of them** — 2 of
+3, down from 25 of 31 — so n=3 is three trajectories' worth of evidence, not
+thirty turns'.
+
+**Agreement is not correctness.** Both sides are inference, so this counts
+*disagreements*, which is the staleness signal. It does not adjudicate them:
+coding has no external record saying which file the agent was in, so a
+disagreement is counted, not resolved. This is a **disagreement rate**, not a
+staleness rate — staleness still needs to know when the file changed.
+
 **The two "confirmed errors" this project carried were mislabelled.** Both were
 recorded as `current_file` extractions judged incorrect because the turn's earlier
 prose discussed a different file. Re-reading the turns against the doctrine the

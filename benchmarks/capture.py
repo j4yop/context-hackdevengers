@@ -426,6 +426,42 @@ def _resume(out_path: str, fingerprint: str) -> List[Dict[str, Any]]:
     return previous["turns"]
 
 
+
+def _read_path_state(schema, history) -> dict:
+    """
+    What the read path holds over ``history`` -- the pattern inference, not the
+    model. Recorded per turn so a later report can compare the two at the same
+    turn without rebuilding an alignment.
+    """
+    import re as _re
+
+    from contextgc import StateDAG
+
+    if not schema:
+        return {}
+    dag = StateDAG()
+    for slot, patterns in schema.items():
+        if slot == "__immutable__":
+            continue
+        try:
+            dag.register_entity_schema(slot, list(patterns))
+        except _re.error:
+            continue
+    for index, message in enumerate(history):
+        role = message.get("role")
+        if role in ("system",):
+            continue
+        dag.register_turn(index, role, message.get("content", ""))
+    out = {}
+    for index, message in enumerate(history):
+        role = message.get("role")
+        if role != "user" and role != "assistant":
+            continue
+        for fact in dag.extract_entities(message.get("content", ""), index, role):
+            out[fact.entity] = fact.value
+    return out
+
+
 def capture(
     transcript_path: str,
     out_path: str,
@@ -631,6 +667,17 @@ def capture(
                 "role": "assistant",
                 "declared": declared,
                 "content": reply,
+                # What the read path holds at this turn, over this trajectory's
+                # own prefix.
+                #
+                # Recorded *here* rather than recomputed later because the
+                # alignment can only be made once, correctly, while the real
+                # prefix is in hand. Reconstructing it afterwards means slicing
+                # whatever text happens to be nearby: the 14B coding capture has
+                # 6 transcripts and one vendored agent file, so a scorer that
+                # re-derives prefixes has to invent 6 trajectories out of 1 and
+                # then reports the artifacts as disagreements.
+                "read_path": _read_path_state(schema, history),
             })
             done.add((transcript.id, position))
             # Written after every turn. A local server that drops after the

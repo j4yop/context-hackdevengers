@@ -190,6 +190,10 @@ def main(argv: List[str] = None) -> int:
                         choices=["swe-agent", "apigen-airline", "apigen-retail"])
     parser.add_argument("--limit", type=int, default=40)
     parser.add_argument("--corpus-path")
+    parser.add_argument(
+        "--capture",
+        help="a capture with per-turn read-path state, to score directly",
+    )
     parser.add_argument("--json", help="write the full result here")
     args = parser.parse_args(argv)
 
@@ -250,12 +254,128 @@ def main(argv: List[str] = None) -> int:
     print("  is meant to hold a value across a compaction. It is reported as a")
     print("  staleness signal, never as precision.")
 
+    if args.capture:
+        with open(args.capture, encoding="utf-8") as handle:
+            capture_path = json.load(handle).get("out") or args.capture
+        direct = score_capture_against_read_path(capture_path)
+        print()
+        print("  THE QUOTABLE ONE -- per-turn, no action signal, no rebuilt alignment")
+        print(f"    model declared current_file on    {direct['model_declarations']} turns")
+        print(f"    comparable against the read path   {direct['comparable']}")
+        print(f"    exact agreement                    {direct['exact']}")
+        print(f"    same file, model less precise      {direct['same_file_less_precise']}")
+        print(f"    genuinely different file           {direct['different_file']}")
+        print(f"    over {direct['transcripts']} distinct trajectories")
+        if direct["disagreement_rate"] is not None:
+            print(f"    disagreement rate                  "
+                  f"{direct['disagreement_rate']:.1%}")
+            share = direct["worst_transcript_share"]
+            if share is not None:
+                print(f"    worst trajectory holds             {share:.0%} of them")
+        print()
+        print("  Agreement is not correctness: both sides are inference. This counts")
+        print("  disagreements, which is the staleness signal, and does not")
+        print("  adjudicate them -- coding has no external record of the right file.")
+
     if args.json:
         with open(args.json, "w", encoding="utf-8") as handle:
             json.dump(result, handle, indent=2)
         print(f"\n  wrote {args.json}")
     return 0
 
+
+
+
+def score_capture_against_read_path(capture_path: str) -> dict:
+    """
+    Disagreements between what the model declared and what the read path held,
+    at the same turn, over real trajectories.
+
+    This replaces the rate in `main()` as the number worth quoting, and it
+    qualifies for that in three ways the old one did not:
+
+    * it needs no action signal, so it is not confounded by the fact that
+      opening a file is a read and running a script is a run;
+    * the read-path value was recorded per turn *during* the capture, from that
+      trajectory's own prefix, so no alignment is reconstructed afterwards --
+      the previous 14B capture had 6 transcripts and one vendored agent file,
+      which forces any re-derivation to invent six trajectories out of one;
+    * it reports how many distinct trajectories contributed, so a rate one
+      agent moves is visible as such.
+
+    Agreement is not correctness. Both sides are inference, so this measures
+    *disagreement*, which is the staleness signal and no more. Coding has no
+    record to settle a disagreement -- there is nothing external saying which
+    file the agent was in -- so a disagreement is counted, not adjudicated.
+    """
+    import json as _json
+    from collections import Counter
+
+    from contextgc.state_protocol import parse_declaration
+
+    with open(capture_path, encoding="utf-8") as handle:
+        capture = _json.load(handle)
+
+    def _leaf(value):
+        return str(value).lower().split("/")[-1].strip()
+
+    exact = same_file = different = empty = 0
+    per_transcript: Counter = Counter()
+    disagreements = []
+    for turn in capture.get("turns", []):
+        try:
+            declaration = parse_declaration(turn.get("content", ""))
+        except Exception:
+            continue
+        if not declaration:
+            continue
+        declared = (declaration.asserts or declaration.pins).get("current_file")
+        if not declared:
+            continue
+        held = (turn.get("read_path") or {}).get("current_file")
+        if not held:
+            empty += 1
+            continue
+        if declared == held:
+            exact += 1
+        elif _leaf(declared) == _leaf(held):
+            # The model naming `memset.py` where the read path holds
+            # `lexicon/providers/memset.py` is a precision difference, not a
+            # disagreement about which file it is.
+            same_file += 1
+        else:
+            different += 1
+            per_transcript[turn.get("transcript")] += 1
+            disagreements.append({
+                "transcript": turn.get("transcript"),
+                "turn": turn.get("index"),
+                "declared": declared,
+                "read_path": held,
+            })
+    comparable = exact + same_file + different
+    transcripts = {t.get("transcript") for t in capture.get("turns", [])}
+    return {
+        "model_declarations": comparable + empty,
+        "comparable": comparable,
+        "exact": exact,
+        "same_file_less_precise": same_file,
+        "different_file": different,
+        "read_path_held_nothing": empty,
+        "disagreement_rate": different / comparable if comparable else None,
+        "transcripts": len(transcripts),
+        "disagreements_per_transcript": dict(per_transcript),
+        "worst_transcript_share": (
+            max(per_transcript.values()) / different if different else None
+        ),
+        "disagreements": disagreements,
+        "why_this_is_not_a_staleness_rate": (
+            "both sides are inference, so agreement is not correctness. A "
+            "disagreement says the two read the same prefix differently, not "
+            "which of them is wrong: coding has no external record. It is also "
+            "a disagreement rate, not a staleness rate -- staleness needs to "
+            "know when the file changed, and this corpus does not say."
+        ),
+    }
 
 
 def follows_last_statement(transcript_text: str, schema_name: str = "coding") -> dict:
