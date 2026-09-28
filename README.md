@@ -369,6 +369,42 @@ because fixing the repeat bug in defect 6 changed what the compiler extracts.
 The 100% is not a claim that the tracker is perfect. It is 100% of what was
 labelled, and labelling is the bottleneck.
 
+#### One precision question the labels structurally cannot answer
+
+All 39 labels are `current_file`, and every one judges a value at the turn it was
+*registered*. That design cannot see the failure a fact tracker is actually
+judged on: whether it followed the agent afterwards. If the tracker says
+`current_file = memset.py` on turn 51 and the agent is editing `cli.py` on turn
+52, the value was true when written and wrong by the next turn — and every hand
+label on turn 51 still reads "correct".
+
+So there is a second, mechanical precision question, and it was attempted and
+**does not survive contact with the corpus**. `python -m benchmarks.staleness`
+keeps the attempt and the reason:
+
+- The action signal has to be an **edit**, because reading a file is not editing
+  it. Taking any file named against a command gives 28.6% support, and reports a
+  44.9% disagreement rate. Reading the turns shows most of it is the agent
+  opening a file to diagnose an import error, or running a script to verify a
+  fix, while the tracker correctly holds the file it is working on. `open
+  lexicon/config.py` is a read; `python reproduce.py` is a run.
+- An **edit-only** signal is correct and rare: explicit edit markers appear in
+  1.7% of agent turns and in-place `sed -i` writes in 0.0%. On 60 transcripts
+  that leaves 69 comparable transitions — and **25 of the 31 disagreements come
+  from a single transcript**, an agent ping-ponging between `api.py` and
+  `common_types.py`. Drop it and the rate falls from 44.9% to 14.3%.
+
+**So no staleness figure is quoted anywhere.** A rate that one transcript moves
+by 30 points is that transcript's behaviour, not the tracker's, and the tool now
+reports the concentration instead of the average rather than letting a
+convenient number through. The honest position is that this dimension is
+currently unmeasured: it needs either a corpus where agents announce their edits
+in a parseable way, or a human reading pairs of turns. The read path's refusal
+to infer from tool output is a large part of why — it holds no value on the
+`user` turn preceding an agent action, so the comparison has to be between
+consecutive agent actions, which is a definition chosen here and not given by
+the data.
+
 **The two "confirmed errors" this project carried were mislabelled.** Both were
 recorded as `current_file` extractions judged incorrect because the turn's earlier
 prose discussed a different file. Re-reading the turns against the doctrine the
