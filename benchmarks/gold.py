@@ -113,6 +113,18 @@ def clusters_of(matched: List[Dict[str, Any]]) -> Dict[Tuple, str]:
     return out
 
 
+def _schema_slots(schema: Any) -> List[str]:
+    """The slot names a schema defines, however it was passed in."""
+    if schema is None:
+        return []
+    if isinstance(schema, dict):
+        if isinstance(schema.get("entities"), dict):
+            return sorted(schema["entities"])
+        return sorted(k for k in schema if k != "__immutable__")
+    slots = getattr(schema, "entities", None)
+    return sorted(slots) if isinstance(slots, dict) else []
+
+
 def label_key(transcript_id: str, entity: str, turn_index: Any = None) -> Tuple:
     """
     The identity of a labelled extraction.
@@ -128,6 +140,7 @@ def score(
     extractions: List[Dict[str, Any]],
     labels: Optional[List[Dict[str, Any]]] = None,
     labels_path: Optional[str] = None,
+    schema: Any = None,
 ) -> Dict[str, Any]:
     """
     Precision over labelled items only.
@@ -212,6 +225,39 @@ def score(
     )
     lo, hi = wilson_interval(clusters_correct, clusters_judged)
 
+    # Which slots the number covers, and -- just as load-bearing -- which it
+    # does not. A precision figure with no slot breakdown is a figure about
+    # whatever happened to get labelled, and it reads the same whether it rests
+    # on one slot or seven. The coding figure was 100% over 36 rows that were
+    # every one of them `current_file`, and nothing in the printed output said
+    # so. `failing_test` was reachable and unlabelled, so the number described
+    # a regex and presented itself as a schema.
+    #
+    # So the breakdown is part of the result, and the slots with nothing are
+    # named as unmeasured rather than left as silence.
+    by_entity: Dict[str, Dict[str, Any]] = {}
+    # Every slot the schema defines, so a slot nobody labelled is reported as
+    # UNMEASURED rather than simply missing. A slot that is absent from the
+    # output reads as "not applicable"; a slot reported at zero reads as "we did
+    # not do it", which is the truth and the reason the figure is narrow.
+    for slot in _schema_slots(schema):
+        by_entity.setdefault(
+            slot, {"n": 0, "correct": 0, "incorrect": 0, "unclear": 0}
+        )
+    for item in matched_values:
+        bucket = by_entity.setdefault(
+            item["entity"], {"n": 0, "correct": 0, "incorrect": 0, "unclear": 0}
+        )
+        verdict = item["verdict"]
+        if verdict in (CORRECT, INCORRECT, UNCLEAR):
+            bucket[verdict] += 1
+            if verdict != UNCLEAR:
+                bucket["n"] += 1
+    for bucket in by_entity.values():
+        bucket["precision"] = (
+            round(bucket["correct"] / bucket["n"], 3) if bucket["n"] else None
+        )
+
     return {
         "n_labelled": matched,
         "n_unmatched_labels": len(labels) - matched,
@@ -220,6 +266,9 @@ def score(
         "unclear": unclear,
         "precision": round(precision, 3) if precision is not None else None,
         "n": judged,
+        "by_entity": by_entity,
+        "slots_measured": sorted(e for e, b in by_entity.items() if b["n"]),
+        "slots_unmeasured": sorted(e for e, b in by_entity.items() if not b["n"]),
         "n_clusters": clusters_judged,
         "n_clusters_unclear": clusters_unclear,
         "cluster_precision": (
@@ -254,6 +303,30 @@ def render(result: Dict[str, Any]) -> str:
     lines.append(f"    correct              {result['correct']}")
     lines.append(f"    incorrect            {result['incorrect']}")
     lines.append(f"  PRECISION (rows)       {result['precision'] * 100:.0f}%   (n={result['n']})")
+
+    # The coverage of the number above, attached to the number. A reader who
+    # sees the slot breakdown cannot quote the figure as a statement about the
+    # schema, because the sentence underneath it says which slots it is about.
+    by_entity = result.get("by_entity") or {}
+    if by_entity:
+        lines.append("")
+        lines.append("  the same number, by slot -- this is what the percentage is about:")
+        for entity in sorted(by_entity):
+            bucket = by_entity[entity]
+            if bucket["n"]:
+                lines.append(f"    {entity:<22} {bucket['precision'] * 100:>5.0f}%  "
+                             f"n={bucket['n']:<4} "
+                             f"({bucket['correct']} correct, {bucket['incorrect']} incorrect)")
+            else:
+                lines.append(f"    {entity:<22} UNMEASURED  "
+                             f"({bucket['unclear']} unclear, 0 judged)")
+        unmeasured = result.get("slots_unmeasured") or []
+        if unmeasured:
+            lines.append("")
+            lines.append("  The percentage above covers "
+                         f"{len(result.get('slots_measured') or [])} of "
+                         f"{len(by_entity)} labelled slots. It is not a")
+            lines.append("  statement about " + ", ".join(unmeasured) + " yet.")
 
     # The row count overstates the evidence whenever trajectories for one issue
     # share opening turns. Show the clustered figure and the interval beside it.

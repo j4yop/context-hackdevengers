@@ -411,6 +411,28 @@ labels are one slot**: precision is currently a statement about the
 `current_file` regex and nothing else. A worksheet for the second slot is built
 below.
 
+**And the number now says so itself.** The precision report prints its own
+coverage, because a figure with no slot breakdown is a figure about whatever
+happened to get labelled, and it reads identically whether it rests on one slot
+or seven:
+
+```
+  PRECISION (rows)       100%   (n=39)
+
+  the same number, by slot -- this is what the percentage is about:
+    current_file             100%  n=39   (39 correct, 0 incorrect)
+    failing_test           UNMEASURED  (0 unclear, 0 judged)
+
+  The percentage above covers 1 of 2 labelled slots. It is not a
+  statement about failing_test yet.
+```
+
+An unlabelled slot is reported as **UNMEASURED** rather than left out, and that
+distinction is the point. Omitted, it reads as *not applicable* — which is
+exactly how `failing_test` managed to be invisible while matching 740 times in
+tool output and never once in speech. Absent and not-yet-done are different
+things, and only one of them is a fact about the code.
+
 #### The second coding slot, unreachable and then not
 
 `coding.failing_test` matched **740 times** in the coding corpus and **not once in
