@@ -12,10 +12,13 @@ configuration, and it has to be done in a browser.
 | gate | result |
 |---|---|
 | `python -m build` | `contextgc-0.4.0-py3-none-any.whl` + `.tar.gz` |
+| full pipeline on CI | `release.yml` dry run, **success** |
 | `twine check --strict` | PASSED on both artifacts |
 | wheel installs into an empty venv | yes, from `site-packages` |
 | wheel ships the schemas | `['coding', 'logistics', 'travel']` |
 | wheel compiles with a shipped schema | `{'current_file': 'a/b.py'}` |
+| value contracts reach an installed wheel | `['current_file', 'failing_test']` |
+| the value gate works from an installed wheel | 1 wrong-shaped value reported |
 | wheel scope | only `contextgc/` — no `benchmarks`, `server` or `web` leakage |
 | sdist | carries schemas, README and LICENSE |
 | `contextgc` on PyPI | HTTP 404 — the name is free |
@@ -29,11 +32,15 @@ pipeline without uploading.
 ## The one step that needs you
 
 PyPI Trusted Publishing, so the workflow can mint a short-lived OIDC token
-instead of the project holding a long-lived API token.
+instead of the project holding a long-lived API token. **Verified 2026-09-28**
+against the committed `release.yml`: the publish job requests exactly this
+identity, and only a tag can reach it.
 
 1. Sign in at <https://pypi.org/manage/account/publishing/>
 2. **Add a new publisher** → **GitHub**
-3. Fill in:
+3. Fill in, copying these exactly — they are what the workflow's OIDC token
+   will claim, and a mismatch fails with an error that reads like a permissions
+   problem rather than a typo:
 
    | field | value |
    |---|---|
