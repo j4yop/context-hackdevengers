@@ -53,6 +53,38 @@ TRANSCRIPT = [
 # The retraction invariant -- the bug this rewrite exists to prevent
 # ---------------------------------------------------------------------------
 
+def test_the_reported_version_is_the_one_that_was_published():
+    """
+    `__version__` was a literal, and it was still "0.4.0" after 0.4.1 shipped.
+    Found by installing the published wheel and asking it -- the only check that
+    exercises the artifact rather than the checkout.
+
+    Two sources of truth for a version is one too many, and the failure is
+    silent: bumping `pyproject.toml` leaves a string that still looks right. The
+    same class of drift made this README claim `pip install contextgc` for a
+    package that had never been published.
+    """
+    import re
+    from pathlib import Path
+
+    import contextgc
+
+    declared = re.search(
+        r'^version = "([^"]+)"',
+        (Path(__file__).resolve().parent.parent / "pyproject.toml").read_text(
+            encoding="utf-8"
+        ),
+        re.M,
+    ).group(1)
+    assert contextgc.__version__ == declared, (
+        f"contextgc.__version__ is {contextgc.__version__!r} but pyproject "
+        f"declares {declared!r}"
+    )
+    assert contextgc.__version__ != "unknown", (
+        "neither installed metadata nor pyproject.toml was readable"
+    )
+
+
 def test_retiring_a_turn_never_orphans_a_live_fact():
     """A retired turn must not be the sole support for a value still in the prompt.
 
