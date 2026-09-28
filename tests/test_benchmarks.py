@@ -856,6 +856,45 @@ def test_an_airport_slot_does_not_read_an_english_word():
     assert not airports, f"an English word became an airport: {airports}"
 
 
+def test_staleness_refuses_to_count_a_read_as_an_edit():
+    """
+    The measurement that looked most promising and does not survive contact with
+    the corpus.
+
+    Taking "any file named against a command" as the action signal has 28.6%
+    support, and reports a 44.9% disagreement rate. Reading the turns shows most
+    of it is the agent opening a file to diagnose an import error, or running a
+    script to verify a fix, while the tracker correctly holds the file it is
+    editing. `open lexicon/config.py` is a read. `python reproduce.py` is a run.
+    Neither means the file under edit changed.
+    """
+    from benchmarks.staleness import edited_file
+
+    assert edited_file("Let's open lexicon/config.py to check the imports") is None
+    assert edited_file("```\npython reproduce.py\n```") is None
+    assert edited_file("Now update the config.py file with the new source") is None
+    assert edited_file("Edit reproduce.py to use the resolver") == "reproduce.py"
+    assert edited_file("sed -i 's/old/new/' api.py") == "api.py"
+
+
+def test_staleness_will_not_quarter_its_rate_on_one_transcript():
+    """
+    25 of 31 disagreements came from a single transcript -- an agent ping-ponging
+    between api.py and common_types.py -- and dropping it moved the rate from
+    44.9% to 14.3%. The headline would have been one agent's behaviour presented
+    as the tracker's, so the tool reports the concentration rather than the
+    average.
+    """
+    from benchmarks import staleness
+
+    result = staleness.staleness([])
+    assert "largest_contributor" in result
+    assert "rate_without_it" in result["largest_contributor"]
+    # An empty corpus must not invent a rate.
+    assert result["disagreement_rate"] is None
+    assert staleness.MIN_COMPARISONS >= 50, "a rate over a handful of points is not a measurement"
+
+
 def test_an_options_menu_is_not_recorded_as_a_booking():
     """
     Found by reading the registering turns of the second domain. A turn listed
