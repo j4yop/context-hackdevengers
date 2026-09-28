@@ -708,20 +708,55 @@ why an in-schema ratio is necessary and not sufficient.
 A key check is necessary and not sufficient, and the second capture proved it by
 sitting exactly on the boundary: 96% of declared keys named a real slot, and the
 values were still wrong. So a schema may now state what a *declared* value for
-each slot may look like:
+each slot may look like.
+
+The first contracts were written by hand from the values one capture happened to
+produce, and that was a guess wearing a measurement's clothes. They are now
+**derived from the schema's own entity patterns**, by
+`contextgc/value_shapes.py`. The patterns were fitted to a corpus, so their
+alternations *are* that corpus's vocabulary; reusing them substitutes a
+measurement for a guess:
 
 ```json
 "values": {
-  "current_file": "[\w./-]*\.(?:py|js|ts|tsx|jsx|go|rs|java|rb|cpp|hpp)",
-  "failing_test": "(?:^|[/:\s])test_[\w./\[\]:-]+"
+  "current_file": "(?:[\\w][\\w./-]*\\.(?:py|js|ts|tsx|jsx|go|rs|java|rb|cpp|hpp))",
+  "failing_test": "(?:(?<![A-Za-z0-9])test_[\\w./\\[\\]-]+)"
 }
 ```
+
+Deriving them mattered more than the hand-written versions looked. The old
+`logistics.delivery_address` was `[\w\s.,'/-]+` and `payment_method` was
+`[\w ]+`, so on a 48-value set of wrong-shaped declarations — `None`, error
+messages, `memset.py`, a bare `1234567` — the hand-written contracts accepted
+**34 of 48** and the derived ones accept **0 of 48**. Every one of the **7,929**
+distinct values the read path has actually produced across the three shipped
+schemas is still accepted, so the tightening cost nothing in coverage.
+
+Two bugs in the derivation were found only by running it, not by reading it, and
+both are now pinned by tests in `tests/test_value_shapes.py`:
+
+- The first version read `basic economy` — 14 of 42 observations, the most
+  common value in `cabin_class` — as a structural pattern and dropped it. A
+  contract that rejects the commonest value in its own slot is worse than none.
+- The first version anchored `test_` to a separator and rejected 2 of 126 real
+  values, because `base_test_test.py` and `tests.test_flask_pyoidc` put an
+  underscore or a dot in front of `test_`. The boundary is "not preceded by an
+  alphanumeric".
+
+One false accept is left and recorded rather than fitted away: `failing_test`
+still accepts `my_test_helper.py`, since a helper module's name contains `test_`
+and telling it from a test would need more than the pattern carries. It is
+written into the schema's `_measurement` so the limit is visible.
 
 `value_policy` then behaves like `declaration_policy`: `flag` keeps the value and
 reports it, `reject` drops it, `off` disables the check. A slot with no contract
 is not gated — absence is not permission to guess.
 
-Two properties were forced by measurement rather than chosen:
+Contracts are stored in the schema file, where a reviewer can read them, and a
+test fails if an entity pattern is edited without re-deriving, so the two cannot
+drift apart.
+
+Two further properties were forced by measurement rather than chosen:
 
 - **Contracts are never applied to the read path's own values**, which come out
   of the slot's pattern by construction, so gating them would be circular. A test
@@ -732,17 +767,19 @@ Two properties were forced by measurement rather than chosen:
 - **The match is a search, not a full match, and is case-insensitive.** A strict
   match rejects a leading `/` on an absolute path and pytest's `::` separator.
 
-Measured on the canonical 14B capture: **24 of 55** declarations are of the
-wrong shape and are reported; 31 pass. Under `reject` the 24 go and the 31 stay,
-including all the well-shaped `current_file` values.
+Measured on the canonical 14B capture: **47** declared string values, **45** of
+them in slots that have a contract. **16** are of the wrong shape and are
+reported; 29 pass. All 16 are `failing_test` values — the 14B model never once
+produced a plausible test identifier in this capture, only error text and shell
+commands. The remaining 2 declarations are in `auth_token` and `credentials`,
+which are not schema slots and so are not gated.
 
 **This does not make the write path proven.** It removes a failure mode that was
 previously invisible, and the same standard applies to it as to the key gate: a
-value that satisfies its contract can still be wrong. The `failing_test` the 14B
-declared for transcript 0 was `HTTPError: 403 Forbidden`, which the contract now
-rejects — but a future model could satisfy the contract with a *plausible but
-wrong* test identifier, and nothing here would catch that. Treat the write path
-as unproven rather than as working until truth is checked against labels.
+value that satisfies its contract can still be wrong. A future model could
+satisfy the contract with a *plausible but wrong* test identifier, and nothing
+here would catch that. Treat the write path as unproven rather than as working
+until truth is checked against labels.
 
 #### The prompt was wrong before it was measured
 
