@@ -40,7 +40,56 @@ from .state_protocol import (
 from .transcript import parse_transcript
 from .vector_tier import RetiredTurnArchive, VectorMemoryTier
 
-__version__ = "0.4.0"
+
+def _resolve_version() -> str:
+    r"""
+    The version, resolved from whichever source describes *this* copy.
+
+    This used to be a string literal. It was still "0.4.0" after 0.4.1 shipped,
+    which was found by installing the published wheel and asking it -- the only
+    check that exercises the published artifact rather than the checkout. Two
+    sources of truth for a version is one too many: the moment anyone bumps
+    pyproject.toml, a hardcoded string silently becomes a lie, and the same class
+    of drift made this README claim `pip install contextgc` for a package that had
+    never been published.
+
+    Order matters, and getting it wrong is its own bug. Installed metadata is what
+    was actually uploaded, so it is authoritative for a wheel -- but a source
+    checkout usually carries a stale ``*.egg-info`` from an earlier
+    ``pip install -e .``, and metadata-first answers 0.4.0 forever in exactly the
+    directory where you are editing. A pyproject.toml sitting next to the package
+    is therefore authoritative, and metadata is the fallback for when there isn't
+    one, which is what an installed copy looks like.
+    """
+    try:
+        import re as _re
+        from pathlib import Path
+
+        pyproject = Path(__file__).resolve().parent.parent / "pyproject.toml"
+        found = _re.search(
+            r'^version = "([^"]+)"', pyproject.read_text(encoding="utf-8"), _re.M
+        )
+        if found:
+            return found.group(1)
+    except (OSError, ValueError):
+        pass
+
+    try:
+        from importlib.metadata import PackageNotFoundError, version
+
+        try:
+            return version("contextgc")
+        except PackageNotFoundError:
+            pass
+    except ImportError:  # pragma: no cover - stdlib since 3.9
+        pass
+
+    # Neither source is readable. Say so rather than invent a version, so the
+    # failure is visible instead of being a number that looks right.
+    return "unknown"
+
+
+__version__ = _resolve_version()
 
 __all__ = [
     "compile_messages",
