@@ -517,6 +517,35 @@ def test_declared_value_confidence_object_is_rejected_not_silently_flattened():
     assert declaration.malformed is True
 
 
+def test_a_repeated_declaration_key_is_not_silently_dropped():
+    """
+    Found in the airline capture. The 14B declared
+
+        {"passenger_id": "Daiki Lopez", "passenger_id": "Lei Khan"}
+
+    on a turn about updating two passengers' names. `json.loads` keeps the last
+    of a repeated key and says nothing, so the block parsed cleanly and "Daiki
+    Lopez" disappeared. The declaration was about two people and the tracker
+    recorded one, and the only symptom was a value nobody could explain.
+
+    A repeated key means the model lost track of what it was asserting, which is
+    a malformed declaration rather than a formatting quirk.
+
+    The block is written as raw text, not as a dict, for two reasons: a dict
+    literal has already lost the duplicate by the time it is serialised, and
+    ruff rejects a repeated literal key outright. The duplicate only exists in
+    the bytes the model emitted.
+    """
+    raw = '{"pin":{"passenger_id":"Daiki Lopez","passenger_id":"Lei Khan"}}'
+    declaration = parse_declaration(block_(raw))
+    assert declaration.malformed is True
+    assert declaration.pins == {}
+
+    ok = parse_declaration(block_('{"pin":{"passenger_id":"Daiki Lopez"}}'))
+    assert ok.malformed is False
+    assert ok.pins == {"passenger_id": "Daiki Lopez"}
+
+
 # ===========================================================================
 # the schema gate
 # ===========================================================================

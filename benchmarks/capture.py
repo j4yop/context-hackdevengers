@@ -67,6 +67,51 @@ def parse_block(block: str) -> Optional[Dict[str, Any]]:
     return parsed if isinstance(parsed, dict) else None
 
 
+def _malformed_reason(block: str) -> str:
+    """
+    Why one block was rejected, so the count can be acted on.
+
+    "8 of 36 blocks are malformed" is a number to shrug at. Knowing that 3 were
+    unparseable JSON, 3 nested a verb inside another, 1 was empty and 1 repeated
+    a key is four different defects with four different fixes, and the capture
+    verifier is the only place all of them surface at once.
+    """
+    import json as _json
+
+    from contextgc.state_protocol import _ASSERT_KEYS, _no_duplicate_keys
+
+    body = (block or "").strip()
+    if not body:
+        return "empty"
+    try:
+        data = _json.loads(body, object_pairs_hook=_no_duplicate_keys)
+    except (ValueError, TypeError):
+        try:
+            _json.loads(body)
+        except (ValueError, TypeError):
+            return "unparseable JSON"
+        return "a repeated key"
+    if not isinstance(data, dict):
+        return "not an object"
+    for key in _ASSERT_KEYS:
+        if key not in data:
+            continue
+        value = data[key]
+        if not isinstance(value, dict):
+            return "a verb nested inside another"
+        for entity, val in value.items():
+            if isinstance(val, dict):
+                # Two different defects produce an object where a string belongs.
+                # The member *name* says which: a verb name means the model wrote
+                # one verb inside another (`{"assert": {"unsure": {...}}}`), and
+                # anything else is the `{value, confidence}` shape the protocol
+                # rejects on purpose (`{"unsure": {"rider": {"value": "west"}}}`).
+                if entity in _ASSERT_KEYS:
+                    return "a verb nested inside another"
+                return "a value that is not a string"
+    return "unrecognised"
+
+
 def summarise(
     turns: List[Dict[str, Any]],
     schema: Optional[Dict[str, Any]] = None,
@@ -101,6 +146,8 @@ def summarise(
     from contextgc.state_protocol import parse_declaration
 
     total = malformed = 0
+    reasons = {"unparseable JSON": 0, "empty": 0, "a verb nested inside another": 0,
+               "a repeated key": 0, "a value that is not a string": 0}
     keys: Dict[str, int] = {}
     declared_keys = 0
     in_schema_keys = 0
@@ -115,6 +162,8 @@ def summarise(
             declaration = parse_declaration(f"<contextgc-state>{block}</contextgc-state>")
             if declaration.malformed:
                 malformed += 1
+                reason = _malformed_reason(block)
+                reasons[reason] = reasons.get(reason, 0) + 1
                 continue
             for group in (
                 declaration.asserts, declaration.pins,
@@ -135,6 +184,7 @@ def summarise(
         "turns": len(turns),
         "blocks": total,
         "malformed": malformed,
+        "malformed_reasons": {k: v for k, v in reasons.items() if v},
         "declared_turns": declared_turns,
         "compliance": round(declared_turns / len(turns), 3) if turns else 0.0,
         "declared_keys": declared_keys,
@@ -209,7 +259,13 @@ def verify(
         )
     if summary["malformed"]:
         problems.append(
-            f"{summary['malformed']} of {summary['blocks']} blocks do not parse as JSON"
+            f"{summary['malformed']} of {summary['blocks']} blocks are malformed: "
+            + "; ".join(f"{n} {reason}" for reason, n in sorted(
+                summary["malformed_reasons"].items(), key=lambda kv: -kv[1]
+            ))
+            + ". A block can fail to parse, name a repeated key, nest one verb "
+            "inside another, or carry a value that is not a string -- the "
+            "reasons are listed because they are different defects, not one"
         )
     if summary["in_schema_ratio"] is not None and summary["in_schema_ratio"] < 0.5:
         problems.append(

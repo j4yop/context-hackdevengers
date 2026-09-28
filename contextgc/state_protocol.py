@@ -246,6 +246,30 @@ def strip_blocks(text: Optional[str]) -> str:
     return cleaned if cleaned.strip() else " "
 
 
+def _no_duplicate_keys(pairs):
+    """
+    ``object_pairs_hook`` that refuses a repeated key.
+
+    ``json.loads`` keeps the last of a repeated key and says nothing. A real
+    14B capture on the airline corpus declared
+    ``{"passenger_id": "Daiki Lopez", "passenger_id": "Lei Khan"}`` -- a
+    conversation about updating two passengers' names -- and the first silently
+    disappeared, with the block reported as well formed. The declaration was
+    about two people and the tracker kept one of them, and the only visible
+    symptom was a value nobody could explain.
+
+    A duplicate key is not a formatting detail here: it means the model lost
+    track of what it was asserting. Raising makes the block ``malformed``, which
+    is the outcome the capture already counts and refuses on.
+    """
+    out = {}
+    for key, value in pairs:
+        if key in out:
+            raise ValueError(f"duplicate key: {key}")
+        out[key] = value
+    return out
+
+
 def parse_declaration(text: Optional[str]) -> StateDeclaration:
     """
     Parse all protocol blocks in ``text``.
@@ -261,8 +285,8 @@ def parse_declaration(text: Optional[str]) -> StateDeclaration:
     merged = StateDeclaration()
     for body in bodies:
         try:
-            data = json.loads(body)
-        except (json.JSONDecodeError, TypeError):
+            data = json.loads(body, object_pairs_hook=_no_duplicate_keys)
+        except (json.JSONDecodeError, TypeError, ValueError):
             merged.malformed = True
             continue
         if not isinstance(data, dict):
