@@ -941,6 +941,45 @@ def test_a_malformed_block_is_counted_not_hidden():
     assert summary["declared_turns"] == 2
 
 
+def test_malformed_blocks_are_reported_by_reason_not_just_counted():
+    """
+    "8 of 36 blocks are malformed" is a number to shrug at. The airline capture's
+    eight were 3 verb-nestings, 2 syntax errors, 2 repeated keys and 1 empty
+    block: four different defects with four different fixes, and knowing only
+    the total hides which one to go after.
+    """
+    from benchmarks import capture as cap
+
+    turns = [
+        {"role": "assistant", "content":
+            '<contextgc-state>{"assert": {"a": "1"}}</contextgc-state>'},
+        {"role": "assistant", "content":
+            "<contextgc-state>totally not json</contextgc-state>"},
+        {"role": "assistant", "content":
+            '<contextgc-state>{"pin": {"a": "1"}, "pin": {"b": "2"}}</contextgc-state>'},
+        {"role": "assistant", "content":
+            '<contextgc-state>{"assert": {"unsure": {"x": "y"}}}</contextgc-state>'},
+        {"role": "assistant", "content": "<contextgc-state>   </contextgc-state>"},
+    ]
+    summary = cap.summarise(turns)
+    assert summary["malformed"] == 4
+    reasons = summary["malformed_reasons"]
+    assert reasons["unparseable JSON"] == 1
+    assert reasons["a repeated key"] == 1
+    assert reasons["a verb nested inside another"] == 1
+    assert reasons["empty"] == 1
+
+    # And the verifier has to say which, not only how many.
+    payload = {
+        "version": cap.CAPTURE_VERSION,
+        "endpoint": "http://localhost:1/v1",
+        "model": "test",
+        "turns": turns,
+    }
+    problems = cap.verify(payload)
+    assert any("a repeated key" in p for p in problems), problems
+
+
 def test_a_capture_with_no_declarations_is_reported_as_unusable():
     """
     A capture where the model never declared anything would make `shadow` report
