@@ -3,9 +3,10 @@
   "entities": {
     "cabin_class": [
       "(?<!Seats: )(?<!Prices: )\\b(basic\\s+economy|premium\\s+economy)\\b",
-      "\\b(economy|business|first)(?:\\s+(?:class|cabin))\\b",
+      "\\b(economy|business)(?:\\s+(?:class|cabin))\\b",
+      "\\bfirst\\s+(?:class|cabin)\\b",
       "\\b(?:class|cabin)\\b[^.\\\"\\n]{0,18}?\\b(basic\\s+economy|premium\\s+economy|economy|business|first)\\b",
-      "\\b(?:in|to|into)\\s+(?:the\\s+)?(basic\\s+economy|premium\\s+economy|economy|business|first)\\b"
+      "\\b(?:in|to|into)\\s+(?:the\\s+)?(basic\\s+economy|premium\\s+economy|economy|business)\\b"
     ],
     "active_reservation": [
       "\\breservation\\s*(?:id|ID|number|#)\\s*(?:is\\s*)?[`\\\"']?(?-i:([A-Z0-9]{6}))\\b",
@@ -24,7 +25,7 @@
       "\\bflights?\\s+(?:is\\s+|are\\s+|on\\s+)?(?-i:([A-Z]{3}\\d{2,4}))\\b"
     ],
     "passenger_id": [
-      "\\buser\\s*id\\s*(?:is|:)?\\s*[`\\\"']?([a-z]+_[a-z]+_\\d{3,4})\\b"
+      "\\buser\\s*id\\s*(?:\\bis\\b|:)?\\s*[`\\\"']?([a-z]+_[a-z]+_\\d{3,4})\\b"
     ],
     "flight_date": [
       "\\bflights?\\b[^.\\n]{0,60}?\\b((?:January|February|March|April|May|June|July|August|September|October|November|December)\\s+\\d{1,2},\\s+\\d{4})\\b",

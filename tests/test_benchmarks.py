@@ -9,6 +9,7 @@ emitted context, and that the numbers it reports are internally consistent.
 
 import json
 import os
+import re
 
 import pytest
 from conftest import MINIMAL
@@ -1101,6 +1102,87 @@ def test_the_merge_refuses_a_worksheet_nobody_judged():
     worksheet["items"][1]["turn_in_context"] = ">>> [4] user: business"
     with pytest.raises(SystemExit):
         lw.merge(worksheet, "nosuchschema")
+
+
+def test_a_user_id_starting_with_is_is_not_eaten_by_the_verb():
+    """
+    Found by scoring against the booking database, not by reading the pattern.
+
+    `(?:is|:)?` is an optional verb, and on "user ID isabella_anderson_9682" it
+    matched the leading `is` of the *name*, so the read path produced
+    `abella_anderson_9682` -- a corrupted id that passed every key-level check.
+    15 occurrences in the airline corpus, and the mechanical worksheet suggestion
+    called the value `correct` because the string is in the turn.
+
+    A dropped flag or a greedy optional is a lost constraint, not a cosmetic
+    difference: this one invents a user.
+    """
+    from contextgc import load_schema
+
+    pattern = load_schema("travel")["passenger_id"][0]
+    got = re.search(f"(?:{pattern})", "user ID isabella_anderson_9682", re.IGNORECASE)
+    assert got.group(1) == "isabella_anderson_9682", got.group(1)
+    # And the ordinary phrasings still work.
+    for text, expected in (
+        ("My user ID is amelia_rossi_1651.", "amelia_rossi_1651"),
+        ("user id: chen_rossi_8135", "chen_rossi_8135"),
+        ("user id is raj_johnson_6495", "raj_johnson_6495"),
+    ):
+        found = re.search(f"(?:{pattern})", text, re.IGNORECASE)
+        assert found and found.group(1) == expected, (text, found and found.group(1))
+
+
+def test_the_ordinal_first_is_not_a_first_class_cabin():
+    """
+    Also found by the booking database, which holds only economy / business /
+    basic_economy across 3,030 records and never `first`.
+
+    "rescheduling my return flight to the first one-stop option you provided"
+    matched the cabin pattern's `to\\s+(?:the\\s+)?(first)` and recorded a First
+    Class cabin. This is row 051 of the labelling worksheet, where the mechanical
+    suggestion read `correct` -- the string is in the turn, and the check that
+    catches it needs the record rather than the text.
+    """
+    from benchmarks.harness import run
+    from contextgc import load_schema
+
+    result = run(
+        [Transcript(
+            transcript_id="ordinal#1", source="unit-test",
+            messages=normalise_messages([
+                {"role": "user", "content": "hello"},
+                {"role": "user", "content":
+                    "Could you reschedule my return flight to the first one-stop "
+                    "option you provided earlier?"},
+            ]),
+        )],
+        schema=load_schema("travel"),
+    )
+    cabins = {e["value"] for e in result.extractions if e["entity"] == "cabin_class"}
+    assert not cabins, f"an ordinal became a cabin class: {cabins}"
+
+
+def test_ground_truth_scores_only_what_the_record_can_settle():
+    """
+    The unverifiable bucket is not a pass. An extraction the record says nothing
+    about has to be counted apart, or folding it into a rate flatters the number.
+    """
+    from benchmarks import ground_truth as gt
+
+    record = {"reservation_id": "ABC123", "user_id": "amelia_rossi_1651",
+              "origin": "PHL", "destination": "DEN", "cabin": "basic_economy",
+              "flights": [{"origin": "PHL", "destination": "DEN",
+                           "flight_number": "HAT076", "date": "2024-05-09"}]}
+    assert gt.slot_values(record, "active_reservation") == {"ABC123"}
+    assert gt.slot_values(record, "passenger_id") == {"amelia_rossi_1651"}
+    assert gt.slot_values(record, "origin_airport") == {"PHL"}
+    assert gt.slot_values(record, "flight_number") == {"HAT076"}
+    # An ISO date in the record, a spoken date from the read path.
+    assert gt.slot_values(record, "flight_date") == {"May 9, 2024"}
+    # `basic_economy` in the record, `basic economy` out of it.
+    assert gt.slot_values(record, "cabin_class") == {"basic economy"}
+    # A slot with no field in the record has nothing to settle.
+    assert gt.slot_values(record, "no_such_slot") == set()
 
 
 def test_an_options_menu_is_not_recorded_as_a_booking():

@@ -14,3 +14,7 @@ venv/
 # Browser test driver (tests/browser/package.json is committed on purpose).
 node_modules/
 package-lock.json
+
+# A generated labelling worksheet, not source. `label_worksheet --out` writes
+# whatever path you give it; the canonical example lives outside the repo.
+ws.json
