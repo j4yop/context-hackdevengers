@@ -70,6 +70,34 @@ def render(result: Any, width: int = 78) -> str:
     return "\n".join(lines)
 
 
+def render_truncation_notice(result: Any, width: int = 78) -> str:
+    """
+    Say it when the extraction cap bit, because it moves the precision number.
+
+    The cap is a memory guard, not a sampling decision, and it used to be
+    invisible. On the airline corpus it retained 405 of 615 active facts, so 21
+    of 152 hand labels had nothing to match and the denominator quietly fell from
+    149 to 131 -- and because transcripts are compiled in order, the labels lost
+    were not a random sample. The reported precision went 99% to 98% for no reason
+    in the library at all.
+    """
+    dropped = getattr(result, "extractions_dropped", 0) or 0
+    if not dropped:
+        return ""
+    kept = len(getattr(result, "extractions", []) or [])
+    lines = [
+        "  " + "-" * (width - 4),
+        f"  WARNING: {dropped} extraction(s) were not retained.",
+        f"    {kept} kept, {dropped} dropped by the memory cap.",
+        "    Any precision figure above is over a TRUNCATED sample: fewer",
+        "    retained extractions means fewer labels can match, and because",
+        "    transcripts are compiled in order the loss is not a fair sample.",
+        "    Re-run with a higher --max-extractions, or the number above is",
+        "    an artefact of the harness rather than a measurement.",
+    ]
+    return "\n".join(lines) + "\n"
+
+
 def render_run(result: Any, precision: Optional[Dict[str, Any]] = None, width: int = 78) -> str:
     """The standard report: corpus, measurements, findings, then precision."""
     from .gold import render as render_gold

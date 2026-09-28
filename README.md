@@ -174,7 +174,7 @@ repositories and every number below inherits that narrowness.
 | tool payloads compacted | 668 | 138 | 275 |
 | retirement violations | 0 | 0 | 0 |
 | contexts that grew | 0 | 0 | 0 |
-| precision (independent units) | 100% (n=36, CI 90–100%) | 100% (n=72, CI 95–100%) | 100% (n=47, CI 92–100%) |
+| precision (independent units) | 100% (n=36, CI 90–100%) | **99% (n=149, CI 95–100%)** | 100% (n=47, CI 92–100%) |
 
 Run with `--corpus swe-agent`, or `--corpus apigen --domain airline|retail`.
 
@@ -493,6 +493,47 @@ economy and one in business?"), and **one genuine agent-versus-record
 disagreement** where the agent says Economy, the record says `basic_economy`, and
 the read path faithfully recorded what the agent said. That last one is not a
 pattern bug at all, and it is the most interesting row in the table.
+
+#### The travel sample, labelled across all seven slots
+
+The worksheet was filled in — 80 rows, 77 `correct`, 3 `incorrect`, every note
+written — and merged into `benchmarks/labels/travel.json`. Precision is now
+**99% (n=149, 95% CI 95–100%)** and, for the first time, it is a statement about
+all seven travel slots rather than one. The three `incorrect` are informative:
+
+| row | extraction | why it was marked incorrect |
+|---|---|---|
+| 002 | `cabin_class = 'economy'` | a hypothetical — "if I book a flight in economy class…" |
+| 051 | `cabin_class = 'first'` | the ordinal in "the first one-stop option" |
+| 068 | `passenger_id = 'abella_lopez_2185'` | the `is`-prefix bug, a truncated id |
+
+Rows 051 and 068 are the two bugs the booking-database check found, judged
+independently by a person reading the turns. Row 002 is the more interesting one:
+**the booking record agreed with it.** `cabin_class` was extracted as `economy`
+and the record held `economy`, so the record-based check scored it corroborated
+and never flagged it. A human reading the turn saw a conditional that asserts
+nothing. That is the clearest available statement of what the record cannot do —
+it confirms a value was real, and has no opinion on whether the sentence meant
+it.
+
+The three `incorrect` verdicts are recorded on extractions that **no longer
+reproduce**, because both were bugs that have since been fixed. They are kept as
+regression records: if either reappears, the label says it was wrong before.
+
+#### A memory cap was quietly moving the precision number
+
+The 99% above was initially reported as **98% (n=131)**. The cause was not the
+library. `harness.run` capped retained extractions at 400 as a memory guard for a
+200 MB corpus; the airline corpus yields 615 active facts, so **21 of 152 labels
+had no extraction to match** and the denominator fell from 149 to 131. Because
+transcripts are compiled in order, the labels lost were not a random sample —
+every transcript past the cap contributed nothing scoreable at all.
+
+The cap is now counted (`extractions_dropped`), exposed as `--max-extractions`,
+and when it bites the report says the figure is over a truncated sample and is
+an artefact of the harness. The default was raised so it does not bite at this
+corpus's size. It is still a cap: pass `--max-extractions` deliberately and the
+notice appears.
 
 #### Making labelling cheap enough to stop being the bottleneck
 

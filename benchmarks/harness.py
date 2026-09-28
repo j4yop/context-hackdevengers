@@ -76,6 +76,10 @@ class HarnessResult:
         self.per_transcript: List[Dict[str, Any]] = []
         self.extractions: List[Dict[str, Any]] = []
         self.errors: List[Dict[str, Any]] = []
+        #: Extractions that matched the cap and were not retained. Non-zero means
+        #: any precision number computed from ``extractions`` is over a truncated
+        #: sample, and must say so.
+        self.extractions_dropped = 0
 
     def as_dict(self) -> Dict[str, Any]:
         return {
@@ -83,6 +87,7 @@ class HarnessResult:
             "measurements": [m.as_dict() for m in self.measurements],
             "per_transcript": self.per_transcript,
             "extractions": self.extractions,
+            "extractions_dropped": self.extractions_dropped,
             "errors": self.errors,
         }
 
@@ -92,7 +97,7 @@ def run(
     schema: Optional[Any] = None,
     invariants: Optional[List[str]] = None,
     keep_extractions: bool = True,
-    max_extractions: int = 400,
+    max_extractions: int = 100_000,
 ) -> HarnessResult:
     """
     Compile every transcript and collect measurements.
@@ -190,15 +195,26 @@ def run(
             "model": transcript.meta.get("model"),
         })
 
-        if keep_extractions and len(result.extractions) < max_extractions:
+        if keep_extractions:
             for node in dag["active"]:
-                result.extractions.append({
-                    "transcript": transcript.id,
-                    "entity": node["entity"],
-                    "value": node["value"],
-                    "source": node["source"],
-                    "turn": node["turn_index"],
-                })
+                if len(result.extractions) < max_extractions:
+                    result.extractions.append({
+                        "transcript": transcript.id,
+                        "entity": node["entity"],
+                        "value": node["value"],
+                        "source": node["source"],
+                        "turn": node["turn_index"],
+                    })
+                else:
+                    # Counted, not silently dropped. This cap is a memory guard on
+                    # a 200 MB corpus, but it used to be invisible, and it lands
+                    # on precision: the airline corpus yields 615 active facts
+                    # and the cap is 400, so 21 of 152 hand labels had no
+                    # extraction to match and the denominator quietly fell to 131.
+                    # Because transcripts are compiled in order, the loss is not
+                    # even a fair random sample -- every transcript after the cap
+                    # contributes nothing scoreable at all.
+                    result.extractions_dropped += 1
 
     n = len(result.per_transcript)
     if n == 0:
