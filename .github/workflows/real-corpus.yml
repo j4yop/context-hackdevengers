@@ -206,10 +206,20 @@ jobs:
             echo "::notice title=Write path::verify reported the known result (see above)."
           python benchmarks/write_path_check.py "$found" benchmarks/write_path_baseline.json
 
-      - name: The known failures must still be known failures
-        # Runs the two confirmed different-sentence errors. If a change fixes
-        # them this fails on purpose: the entry should be deleted deliberately.
-        run: pytest tests/test_benchmarks.py -q -k "known_failures"
+      - name: The known-failure mechanism must still work
+        # The list is empty. Re-reading the two turns on 2026-09-28, against the
+        # doctrine the labels state -- "agent opens/edits/creates or restates
+        # this exact value" -- showed both were *correct* extractions rather than
+        # errors: at each turn the agent says it is navigating to dispatcher.py,
+        # emits `open .../dispatcher.py`, and the next turn is the tool result
+        # confirming the open. The correction is recorded beside the now-empty
+        # list.
+        #
+        # The file and these tests stay, because the first real error has to be
+        # checkable from the moment it is recorded, and a future sampling change
+        # must not be able to hide one. If a change fixes a listed case this
+        # fails on purpose: delete the entry deliberately.
+        run: pytest tests/test_benchmarks.py -q -k "known_failures or relabelled"
 
       - name: Report
         if: always()

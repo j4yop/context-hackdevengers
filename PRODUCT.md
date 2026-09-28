@@ -110,9 +110,12 @@ a capture from a model stronger than the one measured.
   reduction 66.5% / 59.0% / 62.5%; precision 100% on every one, with n and CI.
 - **A committed real-model capture:** `captures/run1.json`, 42 assistant turns,
   `qwen2.5:7b`, with the write path measured and reported as net-negative.
-- **A hand-labelled sample** for the precision figures, plus
-  `benchmarks/labels/known_failures.json` holding two confirmed failures that are
-  deliberately kept visible.
+- **A hand-labelled sample** for the precision figures, 39 labels over 36
+  independent units. `benchmarks/labels/known_failures.json` is **empty**: it held
+  two entries that were re-read and found to be *correct* extractions, mislabelled
+  because the turn's prose discussed a different file. The correction is recorded
+  beside the empty list, and the file plus its tests remain so the first real
+  error is checkable from the moment it is recorded.
 - **One schema with no evidence:** `devtools`, labelled as such in three places.
 
 **Must not be fabricated:** customer names, testimonials, adoption or download

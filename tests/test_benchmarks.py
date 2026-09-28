@@ -443,14 +443,25 @@ def test_label_corpus_spec_is_recorded():
 
 def test_known_failures_are_kept_out_of_the_precision_denominator():
     """
-    Two confirmed different-sentence errors sit in rows the per_repo cap skips.
-    They are tracked in their own file so a sampling change cannot make them
-    disappear -- and so they cannot quietly pad the precision ratio either.
+    Confirmed errors sit in rows the per_repo cap skips, so they are tracked in
+    their own file: a sampling change must not be able to make them disappear,
+    and they must not quietly pad the precision ratio either.
+
+    The list is currently empty. It held two entries until 2026-09-28, when
+    re-reading those turns against the doctrine the labels state -- "agent
+    opens/edits/creates or restates this exact value" -- showed both were
+    *correct* extractions. At each turn the agent says it is navigating to
+    dispatcher.py, emits `open .../dispatcher.py`, and the next turn is the tool
+    result confirming the open. They now sit in precision.json as correct.
+
+    The mechanism stays. An empty list is a legitimate state -- it means nothing
+    is known to be wrong -- and the assertion is on every entry, so the first
+    real error recorded is checked from then on.
     """
     path = os.path.join(os.path.dirname(gold.LABELS_PATH), "known_failures.json")
     with open(path, encoding="utf-8") as handle:
         known = json.load(handle)
-    assert known["cases"], "known_failures.json lists no cases"
+    assert "cases" in known, "known_failures.json lost its case list"
     labelled = {
         (label["transcript"], label["entity"], label.get("turn_index"))
         for label in _precision_labels()
@@ -2054,3 +2065,33 @@ def test_a_broken_contract_rejects_nothing_rather_than_raising():
     from contextgc.gc_engine import _value_matches
 
     assert _value_matches("([unclosed", "anything") is True
+
+
+def test_the_two_relabelled_cases_are_not_moved_into_precision_json():
+    """
+    They are not errors, and they are not in the sampled corpus either. Adding
+    them to precision.json trips the nightly's label-drift check -- the check
+    that caught 20 of 24 labels matching nothing when it was written -- so the
+    only home that is both truthful and consistent is the correction recorded
+    beside the now-empty known-failure list.
+    """
+    import os
+
+    path = os.path.join(os.path.dirname(gold.LABELS_PATH), "known_failures.json")
+    with open(path, encoding="utf-8") as handle:
+        known = json.load(handle)
+    corrected = known.get("corrected") or []
+    assert corrected, (
+        "the re-labelling of 2026-09-28 is not recorded. Those two cases were "
+        "removed from known_failures as correct, and without this record the only "
+        "trace would be their absence."
+    )
+    relabelled = {(c["transcript"], c["turn_index"]) for c in corrected}
+    for transcript, turn in relabelled:
+        assert (transcript, turn) not in {
+            (label["transcript"], label.get("turn_index"))
+            for label in _precision_labels()
+        }, (
+            f"{transcript} turn {turn} is in precision.json. It sits in a row the "
+            f"--per-repo 2 cap skips, so adding it makes the label-drift check fail."
+        )
