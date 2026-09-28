@@ -1,42 +1,54 @@
 # Releasing `contextgc`
 
-The project has never been published. `pyproject.toml` says `0.4.0` and there
-are no git tags, so `pip install contextgc` — which the README tells people to
-run — does not work yet.
-
-Everything except one step is done and verified. That step is PyPI account
-configuration, and it has to be done in a browser.
+`contextgc` 0.4.1 and 0.4.2 are on PyPI and `pip install contextgc` works. This
+page records how, and what the next release has to reproduce.
 
 ## What is already verified
 
 | gate | result |
 |---|---|
-| `python -m build` | `contextgc-0.4.0-py3-none-any.whl` + `.tar.gz` |
+| `python -m build` | `contextgc-0.4.2-py3-none-any.whl` + `.tar.gz` |
 | full pipeline on CI | `release.yml` dry run, **success** |
 | `twine check --strict` | PASSED on both artifacts |
 | wheel installs into an empty venv | yes, from `site-packages` |
 | wheel ships the schemas | `['coding', 'logistics', 'travel']` |
 | wheel compiles with a shipped schema | `{'current_file': 'a/b.py'}` |
-| value contracts reach an installed wheel | `['current_file', 'failing_test']` |
+| value contracts reach an installed wheel | coding, 7 travel slots, 2 logistics |
 | the value gate works from an installed wheel | 1 wrong-shaped value reported |
 | wheel scope | only `contextgc/` — no `benchmarks`, `server` or `web` leakage |
 | sdist | carries schemas, README and LICENSE |
-| `contextgc` on PyPI | HTTP 404 — the name is free |
-| tag gate | `v0.4.0` matches `pyproject.toml`; `v0.4.1` would correctly fail |
+| `contextgc` on PyPI | 0.4.1 and 0.4.2 published, installable, no dependencies |
+| `__version__` in the installed wheel | matches `pyproject.toml` — it was a stale literal, fixed in 0.4.2 |
+| tag gate | tag must equal the `pyproject.toml` version, or the build fails |
+| no-credential release | 0.4.2 published with `gh secret list` empty |
 | runtime dependencies | none, and the gate now actually asserts it |
 
 The `release.yml` workflow runs these again on every tag, plus a check that the
 version is not already on PyPI. Dispatch it with `dry_run` to rehearse the whole
 pipeline without uploading.
 
-## The one step that needs you
+## PyPI account configuration, already done
 
-PyPI Trusted Publishing, so the workflow can mint a short-lived OIDC token
-instead of the project holding a long-lived API token. **Verified 2026-09-28**
-against the committed `release.yml`: the publish job requests exactly this
-identity, and only a tag can reach it.
+PyPI Trusted Publishing, so the workflow mints a short-lived OIDC token instead
+of the project holding a long-lived API token. **Configured 2026-09-28** and
+verified by publishing 0.4.2 with no secret stored in the repository.
 
-1. Sign in at <https://pypi.org/manage/account/publishing/>
+There is a step here that is easy to get wrong, and it cost three failed
+uploads. An OIDC identity **cannot create a project** — it can only upload to
+one. So there are two different publisher pages, and they are not
+interchangeable:
+
+| page | what it registers | when it is the right one |
+|---|---|---|
+| `pypi.org/manage/account/publishing/` | a **pending** publisher, bound to no project | before the project exists |
+| `pypi.org/manage/project/<name>/settings/publishing/` | a **project** publisher | the one that mints a project-scoped token |
+
+Registering only the first gets you `403 OIDC scoped token is not valid for
+project '<name>'` on every upload, with no hint that a second publisher was
+needed. 0.4.1 was created with a scoped API token, which *can* create a project;
+that token was then deleted, and 0.4.2 published through Trusted Publishing.
+
+1. Sign in at <https://pypi.org/manage/project/contextgc/settings/publishing/>
 2. **Add a new publisher** → **GitHub**
 3. Fill in, copying these exactly — they are what the workflow's OIDC token
    will claim, and a mismatch fails with an error that reads like a permissions
@@ -55,8 +67,11 @@ The environment name must be `pypi`. The workflow's publish job declares
 `environment: pypi`, and Trusted Publishing matches on the pair, so a mismatch
 fails with an OIDC error that reads like a permissions problem.
 
-Leave the pending-invitation field empty — the repository already exists, so
-this registers a publisher for it rather than creating a project.
+The publisher must be added on the **project's** page, not the account page.
+
+Note that `https://pypi.org/project/create/` is not the create form — PyPI
+resolves it to a package that happens to be called `create`, and shows you that
+package instead of a form.
 
 ## Then release
 

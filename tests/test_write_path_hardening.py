@@ -544,6 +544,47 @@ def test_the_release_workflow_can_actually_reach_the_token_it_documents():
     assert "environment: pypi" in workflow
 
 
+def test_the_docs_do_not_claim_a_published_package_is_unpublished():
+    """
+    The drift, both directions, and it is not hypothetical either way.
+
+    The README once told people to `pip install contextgc` for a package that had
+    never been published — a documented instruction ahead of reality. After 0.4.1
+    went out, `PRODUCT.md` and `docs/RELEASING.md` said the opposite and no
+    longer true thing: "The project has never been published ... `pip install
+    contextgc` ... does not work yet", while the package was on PyPI and
+    installable. A reader following the docs would have concluded the opposite of
+    the truth, in the one file that is supposed to be authoritative about
+    whether the product is usable.
+
+    So a published package may not be described as unpublished, anywhere.
+    """
+    import re as _re
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parent.parent
+    docs = [
+        root / "README.md",
+        root / "PRODUCT.md",
+        root / "DESIGN.md",
+        root / "docs" / "RELEASING.md",
+    ]
+    banned = _re.compile(
+        r"never been published|has not been published|not yet published|"
+        r"unpublished|does not yet work|no git tags",
+        _re.I,
+    )
+    for path in docs:
+        if not path.exists():
+            continue
+        for number, line in enumerate(path.read_text(encoding="utf-8").split("\n"), 1):
+            found = banned.search(line)
+            assert not found, (
+                f"{path.name}:{number} says {found.group(0)!r}, but the package is "
+                f"on PyPI and installable: {line.strip()[:100]}"
+            )
+
+
 def test_a_declared_value_confidence_object_is_rejected_not_silently_flattened():
     """It used to parse, then throw the number away. Now it must not parse."""
     declaration = parse_declaration(block({"unsure": {"rider": {"value": "west", "confidence": 0.4}}}))
