@@ -971,6 +971,91 @@ def test_a_worksheet_never_asks_twice_about_one_value_or_one_file():
     assert len(lw.sample_rows(same, {}, per_entity=5)) == 1
 
 
+def test_a_suggestion_never_becomes_a_verdict(monkeypatch, tmp_path):
+    """
+    The suggestion pass exists so a reviewer does not start from a blank page. It
+    must not be able to fill the one field that makes a precision number mean
+    anything: `verdict`, whose denominator is "turns a person read and judged".
+
+    So: `verdict` is untouched, `model_suggestion` is a separate field, and the
+    merge still refuses a worksheet where only the suggestions were filled in.
+
+    The label file is redirected to a tmp path. The first version of this test
+    called the real merge, and committed a label with `verdict: "incorrect"` and
+    `labelled_by: "a person"` into the real travel file -- a fabricated judgement
+    written by a test, which is precisely the thing this project exists not to
+    do. A test must not be able to assert that the guard works by breaking the
+    guard's own data.
+    """
+    import benchmarks.gold as gold
+    from benchmarks import label_worksheet as lw
+
+    target = tmp_path / "labels.json"
+    monkeypatch.setitem(gold.LABELS_BY_SCHEMA, "travel", str(target))
+
+    worksheet = {
+        "corpus": "unit-test",
+        "items": [
+            {"id": "001", "transcript": "t#1", "entity": "cabin_class",
+             "value": "economy", "turn_index": 1, "verdict": "unlabelled",
+             "note": "", "labelled_by": "", "turn_in_context": ">>> [1] user: economy",
+             "model_suggestion": "correct", "model_suggested_by": "test"},
+        ],
+    }
+    with pytest.raises(SystemExit) as excinfo:
+        lw.merge(worksheet, "travel")
+    message = str(excinfo.value)
+    assert "unlabelled" in message
+    assert "not a verdict" in message
+    assert not target.exists(), "nothing may be written while a row is unlabelled"
+
+    # And with a human verdict present, the suggestion is recorded as *offered*
+    # and never substituted for what the person said.
+    worksheet["items"][0]["verdict"] = "incorrect"
+    worksheet["items"][0]["labelled_by"] = "a person"
+    merged = lw.merge(worksheet, "travel")
+    assert merged["added"] == 1
+
+    added = json.loads(target.read_text())
+    assert added[0]["verdict"] == "incorrect"
+    assert added[0]["labelled_by"] == "a person"
+    assert added[0]["offered_suggestion"] == "correct"
+    assert added[0]["suggestion_agrees_with_verdict"] is False
+
+
+def test_a_suggestion_reports_the_evidence_it_was_made_from():
+    """
+    A suggestion a reviewer cannot check is an opinion. Each one carries the fact
+    it came from: whether the value is in the registering turn, what role that turn
+    is, and whether the sanitizer classified it as machine output.
+    """
+    from benchmarks import label_worksheet as lw
+
+    class _Msg(dict):
+        pass
+
+    class _T:
+        id = "t#1"
+        messages = [
+            _Msg(role="assistant", content="opening `memset.py` now"),
+            _Msg(role="user", content="the agent is in `memset.py`"),
+        ]
+
+    rows = [{
+        "id": "001", "entity": "current_file", "value": "memset.py",
+        "transcript": "t#1", "turn_index": 0, "verdict": "unlabelled",
+        "note": "", "labelled_by": "", "turn_in_context": "",
+    }]
+    out = lw.suggest(rows, {"t#1": _T()})
+    row = out[0]
+    assert row["verdict"] == "unlabelled", "a suggestion must not fill the verdict"
+    assert row["model_suggestion"] == "correct"
+    assert row["mechanical_evidence"]["in_registering_turn"] is True
+    assert row["mechanical_evidence"]["registering_role"] == "assistant"
+    assert row["model_suggestion_is_not_a_verdict"] is True
+    assert "memset.py" in row["model_reason"] or "value appears in" in row["model_reason"]
+
+
 def test_a_worksheet_excludes_rows_already_labelled():
     from benchmarks import label_worksheet as lw
 

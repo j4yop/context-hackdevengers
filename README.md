@@ -395,6 +395,17 @@ not:
   first, because inflating `n` with repeats was this project's first precision
   bug.
 
+`--suggest` additionally attaches a **mechanical suggestion** to each row — a
+text check, with its evidence recorded (is the value in the registering turn, what
+role is that turn, did the sanitizer call it machine output). It is not a
+judgement and it cannot become one: `verdict` stays `unlabelled`, the merge exits
+while anything is unlabelled and says so explicitly, and a suggestion that was on
+offer is recorded *as offered* on the committed label so a later reader can see the
+reviewer was not working blind. Its own limitation is stated on every row: the
+"confirmed errors" this project once carried were all cases where the value *was*
+in the turn and the judgement was still wrong, because the agent had already moved
+on. A string check cannot see that.
+
 The committed label file is the only thing that produces a number. The worksheet
 carries none until a person fills it in.
 
