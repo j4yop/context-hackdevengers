@@ -597,8 +597,16 @@ def test_scales_linearly_enough_to_be_useful():
         compile_messages(msgs, schema=MINIMAL)
         return (time.perf_counter() - start) * 1000, len(msgs)
 
-    small_ms, small_n = timeit(20)
-    large_ms, large_n = timeit(200)
+    # The minimum of several runs, after a warm-up. A single run of an operation
+    # this fast is dominated by timer resolution and by whatever else the machine
+    # was doing, and the ratio of two such numbers is a coin flip: this test failed
+    # intermittently in local runs and passed in CI, which is the signature of a
+    # measurement too noisy to carry a claim. The best of N is the standard
+    # answer -- it approximates the cost of the operation rather than the cost of
+    # the interruptions around it.
+    timeit(20)  # warm up: first call pays import and JIT costs
+    small_ms, small_n = min(timeit(20) for _ in range(5))
+    large_ms, large_n = min(timeit(200) for _ in range(5))
 
     growth = large_ms / max(small_ms, 0.01)
     size_ratio = large_n / small_n
