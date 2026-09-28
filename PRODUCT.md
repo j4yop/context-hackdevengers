@@ -64,10 +64,13 @@ intervals, and a documented list of what the thing cannot do.
 - A committed capture (`captures/run1.json`) lets the write-path comparison replay
   deterministically without a GPU, and the nightly compares it to a baseline so a
   change in model behaviour fails a build.
-- Release is via PyPI Trusted Publishing; `docs/RELEASING.md` holds the
-  procedure. The pipeline is verified end to end and has never been published:
-  `pip install contextgc` in the README does not yet work, which is the one
-  place a documented instruction is ahead of reality.
+- Release is via PyPI Trusted Publishing, and `docs/RELEASING.md` holds the
+  procedure. `contextgc` 0.4.1 and 0.4.2 are on PyPI and
+  `pip install contextgc` works from a clean virtualenv with no dependencies.
+  Releases carry no stored credential: the `PYPI_API_TOKEN` secret was used
+  once, to create the project — an OIDC identity can upload to a project but
+  cannot create one — and deleted before 0.4.2, which published through
+  Trusted Publishing with `gh secret list` empty.
 
 ## Capabilities and Constraints
 
