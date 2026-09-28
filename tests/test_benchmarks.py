@@ -1162,6 +1162,65 @@ def test_the_ordinal_first_is_not_a_first_class_cabin():
     assert not cabins, f"an ordinal became a cabin class: {cabins}"
 
 
+def test_a_retail_record_reduces_to_bare_payment_names():
+    """
+    Neither side is canonical. The record says `credit_card_5843230`; the read
+    path says "Credit Card", "Gift Card", "Paypal", "paypal account",
+    "gift card balance". Comparing raw made the two look like different methods,
+    and forcing the airline's exact-match rule onto retail would have been a lie
+    about the shape of the data.
+    """
+    from benchmarks.ground_truth import normalise_payment, retail_payment_methods
+
+    record = {"payment_history": [
+        {"payment_method_id": "credit_card_5843230"},
+        {"payment_method_id": "gift_card_8633125"},
+        {"payment_method_id": "paypal_5334408"},
+    ]}
+    assert retail_payment_methods(record) == {"credit card", "gift card", "paypal"}
+    for spoken in ("Credit Card", "gift card", "PayPal", "Paypal",
+                   "paypal account", "gift card balance"):
+        assert normalise_payment(spoken) in {"credit card", "gift card", "paypal"}, spoken
+
+
+def test_an_address_corroborates_on_the_street_line_not_the_whole_thing():
+    """
+    "713 Park Avenue" is the same address as a record holding
+    "713 Park Avenue, Suite 800". The read path stops early more often than not,
+    and demanding the full line turned incompleteness into a contradiction -- 1 of
+    2 address contradictions at 200 transcripts, and it was a partial.
+    """
+    from benchmarks.ground_truth import (
+        _retail_judgement,
+        address_completeness,
+        street_line,
+    )
+
+    record = {"address": {"address1": "713 Park Avenue", "address2": "Suite 800",
+                          "city": "Austin", "state": "TX", "zip": "78701"}}
+    assert street_line(record) == "713 Park Avenue, Suite 800"
+    assert _retail_judgement(record, "delivery_address", "713 Park Avenue") is True
+    assert _retail_judgement(
+        record, "delivery_address", "713 Park Avenue, Suite 800, Austin, TX, 78701"
+    ) is True
+    # A different address is a real contradiction.
+    assert _retail_judgement(record, "delivery_address", "592 Elm Avenue") is False
+    # Partial and complete are distinguished, not folded together.
+    assert address_completeness(record, "713 Park Avenue") is False
+    assert address_completeness(
+        record, "713 Park Avenue, Suite 800, Austin, TX, 78701"
+    ) is True
+
+
+def test_a_record_with_no_address_or_payment_says_nothing():
+    """Silence is not agreement. A record missing the field is `unverifiable`."""
+    from benchmarks.ground_truth import _retail_judgement
+
+    assert _retail_judgement({}, "delivery_address", "123 Pine St") is None
+    assert _retail_judgement({"payment_history": []}, "payment_method", "gift card") is None
+    assert _retail_judgement({"address": {}}, "delivery_address", "123 Pine St") is None
+
+
 def test_ground_truth_scores_only_what_the_record_can_settle():
     """
     The unverifiable bucket is not a pass. An extraction the record says nothing
