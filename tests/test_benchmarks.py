@@ -1289,6 +1289,50 @@ def test_a_policy_statement_about_a_cabin_is_not_the_passengers_cabin():
         assert bool(cabins) is should_extract, (text[:50], cabins)
 
 
+def test_a_truncated_extraction_sample_says_so_and_is_not_scored_blind():
+    """
+    Found by reading the precision denominator, not by any test failing.
+
+    `harness.run` capped retained extractions at 400, which is a memory guard for
+    a 200 MB corpus -- and it silently moved precision. The airline corpus yields
+    615 active facts, so 21 of 152 hand labels had no extraction to match and the
+    denominator fell from 149 to 131. Because transcripts are compiled in order,
+    the lost labels were not a random sample: every transcript past the cap
+    contributed nothing scoreable. Reported precision read 98% instead of 99% for
+    no reason in the library at all.
+
+    So the drop is counted, the cap is exposed, and the report says when it bit.
+    """
+    from benchmarks import harness as h
+    from benchmarks.report import render_truncation_notice
+
+    def build(n):
+        return normalise_messages(
+            [{"role": "user", "content": f"the gate code is {1000 + i}"} for i in range(n)]
+        )
+
+    capped = h.run(
+        [Transcript(transcript_id=f"cap#{i}", source="unit-test", messages=build(3))
+         for i in range(20)],
+        schema=MINIMAL, max_extractions=5,
+    )
+    assert len(capped.extractions) == 5
+    assert capped.extractions_dropped > 0
+    notice = render_truncation_notice(capped)
+    assert "not retained" in notice
+    assert "TRUNCATED" in notice
+    assert "not a fair sample" in notice
+
+    # And a complete run is silent about it.
+    full = h.run(
+        [Transcript(transcript_id=f"full#{i}", source="unit-test", messages=build(3))
+         for i in range(20)],
+        schema=MINIMAL,
+    )
+    assert full.extractions_dropped == 0
+    assert render_truncation_notice(full) == ""
+
+
 def test_an_options_menu_is_not_recorded_as_a_booking():
     """
     Found by reading the registering turns of the second domain. A turn listed

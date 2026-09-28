@@ -16,7 +16,12 @@ from .corpus import SWE_AGENT_HF_URL, cached_shard, load_swe_agent, load_synthet
 from .gold import render as render_precision
 from .gold import score as score_precision
 from .harness import run as run_harness
-from .report import render, render_extraction_sample, render_shadow
+from .report import (
+    render,
+    render_extraction_sample,
+    render_shadow,
+    render_truncation_notice,
+)
 from .shadow import replay_source, run_corpus
 
 
@@ -93,7 +98,10 @@ def cmd_run(args):
     transcripts = _load(args)
     if not transcripts:
         sys.exit("no transcripts matched the filters")
-    result = run_harness(transcripts, schema=_schema(args.schema))
+    result = run_harness(
+        transcripts, schema=_schema(args.schema),
+        max_extractions=getattr(args, "max_extractions", None) or 100_000,
+    )
     from .gold import labels_path_for
 
     # The schema name is the better key: a label judges one schema's extractions,
@@ -105,6 +113,10 @@ def cmd_run(args):
         ),
     )
     print(render(result))
+    notice = render_truncation_notice(result)
+    if notice:
+        print()
+        print(notice)
     print()
     print(render_precision(precision))
     print()
@@ -329,6 +341,12 @@ def main(argv=None):
              "it cannot fail a build no matter what regresses.",
     )
     run_parser.add_argument("--json", help="write full results here")
+    run_parser.add_argument(
+        "--max-extractions", type=int, default=None,
+        help="cap on retained extractions. A memory guard for a large corpus, "
+             "and it moves precision: fewer retained extractions means fewer "
+             "labels can match, so the report says so when the cap bit",
+    )
     run_parser.set_defaults(func=cmd_run)
 
     capture_parser = sub.add_parser(
