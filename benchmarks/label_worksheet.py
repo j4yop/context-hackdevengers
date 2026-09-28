@@ -90,6 +90,108 @@ def _quote(transcript, index: int) -> str:
     return "\n".join(parts)
 
 
+def _turn_facts(transcript, index: int, value: str) -> Dict[str, Any]:
+    """
+    The mechanical evidence about one row, independent of any judgement.
+
+    Every field here is a fact about the bytes: which turn the value appears in,
+    whether that turn is the registering one, whether the turn is machine output,
+    and whether the value is surrounded by a listing. They are recorded so a
+    reviewer can check the suggestion instead of re-deriving it, and so a wrong
+    suggestion is visible as a wrong fact rather than as an opinion.
+    """
+    facts: Dict[str, Any] = {"in_registering_turn": False, "in_neighbour": False}
+    if transcript is None:
+        return facts
+    turn = index if 0 <= index < len(transcript.messages) else None
+    if turn is not None:
+        message = transcript.messages[turn]
+        facts["registering_role"] = message["role"]
+        facts["registering_is_machine_output"] = _is_machine_output(message["content"], message["role"])
+        facts["in_registering_turn"] = value in (message["content"] or "")
+    for offset in (index - 1, index + 1):
+        if 0 <= offset < len(transcript.messages):
+            if value in (transcript.messages[offset]["content"] or ""):
+                facts["in_neighbour"] = True
+                break
+    return facts
+
+
+def _is_machine_output(content: str, role: str) -> bool:
+    from contextgc.sanitizer import ToolSanitizer
+
+    return ToolSanitizer.looks_like_tool_output(content or "", role)
+
+
+def suggest(rows: List[Dict[str, Any]], transcripts: Dict[str, Any],
+            who: str = "contextgc label_worksheet (mechanical)") -> List[Dict[str, Any]]:
+    """
+    Attach a *suggestion* and its evidence to each row. Never a verdict.
+
+    The suggestion is not a judgement and does not become one. ``verdict`` stays
+    ``unlabelled``, the merge still refuses while it is, and nothing here is
+    written to the label file -- so a reviewer can agree, disagree, or ignore
+    every one of these and the resulting precision number is still theirs.
+
+    The rules are deliberately mechanical and checkable:
+
+    * the value is absent from the registering turn, or present only in a
+      neighbouring turn, or the registering turn is machine output -> ``unclear``
+      or ``incorrect`` with that stated as the reason
+    * the value is in the registering turn and the turn is the agent's own
+      speech -> ``correct``
+
+    That is a text check, not an understanding of the conversation, which is the
+    entire limitation: the "confirmed errors" this project once carried were all
+    cases where the value was in the turn and the judgement was still wrong,
+    because the agent had already moved on.
+    """
+    out = []
+    for row in rows:
+        value = row.get("value") or ""
+        transcript = transcripts.get(row.get("transcript"))
+        facts = _turn_facts(transcript, row.get("turn_index", 0), value)
+        row = dict(row)
+        row["mechanical_evidence"] = facts
+        flags = []
+        if not facts.get("in_registering_turn"):
+            if facts.get("in_neighbour"):
+                flags.append("value is in a NEIGHBOURING turn, not the registering one")
+                suggestion = "incorrect"
+            else:
+                flags.append("value does not appear in the quoted turns at all")
+                suggestion = "incorrect"
+        elif facts.get("registering_is_machine_output"):
+            flags.append("registering turn is machine output")
+            suggestion = "unclear"
+        else:
+            suggestion = "correct"
+        if facts.get("registering_role") == "user":
+            # Not a warning. APIGen files the *customer's own speech* and its tool
+            # results under the same `user` role, so the role alone cannot tell
+            # them apart, and an earlier version of this flag said "user/tool
+            # role" on 59 of 80 rows -- every one of which the sanitizer had
+            # correctly classified as speech. The role is reported as a fact and
+            # the classifier's answer is the one that counts.
+            flags.append(
+                f"role is 'user', which in this corpus is both the customer and "
+                f"tool results; classified as "
+                f"{'machine output' if facts.get('registering_is_machine_output') else 'speech'}"
+            )
+        row["triage_flags"] = flags
+        row["model_suggestion"] = suggestion
+        kind = "machine output" if facts.get("registering_is_machine_output") else "speech"
+        row["model_reason"] = (
+            f"{'value appears in' if facts.get('in_registering_turn') else 'value is absent from'} "
+            f"turn {row.get('turn_index')} "
+            f"(role {facts.get('registering_role', '?')}, {kind})"
+        )
+        row["model_suggested_by"] = who
+        row["model_suggestion_is_not_a_verdict"] = True
+        out.append(row)
+    return out
+
+
 def sample_rows(
     extractions: List[Dict[str, Any]],
     transcripts: Dict[str, Any],
@@ -163,6 +265,7 @@ def build(
     per_entity: int = 12,
     corpus_path: Optional[str] = None,
     already: Optional[set] = None,
+    with_suggestions: bool = False,
 ) -> Dict[str, Any]:
     """
     A worksheet: ``per_entity`` unlabelled rows for each slot, spread across
@@ -173,6 +276,8 @@ def build(
     rows = sample_rows(extractions, transcripts, per_entity, already)
     for row in rows:
         row["schema"] = schema_name
+    if with_suggestions:
+        rows = suggest(rows, transcripts)
     return {
         "instructions": (
             "For each row, read the turn in context and set `verdict` to correct, "
@@ -186,6 +291,13 @@ def build(
         "rows": len(rows),
         "entities": dict(Counter(r["entity"] for r in rows)),
         "labelled": 0,
+        "suggestions_attached": bool(with_suggestions),
+        "suggestions_are_verdicts": False,
+        "suggestion_note": (
+            "model_suggestion is a mechanical text check, not a judgement, and is "
+            "not written to the label file. verdict is the human's."
+            if with_suggestions else ""
+        ),
         "items": rows,
     }
 
@@ -207,6 +319,8 @@ def merge(worksheet: Dict[str, Any], schema_name: str) -> Dict[str, Any]:
             f"{len(unlabelled)} rows are still unlabelled ({unlabelled[:8]}"
             f"{'...' if len(unlabelled) > 8 else ''})\n"
             "  nothing is merged while a row has no verdict"
+            + ("\n\n  a model_suggestion on a row is not a verdict and cannot fill it."
+               if any(i.get("model_suggestion") for i in items) else "")
         )
     no_quote = [i["id"] for i in items if not i.get("turn_in_context")]
     if no_quote:
@@ -232,7 +346,7 @@ def merge(worksheet: Dict[str, Any], schema_name: str) -> Dict[str, Any]:
                item.get("turn_index"))
         if key in have:
             continue
-        existing.append({
+        row = {
             "transcript": item["transcript"],
             "entity": item["entity"],
             "value": item["value"],
@@ -242,7 +356,18 @@ def merge(worksheet: Dict[str, Any], schema_name: str) -> Dict[str, Any]:
             "labelled_by": item.get("labelled_by") or "unattributed",
             "corpus": worksheet.get("corpus"),
             "schema": f"contextgc/schemas/{schema_name}.json",
-        })
+        }
+        # The verdict is the human's. If a mechanical suggestion was on offer it is
+        # recorded that one existed, so a later reader can see the reviewer was
+        # not working blind -- and so nobody can mistake agreement with the
+        # suggestion for the suggestion's own confidence.
+        if item.get("model_suggestion"):
+            row["offered_suggestion"] = item["model_suggestion"]
+            row["suggestion_source"] = item.get("model_suggested_by")
+            row["suggestion_agrees_with_verdict"] = (
+                item["model_suggestion"] == item["verdict"]
+            )
+        existing.append(row)
         have.add(key)
         added += 1
     save_labels(existing, path)
@@ -283,6 +408,12 @@ def _render(worksheet: Dict[str, Any]) -> str:
         for line in (item["turn_in_context"] or "(no turn available)").split("\n"):
             lines.append(f"  {line}")
         lines.append("  " + "-" * 74)
+        if item.get("model_suggestion"):
+            lines.append(f"  SUGGESTED   : {item['model_suggestion']}"
+                         f"   ({item.get('model_reason', '')})")
+            for flag in item.get("triage_flags", []):
+                lines.append(f"                ! {flag}")
+            lines.append("                ^ mechanical text check, not a judgement")
         lines.append(f"  verdict     : {item['verdict']}")
         lines.append(f"  note        : {item['note']}")
         lines.append(f"  labelled_by : {item['labelled_by']}")
@@ -301,6 +432,10 @@ def main(argv: List[str] = None) -> int:
     parser.add_argument("--corpus-path")
     parser.add_argument("--out", help="write the worksheet JSON here")
     parser.add_argument("--text", action="store_true", help="also print the human-readable form")
+    parser.add_argument("--suggest", action="store_true",
+                        help="attach a mechanical suggestion and its evidence to each row. "
+                             "The verdict stays unlabelled: a suggestion is not a judgement "
+                             "and the merge ignores it.")
     parser.add_argument("--merge", metavar="FILE",
                         help="fold a judged worksheet into the committed label file")
     args = parser.parse_args(argv)
@@ -328,7 +463,8 @@ def main(argv: List[str] = None) -> int:
                for row in labels}
 
     worksheet = build(args.schema, corpus, args.limit, args.per_entity,
-                      args.corpus_path, already=already)
+                      args.corpus_path, already=already,
+                      with_suggestions=args.suggest)
     print(f"worksheet: {worksheet['rows']} rows across "
           f"{len(worksheet['entities'])} slots, {len(already)} existing labels excluded")
     for entity, count in sorted(worksheet["entities"].items()):
