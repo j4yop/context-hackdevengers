@@ -73,8 +73,15 @@ def test_a_schema_does_not_display_a_stale_precision(name):
         pytest.skip(f"no labels for {name}")
     try:
         result = run(_corpus(name), schema=load_schema(name))
-    except Exception as err:  # pragma: no cover - corpus unavailable
-        pytest.skip(f"{name} corpus not usable: {err}")
+    except BaseException as err:  # pragma: no cover - corpus unavailable
+        # BaseException, not Exception: the corpus loader signals a missing
+        # pandas/pyarrow with `sys.exit`, which is a BaseException, so an
+        # `except Exception` here let it escape and the three CI jobs without a
+        # cached shard all failed on a check that is supposed to skip when it
+        # cannot run. A check that cannot run must not be a failure.
+        if isinstance(err, (KeyboardInterrupt, SystemExit)) and "corpus" not in str(err):
+            raise
+        pytest.skip(f"{name} corpus not usable here: {err}")
     if not result.extractions:
         pytest.skip(f"{name} corpus produced no extractions")
 
