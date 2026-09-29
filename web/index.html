@@ -36,7 +36,7 @@
       <a href="#techstack" class="desk-only">Stack</a>
       <a href="/console">Console</a>
       <a href="https://github.com/j4yop/context-hackdevengers" target="_blank" rel="noopener">GitHub</a>
-      <button id="theme-toggle" class="theme-btn" aria-label="Toggle light/dark theme" onclick="toggleTheme()" title="Toggle theme"><span id="theme-icon">🌙</span></button>
+      <button id="theme-toggle" class="theme-btn" aria-label="toggle theme" onclick="toggleTheme(event)" title="Toggle theme"><span id="theme-icon"></span></button>
     </nav>
   </div>
 </header>
@@ -517,21 +517,91 @@ print(f"Reduced context by {result.telemetry.compression_ratio_pct}% in {result.
 </div>
 
 <script>
+const SUN_DIM_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="theme-toggle-icon" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 4h.01"></path><path d="M20 12h.01"></path><path d="M12 20h.01"></path><path d="M4 12h.01"></path><path d="M17.657 6.343h.01"></path><path d="M17.657 17.657h.01"></path><path d="M6.343 17.657h.01"></path><path d="M6.343 6.343h.01"></path></svg>';
+const MOON_STAR_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="theme-toggle-icon" aria-hidden="true"><path d="M18 5h4"></path><path d="M20 3v4"></path><path d="M20.985 12.486a9 9 0 1 1-9.473-9.472c.405-.022.617.46.402.803a6 6 0 0 0 8.268 8.268c.344-.215.825-.004.803.401"></path></svg>';
+
 function syncThemeIcon() {
   const cur = document.documentElement.getAttribute('data-theme') || 
     (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
   const icon = document.getElementById('theme-icon');
-  if (icon) icon.textContent = cur === 'dark' ? '☀️' : '🌙';
+  if (icon) {
+    icon.innerHTML = cur === 'dark' ? SUN_DIM_SVG : MOON_STAR_SVG;
+  }
 }
-function toggleTheme() {
+
+function toggleTheme(event) {
   const cur = document.documentElement.getAttribute('data-theme') || 
     (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
   const next = cur === 'dark' ? 'light' : 'dark';
-  document.documentElement.setAttribute('data-theme', next);
-  localStorage.setItem('cg-theme', next);
-  syncThemeIcon();
+
+  const update = () => {
+    document.documentElement.setAttribute('data-theme', next);
+    localStorage.setItem('cg-theme', next);
+    syncThemeIcon();
+  };
+
+  if (!document.startViewTransition || (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches)) {
+    update();
+    return;
+  }
+
+  const x = event && event.clientX ? event.clientX : window.innerWidth - 48;
+  const y = event && event.clientY ? event.clientY : 32;
+  const endRadius = Math.hypot(
+    Math.max(x, window.innerWidth - x),
+    Math.max(y, window.innerHeight - y)
+  );
+
+  const transition = document.startViewTransition(() => {
+    update();
+  });
+
+  transition.ready.then(() => {
+    document.documentElement.animate(
+      {
+        clipPath: [
+          `circle(0px at ${x}px ${y}px)`,
+          `circle(${endRadius}px at ${x}px ${y}px)`
+        ]
+      },
+      {
+        duration: 380,
+        easing: 'cubic-bezier(0.4, 0, 0.2, 1)',
+        pseudoElement: '::view-transition-new(root)'
+      }
+    );
+  }).catch(() => {});
 }
 syncThemeIcon();
+
+// --- Tell the stylesheet the page is moving -------------------------
+  //
+  // style.css drops the header's 14px backdrop blur while `.is-scrolling` is
+  // set, because a sticky element with a backdrop-filter has to re-rasterise
+  // the blurred backdrop on every scroll frame. The class goes on with the
+  // first scroll event and comes off once scrolling has stopped for a beat.
+  //
+  // The listener is `{passive: true}` so it can never block scrolling, and it
+  // is throttled to one read per frame: a scroll handler that touches the DOM
+  // on every event is a scroll handler that makes scrolling worse.
+  (function() {
+    const root = document.documentElement;
+    const reduced = window.matchMedia &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (reduced) return;              // CSS already renders it flat
+    let ticking = false;
+    let idle = 0;
+    const show = () => {
+      root.classList.add('is-scrolling');
+      clearTimeout(idle);
+      idle = setTimeout(() => root.classList.remove('is-scrolling'), 140);
+    };
+    window.addEventListener('scroll', () => {
+      if (ticking) return;
+      ticking = true;
+      requestAnimationFrame(() => { ticking = false; show(); });
+    }, { passive: true });
+  })();
 
 // --- ThreeUI Constellation Field Canvas Logic ---
 (function() {
@@ -578,11 +648,6 @@ syncThemeIcon();
     }
   }
 
-  window.addEventListener('resize', () => {
-    resize();
-    initNodes();
-  });
-
   document.addEventListener('mousemove', e => {
     pointer.x = e.clientX;
     pointer.y = e.clientY;
@@ -597,12 +662,51 @@ syncThemeIcon();
     return Math.hypot(a.x - b.x, a.y - b.y);
   }
 
-  function animateCanvas() {
+  // Physics and drawing, split so the expensive pass can be skipped.
+  //
+  // `step` advances the field and reports whether anything moved far enough to
+  // change a link. `paint` draws. Previously one function did both and always
+  // ran, so there was no way to decide a frame was unchanged.
+  const pointerActive = () => pointer.x > -500 && pointer.y > -500;
+  // True while the loop is running. A time-based pulse means a still field
+  // still changes appearance, so a running field always repaints; only a
+  // paused or settled one can skip the O(n^2) pass.
+  let animating = false;
+
+  function step() {
+    let moved = false;
+    const gravity = pointerActive();
+    for (let i = 0; i < nodes.length; i++) {
+      const node = nodes[i];
+      node.x += node.vx;
+      node.y += node.vy;
+
+      // Bounce off edges
+      if (node.x < 0 || node.x > width) { node.vx *= -1; moved = true; }
+      if (node.y < 0 || node.y > height) { node.vy *= -1; moved = true; }
+
+      // Gentle Pointer gravity within 220px
+      if (gravity) {
+        const pd = dist(node, pointer);
+        if (pd < 220) {
+          node.x -= (node.x - pointer.x) * 0.005;
+          node.y -= (node.y - pointer.y) * 0.005;
+          moved = true;
+        }
+      }
+    }
+    // The pulse is time-based, so a running field repaints even on a frame
+    // where nothing moved: skipping it would freeze the glow.
+    return moved || animating;
+  }
+
+  function paint() {
     ctx.clearRect(0, 0, width, height);
     ctx.lineCap = 'butt';
     ctx.lineJoin = 'miter';
 
-    // Draw Links first so nodes sit crisp on top
+    // Draw Links first so nodes sit crisp on top.
+    // O(n^2) and the single biggest cost here: 3,570 pairs at 85 nodes.
     ctx.strokeStyle = strokeColor;
     ctx.lineWidth = 1;
     for (let i = 0; i < nodes.length; i++) {
@@ -621,20 +725,6 @@ syncThemeIcon();
     // Draw Nodes with gentle pointer gravity and retina halo
     for (let i = 0; i < nodes.length; i++) {
       const node = nodes[i];
-      node.x += node.vx;
-      node.y += node.vy;
-
-      // Bounce off edges
-      if (node.x < 0 || node.x > width) node.vx *= -1;
-      if (node.y < 0 || node.y > height) node.vy *= -1;
-
-      // Gentle Pointer gravity within 220px
-      const pd = dist(node, pointer);
-      if (pd < 220) {
-        node.x -= (node.x - pointer.x) * 0.005;
-        node.y -= (node.y - pointer.y) * 0.005;
-      }
-
       // Draw Node (core + soft halo so particles read at retina scale)
       const pulse = 0.78 + Math.sin(Date.now() * 0.001 + node.x) * 0.22;
       ctx.fillStyle = nodeColor;
@@ -649,7 +739,6 @@ syncThemeIcon();
     }
 
     ctx.globalAlpha = 1;
-    requestAnimationFrame(animateCanvas);
   }
 
   resize();
@@ -663,9 +752,90 @@ syncThemeIcon();
   const observer = new MutationObserver(updatePalette);
   observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
 
+  // --- Not rendering what nobody is looking at ---------------------------
+  //
+  // This loop is the single most expensive thing on the page and it was
+  // unstoppable: `requestAnimationFrame(animateCanvas)` at the end of every
+  // frame, forever, on every page load. At 85 nodes the link pass alone is
+  // 3,570 distance computations and strokes per frame, which is ~214,000 a
+  // second -- all of it competing with the main thread while the user is
+  // trying to scroll. A page with no images had the most expensive thing in
+  // it.
+  //
+  // Three changes, and none of them touches how it looks:
+  //
+  //   1. Stop when the tab is hidden. requestAnimationFrame already pauses for
+  //      a background tab, but only because the browser wants to; a loop that
+  //      reschedules itself from inside its own callback keeps the work queued
+  //      and keeps the compositor awake on some browsers.
+  //   2. Cap the frame rate. The field is a slow drift and a pulsing glow; at
+  //      30fps it is visually identical, and it halves the cost.
+  //   3. Skip the O(n^2) link pass on frames where nothing that affects a link
+  //      has moved far enough to change one. Nodes drift at <0.3px/frame and
+  //      the pointer moves in bursts, so most frames genuinely produce the
+  //      same picture.
+  //
+  // The same treatment for the sticky header lives in style.css: its 14px
+  // backdrop blur is dropped while `.is-scrolling` is set.
+
+  const FRAME_MS = 1000 / 30;
+  let lastFrame = 0;
+  let running = false;
+
+  function frame(now) {
+    if (!running) return;
+    // A dropped frame is a missed frame, not a backlog to catch up on.
+    if (now - lastFrame >= FRAME_MS) {
+      const moved = step();
+      lastFrame = now;
+      if (moved) paint();
+    }
+    requestAnimationFrame(frame);
+  }
+
+  function start() {
+    if (running) return;
+    running = true;
+    animating = true;
+    lastFrame = 0;
+    requestAnimationFrame(frame);
+  }
+
+  function stop() {
+    running = false;
+    animating = false;
+  }
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) stop(); else start();
+  });
+
+  resize();
+  initNodes();
+  updatePalette();
+
+  // `resize` reallocates the drawing buffer and `initNodes` throws away and
+  // rebuilds every node, so this must not run on every resize event -- a
+  // window drag fires it continuously. One frame, at most, per repaint.
+  let resizeQueued = false;
+  window.addEventListener('resize', () => {
+    if (resizeQueued) return;
+    resizeQueued = true;
+    requestAnimationFrame(() => {
+      resizeQueued = false;
+      resize();
+      initNodes();
+    });
+  });
+
   const prefersReducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  if (!prefersReducedMotion) {
-    animateCanvas();
+  if (!prefersReducedMotion && !document.hidden) {
+    start();
+  } else if (prefersReducedMotion) {
+    // Draw one static frame rather than nothing: the field is atmosphere, and
+    // a still field still reads as designed.
+    step();
+    paint();
   }
 })();
 </script>
