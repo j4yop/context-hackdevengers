@@ -74,16 +74,36 @@
       <span class="pill">MIT</span>
     </div>
 
-    <!-- Live Dual-Terminal Comparison Window -->
-    <div class="demo-window">
+    <!-- Live Dual-Terminal Comparison Window (Tron Terminal) -->
+    <div class="demo-window tron-terminal" data-slot="tron-terminal" data-variant="default">
+      <!-- Cyber Corner Brackets -->
+      <div class="tron-corner tron-corner-tl" aria-hidden="true"></div>
+      <div class="tron-corner tron-corner-tr" aria-hidden="true"></div>
+      <div class="tron-corner tron-corner-bl" aria-hidden="true"></div>
+      <div class="tron-corner tron-corner-br" aria-hidden="true"></div>
+
+      <!-- Scanline Texture & Animated Sweep -->
+      <div class="tron-scanlines" aria-hidden="true"></div>
+      <div class="tron-scan-sweep" aria-hidden="true"><div class="tron-scan-line"></div></div>
+
       <div class="demo-header">
-        <div class="demo-dots">
-          <span class="demo-dot"></span>
-          <span class="demo-dot"></span>
-          <span class="demo-dot"></span>
+        <div style="display:flex;align-items:center;gap:10px">
+          <div class="demo-dots">
+            <span class="demo-dot"></span>
+            <span class="demo-dot"></span>
+            <span class="demo-dot"></span>
+          </div>
+          <div class="demo-title">
+            <span class="tron-tag">TERMINAL</span>
+            <span>pipeline_trace.json &mdash; airline_reservation_turn_6</span>
+          </div>
         </div>
-        <div class="demo-title">contextgc_pipeline_trace.json &mdash; airline_reservation_turn_6</div>
-        <span class="pill good" style="font-size:11px">39.6% smaller</span>
+        <div class="tron-header-actions">
+          <button type="button" class="tron-btn" id="tronReplayBtn" title="Replay typewriter streaming">
+            <span aria-hidden="true">&#x25B6;</span> Replay Stream
+          </button>
+          <span class="pill good" style="font-size:11px">39.6% smaller</span>
+        </div>
       </div>
 
       <div class="demo-grid">
@@ -92,22 +112,20 @@
             <span>What the agent was sent</span>
             <span class="demo-pane-badge">uncompiled transcript</span>
           </div>
-          <pre class="out">system: You are an airline support agent.
-
-user: I need to change the cabin on reservation
-      0U4NPP. I am in economy class.
-<span class="gone">assistant: Confirming reservation 0U4NPP.
-  &lt;contextgc-state&gt;{"assert":{"active_reservation":
-  "0U4NPP","cabin_class":"economy"}}&lt;/contextgc-state&gt;</span>
-user: Upgrade me to business class.
-<span class="gone">assistant: Upgrading you now.
-  &lt;contextgc-state&gt;{"assert":{"cabin_class":
-  "business"}}&lt;/contextgc-state&gt;</span>
-user: Actually, keep it in economy, I changed
-      my mind.
-assistant: Reverting to economy.
-
-user: Thanks.</pre>
+          <pre class="out tron-stream" id="tronStreamLeft"><div class="tron-line system"><span class="tron-prefix">:: </span><span>system: You are an airline support agent.</span></div>
+<div class="tron-line input"><span class="tron-prefix">&gt; </span><span>user: I need to change the cabin on reservation</span></div>
+<div class="tron-line input"><span class="tron-prefix">&gt; </span><span>      0U4NPP. I am in economy class.</span></div>
+<div class="tron-line gone"><span class="tron-prefix">! </span><span>assistant: Confirming reservation 0U4NPP.</span></div>
+<div class="tron-line gone"><span class="tron-prefix">! </span><span>  &lt;contextgc-state&gt;{"assert":{"active_reservation":</span></div>
+<div class="tron-line gone"><span class="tron-prefix">! </span><span>  "0U4NPP","cabin_class":"economy"}}&lt;/contextgc-state&gt;</span></div>
+<div class="tron-line input"><span class="tron-prefix">&gt; </span><span>user: Upgrade me to business class.</span></div>
+<div class="tron-line gone"><span class="tron-prefix">! </span><span>assistant: Upgrading you now.</span></div>
+<div class="tron-line gone"><span class="tron-prefix">! </span><span>  &lt;contextgc-state&gt;{"assert":{"cabin_class":</span></div>
+<div class="tron-line gone"><span class="tron-prefix">! </span><span>  "business"}}&lt;/contextgc-state&gt;</span></div>
+<div class="tron-line input"><span class="tron-prefix">&gt; </span><span>user: Actually, keep it in economy, I changed</span></div>
+<div class="tron-line input"><span class="tron-prefix">&gt; </span><span>      my mind.</span></div>
+<div class="tron-line output"><span class="tron-prefix">  </span><span>assistant: Reverting to economy.</span></div>
+<div class="tron-line input"><span class="tron-prefix">&gt; </span><span>user: Thanks.</span></div><span class="tron-cursor" id="tronCursorLeft">▌</span></pre>
         </div>
 
         <div class="demo-pane">
@@ -115,22 +133,16 @@ user: Thanks.</pre>
             <span>What the model receives</span>
             <span class="demo-pane-badge saved">&minus;39.6% tokens</span>
           </div>
-          <pre class="out">[ACTIVE_AGENT_STATE]
-  - active_reservation = "0U4NPP" (turn 2 [declared])
-  - cabin_class = "economy" (turn 6 [declared])
-
-system: You are an airline support agent.
-
-assistant: Confirming reservation 0U4NPP.
-
-user: Upgrade me to business class.
-
-user: Actually, keep it in economy, I changed
-      my mind.
-
-assistant: Reverting to economy.
-
-user: Thanks.</pre>
+          <pre class="out tron-stream" id="tronStreamRight"><div class="tron-line system"><span class="tron-prefix">:: </span><span>[ACTIVE_AGENT_STATE]</span></div>
+<div class="tron-line output"><span class="tron-prefix">  </span><span>  - active_reservation = "0U4NPP" (turn 2 [declared])</span></div>
+<div class="tron-line output"><span class="tron-prefix">  </span><span>  - cabin_class = "economy" (turn 6 [declared])</span></div>
+<div class="tron-line system"><span class="tron-prefix">:: </span><span>system: You are an airline support agent.</span></div>
+<div class="tron-line output"><span class="tron-prefix">  </span><span>assistant: Confirming reservation 0U4NPP.</span></div>
+<div class="tron-line input"><span class="tron-prefix">&gt; </span><span>user: Upgrade me to business class.</span></div>
+<div class="tron-line input"><span class="tron-prefix">&gt; </span><span>user: Actually, keep it in economy, I changed</span></div>
+<div class="tron-line input"><span class="tron-prefix">&gt; </span><span>      my mind.</span></div>
+<div class="tron-line output"><span class="tron-prefix">  </span><span>assistant: Reverting to economy.</span></div>
+<div class="tron-line input"><span class="tron-prefix">&gt; </span><span>user: Thanks.</span></div><span class="tron-cursor" id="tronCursorRight">▌</span></pre>
         </div>
       </div>
     </div>
@@ -602,6 +614,156 @@ syncThemeIcon();
       requestAnimationFrame(() => { ticking = false; show(); });
     }, { passive: true });
   })();
+
+// --- Tron Terminal Typewriter Streaming Engine ----------------------
+(function initTronTerminal() {
+  const leftStream = document.getElementById('tronStreamLeft');
+  const rightStream = document.getElementById('tronStreamRight');
+  const replayBtn = document.getElementById('tronReplayBtn');
+  if (!leftStream || !rightStream) return;
+
+  const leftLinesData = [
+    { type: 'system', text: 'system: You are an airline support agent.' },
+    { type: 'input',  text: 'user: I need to change the cabin on reservation' },
+    { type: 'input',  text: '      0U4NPP. I am in economy class.' },
+    { type: 'gone',   text: 'assistant: Confirming reservation 0U4NPP.' },
+    { type: 'gone',   text: '  <contextgc-state>{"assert":{"active_reservation":' },
+    { type: 'gone',   text: '  "0U4NPP","cabin_class":"economy"}}</contextgc-state>' },
+    { type: 'input',  text: 'user: Upgrade me to business class.' },
+    { type: 'gone',   text: 'assistant: Upgrading you now.' },
+    { type: 'gone',   text: '  <contextgc-state>{"assert":{"cabin_class":' },
+    { type: 'gone',   text: '  "business"}}</contextgc-state>' },
+    { type: 'input',  text: 'user: Actually, keep it in economy, I changed' },
+    { type: 'input',  text: '      my mind.' },
+    { type: 'output', text: 'assistant: Reverting to economy.' },
+    { type: 'input',  text: 'user: Thanks.' }
+  ];
+
+  const rightLinesData = [
+    { type: 'system', text: '[ACTIVE_AGENT_STATE]' },
+    { type: 'output', text: '  - active_reservation = "0U4NPP" (turn 2 [declared])' },
+    { type: 'output', text: '  - cabin_class = "economy" (turn 6 [declared])' },
+    { type: 'system', text: 'system: You are an airline support agent.' },
+    { type: 'output', text: 'assistant: Confirming reservation 0U4NPP.' },
+    { type: 'input',  text: 'user: Upgrade me to business class.' },
+    { type: 'input',  text: 'user: Actually, keep it in economy, I changed' },
+    { type: 'input',  text: '      my mind.' },
+    { type: 'output', text: 'assistant: Reverting to economy.' },
+    { type: 'input',  text: 'user: Thanks.' }
+  ];
+
+  const prefixes = {
+    system: ':: ',
+    input: '> ',
+    output: '  ',
+    gone: '! '
+  };
+
+  let activeTimeouts = [];
+
+  function clearAllTimeouts() {
+    for (let i = 0; i < activeTimeouts.length; i++) {
+      clearTimeout(activeTimeouts[i]);
+    }
+    activeTimeouts = [];
+  }
+
+  function renderStatic(container, linesData) {
+    container.innerHTML = '';
+    for (let i = 0; i < linesData.length; i++) {
+      const item = linesData[i];
+      const lineEl = document.createElement('div');
+      lineEl.className = 'tron-line ' + item.type;
+      const prefixEl = document.createElement('span');
+      prefixEl.className = 'tron-prefix';
+      prefixEl.textContent = prefixes[item.type] || '  ';
+      const textEl = document.createElement('span');
+      textEl.textContent = item.text;
+      lineEl.appendChild(prefixEl);
+      lineEl.appendChild(textEl);
+      container.appendChild(lineEl);
+    }
+    const cursor = document.createElement('span');
+    cursor.className = 'tron-cursor';
+    cursor.textContent = '▌';
+    container.appendChild(cursor);
+  }
+
+  function runStream(container, linesData, onDone) {
+    container.innerHTML = '';
+    const cursor = document.createElement('span');
+    cursor.className = 'tron-cursor';
+    cursor.textContent = '▌';
+    container.appendChild(cursor);
+
+    let lineIdx = 0;
+    let charIdx = 0;
+    let currentLineEl = null;
+    let currentTextSpan = null;
+
+    function typeNext() {
+      if (lineIdx >= linesData.length) {
+        if (onDone) onDone();
+        return;
+      }
+
+      const item = linesData[lineIdx];
+
+      if (charIdx === 0) {
+        currentLineEl = document.createElement('div');
+        currentLineEl.className = 'tron-line ' + item.type;
+        const prefixEl = document.createElement('span');
+        prefixEl.className = 'tron-prefix';
+        prefixEl.textContent = prefixes[item.type] || '  ';
+        currentTextSpan = document.createElement('span');
+        currentLineEl.appendChild(prefixEl);
+        currentLineEl.appendChild(currentTextSpan);
+        container.insertBefore(currentLineEl, cursor);
+      }
+
+      const step = Math.min(3, item.text.length - charIdx);
+      currentTextSpan.textContent += item.text.substr(charIdx, step);
+      charIdx += step;
+
+      if (charIdx < item.text.length) {
+        const delay = 14 + Math.random() * 12;
+        const timer = setTimeout(typeNext, delay);
+        activeTimeouts.push(timer);
+      } else {
+        lineIdx++;
+        charIdx = 0;
+        const lineDelay = item.type === 'system' ? 120 : (40 + Math.random() * 50);
+        const timer = setTimeout(typeNext, lineDelay);
+        activeTimeouts.push(timer);
+      }
+    }
+
+    const startTimer = setTimeout(typeNext, 250);
+    activeTimeouts.push(startTimer);
+  }
+
+  function startTypewriter() {
+    clearAllTimeouts();
+    const prefersReducedMotion = window.matchMedia &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (prefersReducedMotion) {
+      renderStatic(leftStream, leftLinesData);
+      renderStatic(rightStream, rightLinesData);
+      return;
+    }
+
+    runStream(leftStream, leftLinesData);
+    runStream(rightStream, rightLinesData);
+  }
+
+  if (replayBtn) {
+    replayBtn.addEventListener('click', () => {
+      startTypewriter();
+    });
+  }
+
+  startTypewriter();
+})();
 
 // --- ThreeUI Constellation Field Canvas Logic ---
 (function() {
