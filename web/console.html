@@ -7,8 +7,16 @@
 <meta name="description" content="Compile an agent transcript and read the exact context the model would receive. Deterministic, stateless, no API key and no model call." />
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/style.css" />
+<script>
+  (function() {
+    const saved = localStorage.getItem('cg-theme');
+    if (saved) {
+      document.documentElement.setAttribute('data-theme', saved);
+    }
+  })();
+</script>
 <style>
   /* Console-only. Everything shared lives in style.css. */
   .pagehead { display:flex; flex-wrap:wrap; gap:16px; align-items:flex-end;
@@ -27,6 +35,7 @@
       <a href="/">Overview</a>
       <a href="/console" aria-current="page">Console</a>
       <a href="https://github.com/j4yop/context-hackdevengers" target="_blank" rel="noopener">GitHub</a>
+      <button id="theme-toggle" class="theme-btn" aria-label="Toggle light/dark theme" onclick="toggleTheme()" title="Toggle theme"><span id="theme-icon">🌙</span></button>
     </nav>
   </div>
 </header>
@@ -532,6 +541,22 @@ async function boot() {
 }
 
 boot();
+
+function syncThemeIcon() {
+  const cur = document.documentElement.getAttribute('data-theme') || 
+    (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+  const icon = document.getElementById('theme-icon');
+  if (icon) icon.textContent = cur === 'dark' ? '☀️' : '🌙';
+}
+function toggleTheme() {
+  const cur = document.documentElement.getAttribute('data-theme') || 
+    (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+  const next = cur === 'dark' ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', next);
+  localStorage.setItem('cg-theme', next);
+  syncThemeIcon();
+}
+syncThemeIcon();
 </script>
 </body>
 </html>
