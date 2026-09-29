@@ -35,9 +35,9 @@
   },
   "_measurement": {
     "corpus": "APIGen-MT-5k, airline domain",
-    "transcripts": 60,
+    "transcripts": 200,
     "repos": null,
-    "precision": "100% (n=72, CI 95-100%)",
+    "precision": "99% (n=149, CI 95-100%)",
     "value_contracts": {
       "derived": true,
       "corpus_note": "read_path_* counts what the read path can see: customer and agent turns, minus tool output and minus an agent turn listing its options; in_tool_output is what those exclusions cost",
@@ -106,7 +106,8 @@
           "in_tool_output": 274
         }
       }
-    }
+    },
+    "precision_note": "Over 152 hand-labelled rows across all 7 slots; 149 correct, 3 incorrect, and the 149 rows are 149 independent units so no clustering discount applies. The README quotes the same figure. An earlier revision of this file said '100% (n=72)' -- that predated the label set and overstated precision by a point while halving the evidence, which is the worst direction for a number to be stale in."
   },
   "values": {
     "cabin_class": "(?:premium\\ economy)|(?:basic\\ economy)|(?:business)|(?:economy)|(?:first)",
