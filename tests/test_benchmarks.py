@@ -1018,6 +1018,55 @@ def test_a_slot_short_of_its_budget_says_so_rather_than_looking_empty():
     )
 
 
+def test_a_worksheet_and_a_report_load_the_same_transcripts():
+    """
+    142 hand labels, 99 of which the report threw away, and the report looked
+    complete while it did it.
+
+    `label_worksheet` called `load_swe_agent(limit=...)` and left `per_repo` at
+    `None`, which packs the window out of 13 repositories. The CLI defaults to
+    `2`, which spreads over 20. Different transcripts, so no label key could
+    line up, and the second slot was reported UNMEASURED for a reason that had
+    nothing to do with the slot.
+
+    Two ways this has to hold, and the second is the one that keeps holding:
+    the same loader arguments, and the same `--limit`. The worksheet therefore
+    records the window it used, and the merge prints that window back rather
+    than a guess.
+    """
+    from benchmarks.loader_defaults import CLI_DEFAULTS
+
+    try:
+        from benchmarks.label_worksheet import build
+    except BaseException:  # pragma: no cover - corpus deps absent
+        pass
+    try:
+        worksheet = build("coding", "swe-agent", limit=120, per_entity=2)
+    except BaseException as err:
+        # The corpus loader signals a missing pandas/pyarrow with sys.exit, and
+        # an `except Exception` here would let it through as a failure on every
+        # CI job that has no cached shard.
+        if isinstance(err, KeyboardInterrupt):
+            raise
+        pytest.skip(f"corpus not available here: {err}")
+    assert worksheet["limit"] == 120, (
+        "a worksheet that does not record its own window cannot tell anyone how "
+        "to re-score it"
+    )
+    assert worksheet["loader_defaults"] == dict(CLI_DEFAULTS), (
+        "the worksheet must load with the CLI's own defaults, read from the "
+        "parser, or the two drift apart and labels stop matching silently"
+    )
+    assert worksheet["loader_defaults"]["per_repo"] is not None, (
+        "per_repo=None packs the window out of a handful of repositories"
+    )
+
+    import importlib
+    ns = importlib.import_module("benchmarks.__main__").build_parser().parse_args(["sample"])
+    assert ns.per_repo == CLI_DEFAULTS["per_repo"]
+    assert ns.min_turns == CLI_DEFAULTS["min_turns"]
+
+
 def test_a_precision_figure_reports_which_slots_it_covers_and_which_it_does_not():
     """
     The coding figure was 100% over 36 rows that were every one of them

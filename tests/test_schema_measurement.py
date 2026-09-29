@@ -39,20 +39,25 @@ LABEL_FILES = {
 
 def _corpus(name: str):
     """
-    The corpus the CLI loads, with its defaults.
+    The corpus the labels were collected on, when it is recorded.
 
-    `per_repo=2` is the whole point and it is easy to lose. Uncapped, the same
-    shard packs 200 trajectories out of 13 repositories and the label set
-    matches 23 independent units; capped, it spreads over 20 and matches 36. So
-    a checker that loads "the same corpus" without it silently measures a
-    different, narrower sample and would then have reported the *schema* as
-    stale when the schema was right. It was caught here by the checker being
-    wrong first, which is the only reason it is worth mentioning.
+    `per_repo` is the whole point and it is easy to get wrong in both
+    directions. Uncapped, the shard packs a window out of 13 repositories and a
+    200-transcript sample matches 23 independent units; capped at 2 it spreads
+    over 20 and matches 36. The 142 committed coding labels were collected
+    uncapped at limit 6000, so that is the window checked here, and it is
+    recorded in the schema as `precision_window` so the figure can be
+    reproduced at all.
+
+    Worksheets built now load the CLI's defaults, so this asymmetry does not
+    recur -- but the labels already collected are tied to the window they came
+    from, and re-collecting 142 human judgements to tidy a test fixture is not
+    a trade worth making.
     """
     from benchmarks.corpus import load_apigen_mt, load_swe_agent
 
     if name == "coding":
-        return load_swe_agent(limit=200, min_turns=8, per_repo=2)
+        return load_swe_agent(limit=6000, min_turns=8, per_repo=None)
     domain = "airline" if name == "travel" else "retail"
     return load_apigen_mt(limit=200, domain=domain)
 

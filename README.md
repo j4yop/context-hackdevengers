@@ -201,7 +201,7 @@ repositories and every number below inherits that narrowness.
 | tool payloads compacted | 668 | 138 | 275 |
 | retirement violations | 0 | 0 | 0 |
 | contexts that grew | 0 | 0 | 0 |
-| precision (independent units) | 100% (n=36, CI 90–100%) | **99% (n=149, CI 95–100%)** | 100% (n=47, CI 92–100%) |
+| precision (independent units) | **90% (n=130, CI 84–94%)** | **99% (n=149, CI 95–100%)** | 100% (n=47, CI 92–100%) |
 
 Run with `--corpus swe-agent`, or `--corpus apigen --domain airline|retail`.
 
@@ -405,33 +405,41 @@ the old labels against the widened corpus collapsed to **n=2**, which is what
 exposed the problem in the first place. It then had to be re-read a second time,
 because fixing the repeat bug in defect 6 changed what the compiler extracts.
 
-The 100% is not a claim that the tracker is perfect. It is 100% of what was
-labelled, and labelling is the bottleneck. Concretely, the limit is that **all 39
-labels are one slot**: precision is currently a statement about the
-`current_file` regex and nothing else. A worksheet for the second slot is built
-below.
+#### What the labels said, which is not what the 100% said
 
-**And the number now says so itself.** The precision report prints its own
-coverage, because a figure with no slot breakdown is a figure about whatever
-happened to get labelled, and it reads identically whether it rests on one slot
-or seven:
+The labels arrived — 104 new rows, every `failing_test` one a person had never
+looked at — and the headline moved. It is no longer 100%, and the number that
+was flattering is the number that was narrow:
 
-```
-  PRECISION (rows)       100%   (n=39)
+| | before | after |
+|---|---|---|
+| coding precision | 100% (n=36) | **90% (n=130, CI 84–94%)** |
+| `current_file` | 100% (n=36) | **98% (n=98)** |
+| `failing_test` | *unmeasured* | **75% (n=44)** |
 
-  the same number, by slot -- this is what the percentage is about:
-    current_file             100%  n=39   (39 correct, 0 incorrect)
-    failing_test           UNMEASURED  (0 unclear, 0 judged)
+**`failing_test` is four times worse than the slot beside it**, and it is worse
+for one reason, visible in the notes: nine of its eleven errors are a test file
+the agent *mentioned* rather than *acted on*. "Found 47 matches… in
+`tests/unittests/test_dispatcher.py`" is a grep result, not a failing test. The
+read path cannot tell the difference, because telling the difference is the
+whole content of the slot.
 
-  The percentage above covers 1 of 2 labelled slots. It is not a
-  statement about failing_test yet.
-```
+That is the direct cost of the reachability fix below, which replaced a verb
+requirement with a noun phrase. A noun phrase matches mention; a verb matches
+action. The old pattern was accurate and unreachable. The new one is reachable
+and 25% wrong, and **the reachable one is worth more**, because you cannot
+improve what you cannot see. It is also why the reported figure is the combined
+90% and not `current_file`'s 98%: the console shows one number, and it has to be
+the one covering the whole label set.
 
-An unlabelled slot is reported as **UNMEASURED** rather than left out, and that
-distinction is the point. Omitted, it reads as *not applicable* — which is
-exactly how `failing_test` managed to be invisible while matching 740 times in
-tool output and never once in speech. Absent and not-yet-done are different
-things, and only one of them is a fact about the code.
+**And the tenth note found a bug no aggregate ever would have.** One label read
+*"extracted value is corrupted with leading dot stripped (`/tests/...` instead of
+`./tests/...`)"*. The cause was `val.strip().strip(".,;")` in `state_dag.py`:
+`strip` removes characters from **both** ends, so a legal relative path lost its
+leading dot and stopped naming a file that exists. It occurred **once in 159,124**
+pattern matches, because agents mostly write absolute or bare paths — so no
+precision figure, at any sample size, could ever have surfaced it. Fixed to
+`rstrip`, with a test.
 
 #### The second coding slot, unreachable and then not
 

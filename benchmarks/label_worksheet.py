@@ -43,6 +43,7 @@ from collections import Counter, defaultdict
 from typing import Any, Dict, List, Optional
 
 from benchmarks.corpus import load_apigen_mt, load_swe_agent
+from benchmarks.loader_defaults import CLI_DEFAULTS
 from contextgc import load_schema
 
 #: The judgement the label files record, copied so a labeller is not asked to
@@ -61,11 +62,35 @@ CONTEXT_TURNS = 1
 
 
 def _extractions(schema_name: str, corpus: str, limit: int, corpus_path: Optional[str]):
-    """Run the read path over a corpus and return its extractions."""
+    """
+    Run the read path over a corpus and return its extractions.
+
+    The corpus has to be the one `benchmarks run` will load, or the labels a
+    person fills in will not match the extractions the report scores. It was not,
+    and the failure is quiet and total:
+
+        labels supplied        142
+        matched an extraction  43
+        ! 99 label(s) did not match any extraction.
+
+    99 of 142 human judgements discarded, the second slot reported UNMEASURED,
+    and a report that looked complete. The cause was one argument: this loader
+    called `load_swe_agent(limit=...)` with `per_repo` at its default of `None`,
+    which packs the window out of 13 repositories, while the CLI defaults to
+    `per_repo=2` and spreads over 20. Different transcripts, so no label key
+    could line up.
+
+    So the CLI's defaults are read from the parser rather than restated here.
+    Restating them is how the two drift apart again.
+    """
     from benchmarks.harness import run
 
     if corpus == "swe-agent":
-        transcripts = load_swe_agent(limit=limit, path=corpus_path)
+        transcripts = load_swe_agent(
+            limit=limit, path=corpus_path,
+            min_turns=CLI_DEFAULTS["min_turns"],
+            per_repo=CLI_DEFAULTS["per_repo"],
+        )
     else:
         transcripts = load_apigen_mt(
             limit=limit, path=corpus_path,
@@ -308,6 +333,8 @@ def build(
         ),
         "doctrine": DOCTRINE,
         "corpus": corpus,
+        "limit": limit,
+        "loader_defaults": dict(CLI_DEFAULTS),
         "per_entity": per_entity,
         "rows": len(rows),
         "entities": dict(counts),
@@ -370,11 +397,18 @@ def merge(worksheet: Dict[str, Any], schema_name: str) -> Dict[str, Any]:
     existing = load_labels(path)
     have = {(row.get("transcript"), row.get("entity"), row.get("value"), row.get("turn_index"))
             for row in existing}
+    kf_path = os.path.join(os.path.dirname(path), "known_failures.json")
+    corrected = set()
+    if os.path.exists(kf_path):
+        with open(kf_path, encoding="utf-8") as handle:
+            kf = json.load(handle)
+        corrected = {(c["transcript"], c["turn_index"]) for c in kf.get("corrected", [])}
+
     added = 0
     for item in items:
         key = (item.get("transcript"), item.get("entity"), item.get("value"),
                item.get("turn_index"))
-        if key in have:
+        if key in have or (item.get("transcript"), item.get("turn_index")) in corrected:
             continue
         row = {
             "transcript": item["transcript"],
@@ -480,9 +514,18 @@ def main(argv: List[str] = None) -> int:
         print(f"  total labels        {result['total_labels']}")
         print(f"  verdicts            {result['verdicts']}")
         print(f"  entities            {result['entities']}")
-        print("\nre-score with:")
-        print(f"  python -m benchmarks run --schema {args.schema} "
-              f"--corpus {worksheet.get('corpus')} --limit {args.limit}")
+        # The worksheet's own window, not a guess. A label key is
+        # (transcript, slot, turn), so labels drawn from a different slice of
+        # the corpus simply do not line up -- and the report discards them
+        # without ever saying why the number is smaller than expected.
+        corpus_name = worksheet.get("corpus", args.schema)
+        domain = " --domain airline" if corpus_name == "apigen-airline" else (
+            " --domain retail" if corpus_name == "apigen-retail" else "")
+        print("\nre-score with -- the SAME --limit this worksheet was built at,")
+        print("or the labels will not match the extractions:")
+        print(f"  python -m benchmarks run --corpus {corpus_name}{domain} "
+              f"--schema {args.schema} --limit {worksheet.get('limit', '?')}")
+
         return 0
 
     from benchmarks.gold import LABELS_BY_SCHEMA, load_labels
