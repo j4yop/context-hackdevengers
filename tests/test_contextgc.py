@@ -1003,6 +1003,46 @@ def test_there_is_no_schema_free_extraction_path():
     assert not any(e.startswith("config_") for e in entities), entities
 
 
+def test_a_relative_path_keeps_its_leading_dot():
+    """
+    Found by a hand label, not by an aggregate: "extracted value is corrupted
+    with leading dot stripped (/tests/... instead of ./tests/...)".
+
+    The cause was `val.strip().strip(".,;")`. `strip` removes characters from
+    *both* ends, so a legal relative path lost its leading dot and stopped
+    referring to a file that exists. Trailing sentence punctuation still has to
+    go -- "the file is x.py." -- so only the second call changes, from `strip` to
+    `rstrip`.
+
+    It occurred once in 159,124 pattern matches, which is the point: an aggregate
+    precision figure could not have surfaced it and never would have.
+    """
+    from contextgc import StateDAG, load_schema
+
+    dag = StateDAG()
+    for slot, patterns in load_schema("coding").items():
+        dag.register_entity_schema(slot, list(patterns))
+
+    text = ("The correct file path for the test file is "
+            "`./tests/test_x.py`. Let's open the test file using this path.")
+    found = [f for f in dag.extract_entities(text, 19, "assistant")
+             if f.entity == "failing_test"]
+    assert found, "the slot did not fire at all, so this proves nothing"
+    assert found[0].value == "./tests/test_x.py", (
+        f"got {found[0].value!r} -- a relative path without its dot names a "
+        f"file at the repo root, not the one in tests/"
+    )
+
+    # And trailing sentence punctuation is still removed, or every path in the
+    # corpus would end in a full stop.
+    trailing = "The test file `./tests/test_y.py` is failing."
+    got = [f for f in dag.extract_entities(trailing, 3, "assistant")
+           if f.entity == "failing_test"]
+    assert got and got[0].value == "./tests/test_y.py", (
+        f"got {got[0].value!r} -- trailing punctuation must still be stripped"
+    )
+
+
 def test_json_in_a_tool_result_under_the_user_role_is_not_state():
     """
     The machine-output rule, tested at the exact shape that broke it: a short

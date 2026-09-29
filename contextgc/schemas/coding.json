@@ -12,9 +12,9 @@
   "__immutable__": [],
   "_measurement": {
     "corpus": "nebius/SWE-agent-trajectories shard 0",
-    "transcripts": 40,
+    "transcripts": 60,
     "repos": 20,
-    "precision": "100% (n=36, CI 90-100%)",
+    "precision": "90% (n=130, CI 84-94%)",
     "value_contracts": {
       "derived": true,
       "corpus_note": "read_path_* counts what the read path can see: customer and agent turns, minus tool output and minus an agent turn listing its options; in_tool_output is what those exclusions cost",
@@ -47,7 +47,9 @@
           "why": "the pattern's own boundary is looser than this case needs"
         }
       }
-    }
+    },
+    "precision_note": "The combined figure, because the console shows one number and it has to be the one that covers the whole label set: 90% over 130 independent units from 142 rows. Per slot the two are not the same and neither is the headline: current_file 98% (n=98), failing_test 75% (n=44). Showing 98% because it is the better slot is the same flattering-staleness this file was corrected for, with a fresh number. A previous revision said '100% (n=36)' with failing_test unlabelled; the labels arrived, the slot turned out to be four times worse than the one beside it, and the 100% was a statement about one regex rather than about the schema. PROVENANCE: these 142 labels were collected from a worksheet built before the loader fix, on load_swe_agent(limit=6000) with per_repo=None. That window cannot be reproduced by the default CLI, which caps per_repo at 2, so this figure is only reproducible on the window named here. Worksheets built now load the CLI's own defaults and will match the report.",
+    "precision_window": "load_swe_agent(limit=6000, min_turns=8, per_repo=None)"
   },
   "values": {
     "current_file": "(?:[\\w][\\w./-]*\\.(?:py|js|ts|tsx|jsx|go|rs|java|rb|cpp|hpp))",

@@ -196,7 +196,21 @@ class StateDAG:
                         continue
 
                     val = match.group(1) if match.groups() else match.group(0)
-                    val = val.strip().strip(".,;")
+                    # Whitespace at both ends, sentence punctuation at the right
+                    # end only.
+                    #
+                    # This was `val.strip().strip(".,;")`, and `strip` works on
+                    # both ends, so it deleted a *leading* dot as well -- turning
+                    # the legal relative path `./tests/test_x.py` into
+                    # `/tests/test_x.py`. A hand label caught it: "extracted
+                    # value is corrupted with leading dot stripped".
+                    #
+                    # One occurrence in 159,124 pattern matches, because agents
+                    # mostly write absolute or bare paths, so no aggregate would
+                    # ever have shown it. It is in the list because a value that
+                    # is wrong in a way nobody can see is still wrong, and
+                    # `rstrip` is the same call with the bug removed.
+                    val = val.strip().rstrip(".,;")
                     is_imm = entity_type in self.immutable_entities
                     node = FactNode(
                         entity=entity_type,

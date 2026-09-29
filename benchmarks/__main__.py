@@ -312,7 +312,19 @@ def cmd_sample(args):
     return 0
 
 
-def main(argv=None):
+def build_parser():
+    """
+    The argument parser, on its own.
+
+    Split out of `main` so the corpus-loader defaults have one home.
+    `benchmarks.label_worksheet` has to load exactly what this loads --
+    a worksheet built over different transcripts produces labels that do
+    not match the report's extractions, and nothing in the output says so.
+    It was not: `per_repo` defaulted to `None` in the worksheet and `2`
+    here, and 99 of 142 hand labels stopped matching. Reading the defaults
+    off this parser is what stops that recurring; restating them is what
+    caused it.
+    """
     parser = argparse.ArgumentParser(
         prog="python -m benchmarks",
         description="Measure contextgc against real agent transcripts.",
@@ -412,7 +424,11 @@ def main(argv=None):
     fetch_parser.add_argument("--force", action="store_true")
     fetch_parser.set_defaults(func=cmd_fetch)
 
-    args = parser.parse_args(argv)
+    return parser
+
+
+def main(argv=None):
+    args = build_parser().parse_args(argv)
     return args.func(args)
 
 
