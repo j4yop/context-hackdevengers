@@ -86,6 +86,19 @@
     --syntax-path: #0891b2;
     --syntax-var: #db2777;
     --syntax-comment: #64748b;
+
+    /* Aceternity Globe Network */
+    --globe-sphere: #f1f5f9;
+    --globe-sphere-stroke: rgba(203, 213, 225, 0.7);
+    --globe-dot: rgba(148, 163, 184, 0.7);
+    --globe-node-active: #2563eb;
+    --globe-ring: rgba(37, 99, 235, 0.35);
+    --globe-arc-1: #2563eb;
+    --globe-arc-2: #059669;
+    --globe-arc-3: #7c3aed;
+    --globe-halo: rgba(37, 99, 235, 0.12);
+    --globe-fade-start: rgba(248, 250, 252, 0);
+    --globe-fade-end: #f8fafc;
   }
 
   @media (prefers-color-scheme: dark) {
@@ -163,6 +176,19 @@
       --syntax-path: #67e8f9;
       --syntax-var: #f472b6;
       --syntax-comment: #94a3b8;
+
+      /* Aceternity Globe Network */
+      --globe-sphere: #0a0f1d;
+      --globe-sphere-stroke: rgba(56, 189, 248, 0.25);
+      --globe-dot: rgba(148, 163, 184, 0.55);
+      --globe-node-active: #38bdf8;
+      --globe-ring: rgba(56, 189, 248, 0.45);
+      --globe-arc-1: #38bdf8;
+      --globe-arc-2: #34d399;
+      --globe-arc-3: #c084fc;
+      --globe-halo: rgba(56, 189, 248, 0.2);
+      --globe-fade-start: rgba(9, 13, 22, 0);
+      --globe-fade-end: #090d16;
     }
   }
 
@@ -225,6 +251,19 @@
     --syntax-path: #0891b2;
     --syntax-var: #db2777;
     --syntax-comment: #64748b;
+
+    /* Aceternity Globe Network */
+    --globe-sphere: #f1f5f9;
+    --globe-sphere-stroke: rgba(203, 213, 225, 0.7);
+    --globe-dot: rgba(148, 163, 184, 0.7);
+    --globe-node-active: #2563eb;
+    --globe-ring: rgba(37, 99, 235, 0.35);
+    --globe-arc-1: #2563eb;
+    --globe-arc-2: #059669;
+    --globe-arc-3: #7c3aed;
+    --globe-halo: rgba(37, 99, 235, 0.12);
+    --globe-fade-start: rgba(248, 250, 252, 0);
+    --globe-fade-end: #f8fafc;
   }
 
   [data-theme="dark"] {
@@ -285,6 +324,19 @@
     --syntax-path: #67e8f9;
     --syntax-var: #f472b6;
     --syntax-comment: #94a3b8;
+
+    /* Aceternity Globe Network */
+    --globe-sphere: #0a0f1d;
+    --globe-sphere-stroke: rgba(56, 189, 248, 0.25);
+    --globe-dot: rgba(148, 163, 184, 0.55);
+    --globe-node-active: #38bdf8;
+    --globe-ring: rgba(56, 189, 248, 0.45);
+    --globe-arc-1: #38bdf8;
+    --globe-arc-2: #34d399;
+    --globe-arc-3: #c084fc;
+    --globe-halo: rgba(56, 189, 248, 0.2);
+    --globe-fade-start: rgba(9, 13, 22, 0);
+    --globe-fade-end: #090d16;
   }
 
 /* ── ThreeUI Constellation Field Background ─────────────────── */
@@ -1815,6 +1867,166 @@ details > div { padding: 16px; }
   color: var(--ink-2);
   font-size: 15px;
   max-width: 52ch;
+}
+
+/* ── Aceternity Globe Network Section ───────────────────────── */
+.band-globe {
+  position: relative;
+  overflow: hidden;
+  padding-top: 60px;
+  padding-bottom: 60px;
+}
+
+.globe-stage {
+  position: relative;
+  width: 100%;
+  max-width: 1000px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  overflow: hidden;
+}
+
+.globe-metrics-bar {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
+  margin-bottom: 24px;
+  z-index: 10;
+}
+
+.globe-metric-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--panel-glass);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid var(--line);
+  border-radius: 9999px;
+  padding: 6px 14px;
+  font-family: var(--mono);
+  font-size: 12px;
+  box-shadow: var(--shadow-sm);
+  transition: border-color 0.2s ease, transform 0.2s ease;
+}
+
+.globe-metric-pill:hover {
+  border-color: var(--accent-line);
+  transform: translateY(-1px);
+}
+
+.globe-metric-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.pulse-blue {
+  background: var(--globe-arc-1);
+  box-shadow: 0 0 8px var(--globe-arc-1);
+}
+
+.pulse-green {
+  background: var(--globe-arc-2);
+  box-shadow: 0 0 8px var(--globe-arc-2);
+}
+
+.pulse-purple {
+  background: var(--globe-arc-3);
+  box-shadow: 0 0 8px var(--globe-arc-3);
+}
+
+.globe-metric-label {
+  color: var(--ink-3);
+  font-weight: 500;
+}
+
+.globe-metric-val {
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.globe-viewport {
+  position: relative;
+  width: 100%;
+  height: 480px;
+  max-width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  overflow: hidden;
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: pan-y;
+}
+
+.globe-viewport:active {
+  cursor: grabbing;
+}
+
+.globe-canvas {
+  width: 100%;
+  height: 100%;
+  max-width: 100%;
+  display: block;
+}
+
+.globe-fade-overlay {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 140px;
+  background: linear-gradient(to bottom, var(--globe-fade-start) 0%, var(--globe-fade-end) 100%);
+  pointer-events: none;
+  z-index: 5;
+}
+
+.globe-legend {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 20px;
+  margin-top: 16px;
+  font-size: 12px;
+  color: var(--ink-3);
+  font-family: var(--mono);
+  z-index: 10;
+}
+
+.globe-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.legend-swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  display: inline-block;
+}
+
+.swatch-arc1 { background: var(--globe-arc-1); }
+.swatch-arc2 { background: var(--globe-arc-2); }
+.swatch-arc3 { background: var(--globe-arc-3); }
+
+@media (max-width: 640px) {
+  .globe-viewport {
+    height: 340px;
+  }
+  .globe-metrics-bar {
+    gap: 8px;
+  }
+  .globe-metric-pill {
+    font-size: 11px;
+    padding: 5px 10px;
+  }
 }
 
 /* ── Footer ─────────────────────────────────────────────────── */
