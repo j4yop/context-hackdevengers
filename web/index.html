@@ -459,26 +459,80 @@
       </div>
     </div>
 
-    <!-- Code Integration Example -->
-    <div style="margin-top:24px">
-      <div class="secttl">Quick Start Integration</div>
-      <pre class="out"><code>from contextgc import compile_transcript
+    <!-- Code Integration Example (Aceternity Terminal) -->
+    <div class="aceternity-term-container">
+      <div class="secttl" style="margin-bottom:12px">Quick Start Integration</div>
+      <div class="aceternity-terminal" id="quickstartTerminal">
+        <!-- macOS Title Bar -->
+        <div class="aceternity-titlebar">
+          <div class="aceternity-dots" aria-hidden="true">
+            <span class="aceternity-dot dot-red" title="Close"></span>
+            <span class="aceternity-dot dot-yellow" title="Minimize"></span>
+            <span class="aceternity-dot dot-green" title="Maximize"></span>
+          </div>
+          <div class="aceternity-title">
+            <span class="aceternity-user">jaygopal@macbook</span><span class="aceternity-sep">:</span><span class="aceternity-path">~/contextgc</span><span class="aceternity-shell"> &mdash; bash</span>
+          </div>
+          <div class="aceternity-actions">
+            <div class="aceternity-tabs">
+              <button type="button" class="aceternity-tab active" id="tabBashBtn" data-tab="bash">Interactive CLI</button>
+              <button type="button" class="aceternity-tab" id="tabPythonBtn" data-tab="python">Python SDK</button>
+            </div>
+            <button type="button" class="aceternity-btn" id="aceternityReplayBtn" title="Replay terminal animation">
+              <span aria-hidden="true">&#x25B6;</span> Replay
+            </button>
+            <button type="button" class="aceternity-btn" id="aceternityCopyBtn" title="Copy code snippet">
+              Copy
+            </button>
+          </div>
+        </div>
 
-# Compile any multi-turn conversational transcript
+        <!-- CLI Tab: Interactive Animated Terminal -->
+        <div class="aceternity-body" id="aceternityBashBody">
+          <div class="aceternity-lines" id="aceternityLines">
+            <div class="aceternity-line command">
+              <span class="aceternity-prompt"><span class="prompt-user">jaygopal</span><span class="prompt-colon">:</span><span class="prompt-tilde">~</span><span class="prompt-dollar">$</span> </span>
+              <span><span class="syn-cmd">pip</span> install <span class="syn-var">contextgc</span></span>
+            </div>
+            <div class="aceternity-line output">&#x2714; Preflight checks passed: pure Python 3.9+, 0 dependencies.</div>
+            <div class="aceternity-line output">&#x2714; Successfully installed contextgc-0.1.0</div>
+            <div class="aceternity-line command">
+              <span class="aceternity-prompt"><span class="prompt-user">jaygopal</span><span class="prompt-colon">:</span><span class="prompt-tilde">~</span><span class="prompt-dollar">$</span> </span>
+              <span><span class="syn-cmd">python3</span> -m <span class="syn-path">contextgc.compile</span> <span class="syn-flag">--schema</span> <span class="syn-str">travel</span> <span class="syn-flag">--mode</span> <span class="syn-str">cache_friendly</span> <span class="syn-path">transcript.json</span></span>
+            </div>
+            <div class="aceternity-line output">&#x2714; Loaded transcript: 14 turns (1,842 tokens)</div>
+            <div class="aceternity-line output">&#x2714; Invariants verified: refunds over 500 checked</div>
+            <div class="aceternity-line output">&#x2714; Compiled context: 7 turns (1,112 tokens, &minus;39.6% reduction)</div>
+            <div class="aceternity-line output">&#x2714; Latency: 2.14ms | 0 LLM calls | 0 stochastic drift</div>
+            <div class="aceternity-line command">
+              <span class="aceternity-prompt"><span class="prompt-user">jaygopal</span><span class="prompt-colon">:</span><span class="prompt-tilde">~</span><span class="prompt-dollar">$</span> </span>
+              <span><span class="syn-cmd">python3</span> <span class="syn-path">run_agent.py</span></span>
+            </div>
+            <div class="aceternity-line output">Reduced context by 39.6% in 2.14ms</div>
+          </div>
+        </div>
+
+        <!-- Python SDK Tab -->
+        <div class="aceternity-body" id="aceternityPythonBody" style="display:none">
+          <pre class="aceternity-code"><code id="pythonQuickstartCode"><span class="syn-cmd">from</span> contextgc <span class="syn-cmd">import</span> compile_transcript
+
+<span class="syn-comment"># Compile any multi-turn conversational transcript</span>
 result = compile_transcript(
     transcript=raw_messages,
-    entity_schema="travel",       # or "coding", "logistics"
-    mode="cache_friendly",        # preserves byte-identical KV prefix
-    invariants=["refunds over 500 require human manager approval"]
+    entity_schema=<span class="syn-str">"travel"</span>,       <span class="syn-comment"># or "coding", "logistics"</span>
+    mode=<span class="syn-str">"cache_friendly"</span>,        <span class="syn-comment"># preserves byte-identical KV prefix</span>
+    invariants=[<span class="syn-str">"refunds over 500 require human manager approval"</span>]
 )
 
-# Pass the compiled context directly to your model
+<span class="syn-comment"># Pass the compiled context directly to your model</span>
 response = client.chat.completions.create(
-    model="gpt-4o",
+    model=<span class="syn-str">"gpt-4o"</span>,
     messages=result.compiled_messages
 )
 
-print(f"Reduced context by {result.telemetry.compression_ratio_pct}% in {result.telemetry.compile_time_ms}ms")</code></pre>
+<span class="syn-cmd">print</span>(<span class="syn-str">f"Reduced context by {result.telemetry.compression_ratio_pct}% in {result.telemetry.compile_time_ms}ms"</span>)</code></pre>
+        </div>
+      </div>
     </div>
   </section>
 
@@ -763,6 +817,313 @@ syncThemeIcon();
   }
 
   startTypewriter();
+})();
+
+// --- Aceternity Quickstart Terminal Engine --------------------------
+(function initAceternityTerminal() {
+  const terminalEl = document.getElementById('quickstartTerminal');
+  const linesContainer = document.getElementById('aceternityLines');
+  const bashBody = document.getElementById('aceternityBashBody');
+  const pythonBody = document.getElementById('aceternityPythonBody');
+  const tabBashBtn = document.getElementById('tabBashBtn');
+  const tabPythonBtn = document.getElementById('tabPythonBtn');
+  const replayBtn = document.getElementById('aceternityReplayBtn');
+  const copyBtn = document.getElementById('aceternityCopyBtn');
+  if (!terminalEl || !linesContainer) return;
+
+  const commands = [
+    "pip install contextgc",
+    "python3 -m contextgc.compile --schema travel --mode cache_friendly transcript.json",
+    "python3 test_gc.py"
+  ];
+
+  const outputs = {
+    0: [
+      "✔ Preflight checks passed: pure Python 3.9+, 0 dependencies.",
+      "✔ Successfully installed contextgc-0.1.0"
+    ],
+    1: [
+      "✔ Loaded transcript: 14 turns (1,842 tokens)",
+      "✔ Invariants verified: refunds over 500 checked",
+      "✔ Compiled context: 7 turns (1,112 tokens, -39.6% reduction)",
+      "✔ State register: active_reservation=\"0U4NPP\", cabin_class=\"economy\"",
+      "✔ Latency: 2.14ms | 0 LLM calls | 0 stochastic drift"
+    ],
+    2: [
+      "Reduced context by 39.6% in 2.14ms"
+    ]
+  };
+
+  function tokenizeBash(text) {
+    const tokens = [];
+    const words = text.split(/(\s+)/);
+    let isFirstWord = true;
+
+    for (let i = 0; i < words.length; i++) {
+      const word = words[i];
+      if (/^\s+$/.test(word)) {
+        tokens.push({ type: 'default', value: word });
+        continue;
+      }
+      if (word.startsWith('#')) {
+        tokens.push({ type: 'comment', value: word });
+        continue;
+      }
+      if (word.startsWith('$')) {
+        tokens.push({ type: 'variable', value: word });
+        isFirstWord = false;
+        continue;
+      }
+      if (word.startsWith('--') || word.startsWith('-')) {
+        tokens.push({ type: 'flag', value: word });
+        isFirstWord = false;
+        continue;
+      }
+      if (/^["'].*["']$/.test(word)) {
+        tokens.push({ type: 'string', value: word });
+        isFirstWord = false;
+        continue;
+      }
+      if (/^\d+$/.test(word)) {
+        tokens.push({ type: 'number', value: word });
+        isFirstWord = false;
+        continue;
+      }
+      if (/^[|>&<]+$/.test(word)) {
+        tokens.push({ type: 'operator', value: word });
+        isFirstWord = true;
+        continue;
+      }
+      if (word.includes('/') || word.startsWith('.') || word.startsWith('~')) {
+        tokens.push({ type: 'path', value: word });
+        isFirstWord = false;
+        continue;
+      }
+      if (isFirstWord) {
+        tokens.push({ type: 'command', value: word });
+        isFirstWord = false;
+        continue;
+      }
+      tokens.push({ type: 'default', value: word });
+    }
+    return tokens;
+  }
+
+  const tokenClassMap = {
+    command: 'syn-cmd',
+    flag: 'syn-flag',
+    string: 'syn-str',
+    number: 'syn-num',
+    operator: 'syn-op',
+    path: 'syn-path',
+    variable: 'syn-var',
+    comment: 'syn-comment',
+    default: ''
+  };
+
+  function createPromptEl() {
+    const prompt = document.createElement('span');
+    prompt.className = 'aceternity-prompt';
+    prompt.innerHTML = '<span class="prompt-user">jaygopal</span><span class="prompt-colon">:</span><span class="prompt-tilde">~</span><span class="prompt-dollar">$</span> ';
+    return prompt;
+  }
+
+  function renderTokenized(spanEl, text) {
+    const tokens = tokenizeBash(text);
+    spanEl.innerHTML = '';
+    tokens.forEach(tok => {
+      const cls = tokenClassMap[tok.type];
+      if (cls) {
+        const s = document.createElement('span');
+        s.className = cls;
+        s.textContent = tok.value;
+        spanEl.appendChild(s);
+      } else {
+        spanEl.appendChild(document.createTextNode(tok.value));
+      }
+    });
+  }
+
+  let audioCtx = null;
+  let userGestureReceived = false;
+
+  function initAudioOnGesture() {
+    if (userGestureReceived) return;
+    userGestureReceived = true;
+    try {
+      const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+      if (AudioContextClass) {
+        audioCtx = new AudioContextClass();
+      }
+    } catch {}
+  }
+  window.addEventListener('click', initAudioOnGesture, { once: true });
+  window.addEventListener('keydown', initAudioOnGesture, { once: true });
+
+  function playKeySound() {
+    if (!audioCtx || audioCtx.state === 'suspended') return;
+    try {
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(800 + Math.random() * 400, audioCtx.currentTime);
+      gain.gain.setValueAtTime(0.015, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.035);
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start();
+      osc.stop(audioCtx.currentTime + 0.04);
+    } catch {}
+  }
+
+  let timers = [];
+  function clearTimers() {
+    for (let i = 0; i < timers.length; i++) {
+      clearTimeout(timers[i]);
+    }
+    timers = [];
+  }
+
+  function startAnimation() {
+    clearTimers();
+    linesContainer.innerHTML = '';
+
+    const cursor = document.createElement('span');
+    cursor.className = 'aceternity-cursor';
+
+    let cmdIdx = 0;
+    let charIdx = 0;
+    let activeCmdLine = null;
+    let activeTextSpan = null;
+
+    function nextCommand() {
+      if (cmdIdx >= commands.length) {
+        const finalLine = document.createElement('div');
+        finalLine.className = 'aceternity-line command';
+        finalLine.appendChild(createPromptEl());
+        finalLine.appendChild(cursor);
+        linesContainer.appendChild(finalLine);
+        bashBody.scrollTop = bashBody.scrollHeight;
+        return;
+      }
+
+      charIdx = 0;
+      activeCmdLine = document.createElement('div');
+      activeCmdLine.className = 'aceternity-line command';
+      activeCmdLine.appendChild(createPromptEl());
+      activeTextSpan = document.createElement('span');
+      activeCmdLine.appendChild(activeTextSpan);
+      activeCmdLine.appendChild(cursor);
+      linesContainer.appendChild(activeCmdLine);
+
+      typeChar();
+    }
+
+    function typeChar() {
+      const cmd = commands[cmdIdx];
+      if (charIdx < cmd.length) {
+        charIdx++;
+        const currentStr = cmd.slice(0, charIdx);
+        renderTokenized(activeTextSpan, currentStr);
+        playKeySound();
+        bashBody.scrollTop = bashBody.scrollHeight;
+
+        const delay = 35 + Math.random() * 25;
+        timers.push(setTimeout(typeChar, delay));
+      } else {
+        timers.push(setTimeout(() => {
+          if (activeCmdLine.contains(cursor)) {
+            activeCmdLine.removeChild(cursor);
+          }
+          outputResults();
+        }, 120));
+      }
+    }
+
+    function outputResults() {
+      const curOutputs = outputs[cmdIdx] || [];
+      let outIdx = 0;
+
+      function nextOutput() {
+        if (outIdx < curOutputs.length) {
+          const outLine = document.createElement('div');
+          outLine.className = 'aceternity-line output';
+          outLine.textContent = curOutputs[outIdx];
+          linesContainer.appendChild(outLine);
+          bashBody.scrollTop = bashBody.scrollHeight;
+          outIdx++;
+          timers.push(setTimeout(nextOutput, 110));
+        } else {
+          cmdIdx++;
+          timers.push(setTimeout(nextCommand, 600));
+        }
+      }
+
+      nextOutput();
+    }
+
+    timers.push(setTimeout(nextCommand, 400));
+  }
+
+  if (tabBashBtn && tabPythonBtn) {
+    tabBashBtn.addEventListener('click', () => {
+      tabBashBtn.classList.add('active');
+      tabPythonBtn.classList.remove('active');
+      bashBody.style.display = 'block';
+      pythonBody.style.display = 'none';
+    });
+    tabPythonBtn.addEventListener('click', () => {
+      tabPythonBtn.classList.add('active');
+      tabBashBtn.classList.remove('active');
+      bashBody.style.display = 'none';
+      pythonBody.style.display = 'block';
+    });
+  }
+
+  if (replayBtn) {
+    replayBtn.addEventListener('click', () => {
+      if (bashBody.style.display === 'none') {
+        tabBashBtn.click();
+      }
+      startAnimation();
+    });
+  }
+
+  if (copyBtn) {
+    copyBtn.addEventListener('click', () => {
+      const isPython = pythonBody.style.display !== 'none';
+      const textToCopy = isPython
+        ? (document.getElementById('pythonQuickstartCode')?.innerText || '')
+        : 'pip install contextgc';
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText(textToCopy).catch(() => {});
+      }
+      const origText = copyBtn.innerText;
+      copyBtn.innerText = 'Copied!';
+      setTimeout(() => { copyBtn.innerText = origText; }, 1800);
+    });
+  }
+
+  const prefersReduced = window.matchMedia &&
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  if (prefersReduced) {
+    return;
+  }
+
+  let animatedOnce = false;
+  if ('IntersectionObserver' in window) {
+    const observer = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting && !animatedOnce) {
+        animatedOnce = true;
+        observer.disconnect();
+        startAnimation();
+      }
+    }, { threshold: 0.2 });
+    observer.observe(terminalEl);
+  } else {
+    startAnimation();
+  }
 })();
 
 // --- ThreeUI Constellation Field Canvas Logic ---
