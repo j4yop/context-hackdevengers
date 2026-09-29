@@ -147,78 +147,84 @@
 
   <!-- ── Section: The 3 Failures ──────────────────────────────── -->
   <section class="band" id="failures">
-    <div class="band-header">
-      <span class="band-eyebrow">The Problem</span>
-      <h2>Why autonomous agents break down after 30 turns</h2>
-      <p class="lede">
-        As multi-turn dialogues grow, language models struggle with state conflict,
-        payload bloat, and lost-in-the-middle context drift.
-      </p>
-    </div>
-
-    <div class="display-cards-container">
-      <div class="display-cards-deck">
-        <!-- Card 1: Contradiction & Ghost State -->
-        <div class="display-card display-card-1" tabindex="0" role="region" aria-label="1. Contradiction &amp; Ghost State">
-          <div class="display-card-header">
-            <div class="display-card-title-group">
-              <span class="display-card-icon warn">
-                <svg class="display-card-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                  <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/>
-                  <line x1="12" y1="9" x2="12" y2="13"/>
-                  <line x1="12" y1="17" x2="12.01" y2="17"/>
-                </svg>
-              </span>
-              <h3 class="display-card-title">1. Contradiction &amp; Ghost State</h3>
+    <div class="failures-layout">
+      <!-- Left Column: Display Cards Stack -->
+      <div class="failures-cards-col">
+        <div class="display-cards-container">
+          <div class="display-cards-deck">
+            <!-- Card 1: Contradiction & Ghost State -->
+            <div class="display-card display-card-1" tabindex="0" role="region" aria-label="1. Contradiction &amp; Ghost State">
+              <div class="display-card-header">
+                <div class="display-card-title-group">
+                  <span class="display-card-icon warn">
+                    <svg class="display-card-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/>
+                      <line x1="12" y1="9" x2="12" y2="13"/>
+                      <line x1="12" y1="17" x2="12.01" y2="17"/>
+                    </svg>
+                  </span>
+                  <h3 class="display-card-title">1. Contradiction &amp; Ghost State</h3>
+                </div>
+                <span class="tag warn">High Severity</span>
+              </div>
+              <p class="display-card-desc">
+                A user changes their delivery address or flight date 15 turns in. Later, when executing an
+                action, the model sees both values in context and flips between them or hallucinates a blend.
+              </p>
             </div>
-            <span class="tag warn">High Severity</span>
-          </div>
-          <p class="display-card-desc">
-            A user changes their delivery address or flight date 15 turns in. Later, when executing an
-            action, the model sees both values in context and flips between them or hallucinates a blend.
-          </p>
-        </div>
 
-        <!-- Card 2: Irrelevance & Token Bleed -->
-        <div class="display-card display-card-2" tabindex="0" role="region" aria-label="2. Irrelevance &amp; Token Bleed">
-          <div class="display-card-header">
-            <div class="display-card-title-group">
-              <span class="display-card-icon info">
-                <svg class="display-card-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                  <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
-                  <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
-                  <line x1="12" y1="22.08" x2="12" y2="12"/>
-                </svg>
-              </span>
-              <h3 class="display-card-title">2. Irrelevance &amp; Token Bleed</h3>
+            <!-- Card 2: Irrelevance & Token Bleed -->
+            <div class="display-card display-card-2" tabindex="0" role="region" aria-label="2. Irrelevance &amp; Token Bleed">
+              <div class="display-card-header">
+                <div class="display-card-title-group">
+                  <span class="display-card-icon info">
+                    <svg class="display-card-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+                      <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
+                      <line x1="12" y1="22.08" x2="12" y2="12"/>
+                    </svg>
+                  </span>
+                  <h3 class="display-card-title">2. Irrelevance &amp; Token Bleed</h3>
+                </div>
+                <span class="tag decl">Token Inflation</span>
+              </div>
+              <p class="display-card-desc">
+                Bash tool runs and SQL lookups dump hundreds of lines of raw tabular data that no turn will ever
+                read again. Token bills explode, latency spikes, and attention span evaporates.
+              </p>
             </div>
-            <span class="tag decl">Token Inflation</span>
-          </div>
-          <p class="display-card-desc">
-            Bash tool runs and SQL lookups dump hundreds of lines of raw tabular data that no turn will ever
-            read again. Token bills explode, latency spikes, and attention span evaporates.
-          </p>
-        </div>
 
-        <!-- Card 3: Attention Position Decay -->
-        <div class="display-card display-card-3" tabindex="0" role="region" aria-label="3. Attention Position Decay">
-          <div class="display-card-header">
-            <div class="display-card-title-group">
-              <span class="display-card-icon bad">
-                <svg class="display-card-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                  <circle cx="12" cy="12" r="10"/>
-                  <polyline points="12 6 12 12 16 14"/>
-                </svg>
-              </span>
-              <h3 class="display-card-title">3. Attention Position Decay</h3>
+            <!-- Card 3: Attention Position Decay -->
+            <div class="display-card display-card-3" tabindex="0" role="region" aria-label="3. Attention Position Decay">
+              <div class="display-card-header">
+                <div class="display-card-title-group">
+                  <span class="display-card-icon bad">
+                    <svg class="display-card-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <circle cx="12" cy="12" r="10"/>
+                      <polyline points="12 6 12 12 16 14"/>
+                    </svg>
+                  </span>
+                  <h3 class="display-card-title">3. Attention Position Decay</h3>
+                </div>
+                <span class="tag del">Attention Loss</span>
+              </div>
+              <p class="display-card-desc">
+                Important user constraints placed in the middle of a 50-turn dialogue suffer from
+                lost-in-the-middle decay. Critical invariants are quietly ignored by the model.
+              </p>
             </div>
-            <span class="tag del">Attention Loss</span>
           </div>
-          <p class="display-card-desc">
-            Important user constraints placed in the middle of a 50-turn dialogue suffer from
-            lost-in-the-middle decay. Critical invariants are quietly ignored by the model.
-          </p>
         </div>
+      </div>
+
+      <!-- Right Column: Section Header & Narrative -->
+      <div class="failures-text-col">
+        <span class="band-eyebrow">The Problem</span>
+        <h2>Why autonomous agents break down after 30 turns</h2>
+        <p class="lede">
+          As multi-turn dialogues grow, language models struggle with state conflict,
+          payload bloat, and lost-in-the-middle context drift.
+        </p>
       </div>
     </div>
   </section>
