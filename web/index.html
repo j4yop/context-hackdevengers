@@ -156,35 +156,69 @@
       </p>
     </div>
 
-    <div class="bento">
-      <div class="bento-card bento-col-4">
-        <div class="bento-icon">&#x26A0;</div>
-        <h3>1. Contradiction &amp; Ghost State</h3>
-        <p>
-          A user changes their delivery address or flight date 15 turns in. Later, when executing an
-          action, the model sees both values in context and flips between them or hallucinates a blend.
-        </p>
-        <span class="tag warn">High Severity</span>
-      </div>
+    <div class="display-cards-container">
+      <div class="display-cards-deck">
+        <!-- Card 1: Contradiction & Ghost State -->
+        <div class="display-card display-card-1" tabindex="0" role="region" aria-label="1. Contradiction &amp; Ghost State">
+          <div class="display-card-header">
+            <div class="display-card-title-group">
+              <span class="display-card-icon warn">
+                <svg class="display-card-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/>
+                  <line x1="12" y1="9" x2="12" y2="13"/>
+                  <line x1="12" y1="17" x2="12.01" y2="17"/>
+                </svg>
+              </span>
+              <h3 class="display-card-title">1. Contradiction &amp; Ghost State</h3>
+            </div>
+            <span class="tag warn">High Severity</span>
+          </div>
+          <p class="display-card-desc">
+            A user changes their delivery address or flight date 15 turns in. Later, when executing an
+            action, the model sees both values in context and flips between them or hallucinates a blend.
+          </p>
+        </div>
 
-      <div class="bento-card bento-col-4">
-        <div class="bento-icon">&#x1F4E6;</div>
-        <h3>2. Irrelevance &amp; Token Bleed</h3>
-        <p>
-          Bash tool runs and SQL lookups dump hundreds of lines of raw tabular data that no turn will ever
-          read again. Token bills explode, latency spikes, and attention span evaporates.
-        </p>
-        <span class="tag warn">Token Inflation</span>
-      </div>
+        <!-- Card 2: Irrelevance & Token Bleed -->
+        <div class="display-card display-card-2" tabindex="0" role="region" aria-label="2. Irrelevance &amp; Token Bleed">
+          <div class="display-card-header">
+            <div class="display-card-title-group">
+              <span class="display-card-icon info">
+                <svg class="display-card-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+                  <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
+                  <line x1="12" y1="22.08" x2="12" y2="12"/>
+                </svg>
+              </span>
+              <h3 class="display-card-title">2. Irrelevance &amp; Token Bleed</h3>
+            </div>
+            <span class="tag decl">Token Inflation</span>
+          </div>
+          <p class="display-card-desc">
+            Bash tool runs and SQL lookups dump hundreds of lines of raw tabular data that no turn will ever
+            read again. Token bills explode, latency spikes, and attention span evaporates.
+          </p>
+        </div>
 
-      <div class="bento-card bento-col-4">
-        <div class="bento-icon">&#x1F552;</div>
-        <h3>3. Attention Position Decay</h3>
-        <p>
-          Important user constraints placed in the middle of a 50-turn dialogue suffer from
-          lost-in-the-middle decay. Critical invariants are quietly ignored by the model.
-        </p>
-        <span class="tag warn">Attention Loss</span>
+        <!-- Card 3: Attention Position Decay -->
+        <div class="display-card display-card-3" tabindex="0" role="region" aria-label="3. Attention Position Decay">
+          <div class="display-card-header">
+            <div class="display-card-title-group">
+              <span class="display-card-icon bad">
+                <svg class="display-card-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <circle cx="12" cy="12" r="10"/>
+                  <polyline points="12 6 12 12 16 14"/>
+                </svg>
+              </span>
+              <h3 class="display-card-title">3. Attention Position Decay</h3>
+            </div>
+            <span class="tag del">Attention Loss</span>
+          </div>
+          <p class="display-card-desc">
+            Important user constraints placed in the middle of a 50-turn dialogue suffer from
+            lost-in-the-middle decay. Critical invariants are quietly ignored by the model.
+          </p>
+        </div>
       </div>
     </div>
   </section>
@@ -1350,6 +1384,26 @@ syncThemeIcon();
     step();
     paint();
   }
+})();
+
+// Display Cards interactive deck selection
+(() => {
+  const cards = document.querySelectorAll('.display-card');
+  cards.forEach(card => {
+    card.addEventListener('click', () => {
+      const wasActive = card.classList.contains('is-active');
+      cards.forEach(c => c.classList.remove('is-active'));
+      if (!wasActive) {
+        card.classList.add('is-active');
+      }
+    });
+    card.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        card.click();
+      }
+    });
+  });
 })();
 </script>
 </body>
