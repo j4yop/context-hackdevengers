@@ -1087,40 +1087,6 @@ details > div { padding: 16px; }
   align-items: center;
 }
 
-.install-box {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 12px;
-  margin-top: 28px;
-  padding: 12px 18px;
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  width: fit-content;
-  box-shadow: var(--shadow-sm);
-}
-.install-box code {
-  font-size: 14px;
-  color: var(--ink);
-  font-weight: 600;
-}
-.install-copy {
-  background: var(--panel-2);
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  padding: 4px 10px;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--ink-2);
-  cursor: pointer;
-  transition: border-color 0.15s ease, background-color 0.15s ease, color 0.15s ease;
-}
-.install-copy:hover {
-  background: var(--line);
-  color: var(--ink);
-}
-
 @media (max-width: 768px) {
   .desk-only { display: none !important; }
 }
