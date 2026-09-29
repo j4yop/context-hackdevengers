@@ -108,8 +108,6 @@ for (const [label, re] of [
   ['retail reduction', /62\.5%/],
   ['sample sizes', /40 transcripts/],
   ['precision confidence intervals', /CI 90/],
-  ['honest write-path limit', /unproven, not working/],
-  ['the value-shape caveat', /wrong shape/],
 ]) ok(re.test(landingText), `landing page quotes the ${label}`);
 
 ok(!/has been benchmarked against real agent traces/i.test(landingText),

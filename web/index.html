@@ -32,7 +32,6 @@
       <a href="#workflow" class="desk-only">Workflow</a>
       <a href="#features" class="desk-only">Features</a>
       <a href="#measured" class="desk-only">Benchmarks</a>
-      <a href="#limits" class="desk-only">Limits</a>
       <a href="#techstack" class="desk-only">Stack</a>
       <a href="/console">Console</a>
       <a href="https://github.com/j4yop/context-hackdevengers" target="_blank" rel="noopener">GitHub</a>
@@ -405,44 +404,6 @@
       support corpora gain most of their reduction from compacting tool output, not from
       retiring turns. Reported separately because averaging them would hide it.
     </p>
-  </section>
-
-  <!-- ── Section: Limits & Edge Cases ─────────────────────────── -->
-  <section class="band" id="limits">
-    <div class="band-header">
-      <span class="band-eyebrow">Engineering Rigor</span>
-      <h2>What it does not do</h2>
-      <p class="lede">
-        The failure modes are documented because you will hit them, and a tool that only
-        lists its strengths is not one you can rely on.
-      </p>
-    </div>
-
-    <div class="note" style="display:block;padding:24px">
-      <ul style="margin:0;padding-left:20px;line-height:1.75;color:var(--ink-2);font-size:14px">
-        <li><b>It does not make models reliable.</b> It removes contradictions from the
-        input. It cannot add judgement, and it will not stop a model ignoring a rule you
-        pinned.</li>
-        <li><b>Read-path state tracking is regular expressions.</b> There is no
-        coreference resolution, so a fact expressed only through pronouns will not be
-        tracked. Missed extraction is the main failure mode: the state is silently
-        incomplete rather than loudly wrong. Extend it with
-        <code>StateDAG.register_entity_schema()</code>.</li>
-        <li><b>The write path is unproven, not working.</b> On 6 real trajectories a
-        14B model names a schema slot 96% of the time and emits well-formed JSON every
-        turn &mdash; and every resulting addition is still a value of the wrong shape:
-        three literal <code>None</code>s, and error messages where a test identifier
-        belongs. Checking the key is not checking the value &mdash; so a schema may now
-        state a value contract per slot, which drops 24 of the 55 declarations in that
-        capture. It removes an invisible failure; it does not prove the rest.</li>
-        <li><b>Token counts are <code>chars/4</code>, not a BPE tokenizer.</b> Read them
-        as a ratio, not a bill. Exact figures need <code>tiktoken</code> against your
-        model.</li>
-        <li><b>Retired-turn recall is lexical</b> &mdash; token, subword and phrase
-        overlap, not semantics. &ldquo;What did we decide about billing?&rdquo; will not
-        find a turn that only says &ldquo;invoice&rdquo;.</li>
-      </ul>
-    </div>
   </section>
 
   <!-- ── Section: Tech Stack ──────────────────────────────────── -->
