@@ -18,6 +18,14 @@ for (const [name, path, vp] of [
   const p = await b.newPage({ viewport: vp });
   await p.goto(BASE+path, { waitUntil:'networkidle' });
   await p.waitForTimeout(400);
+  await p.evaluate(async () => {
+    for (let y = 0; y < 14000; y += 800) {
+      window.scrollTo(0, y);
+      await new Promise(r => setTimeout(r, 40));
+    }
+    window.scrollTo(0, 0);
+    await new Promise(r => setTimeout(r, 100));
+  });
   await p.screenshot({ path:`/tmp/opencode/${name}.png`, fullPage: true });
   await p.close();
 }
@@ -45,6 +53,14 @@ for (const [name, path] of [['landing-dark','/'], ['console-dark','/console']]) 
     await p.waitForFunction(()=>/ACTIVE_AGENT_STATE/.test(
       document.getElementById('result')?.textContent || ''), null, {timeout:20000});
   }
+  await p.evaluate(async () => {
+    for (let y = 0; y < 14000; y += 800) {
+      window.scrollTo(0, y);
+      await new Promise(r => setTimeout(r, 40));
+    }
+    window.scrollTo(0, 0);
+    await new Promise(r => setTimeout(r, 100));
+  });
   await p.waitForTimeout(300);
   await p.screenshot({ path:`/tmp/opencode/${name}.png`, fullPage: true });
   await p.close();
