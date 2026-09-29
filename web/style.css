@@ -1451,6 +1451,250 @@ details > div { padding: 16px; }
   line-height: 1.55;
 }
 
+/* ── Display Cards Stack (Interactive Failures Deck) ───────── */
+.display-cards-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  padding: 32px 0 56px;
+  overflow: visible;
+}
+
+.display-cards-deck {
+  display: grid;
+  grid-template-areas: "stack";
+  place-items: center;
+  position: relative;
+  width: 100%;
+  max-width: 640px;
+  min-height: 380px;
+}
+
+.display-card {
+  grid-area: stack;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  width: 100%;
+  max-width: 520px;
+  min-height: 190px;
+  padding: 22px 24px;
+  border-radius: 16px;
+  border: 2px solid var(--line);
+  background: var(--panel-glass);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: var(--shadow-lg);
+  cursor: pointer;
+  user-select: none;
+  transform-origin: center center;
+  transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 0.4s ease,
+              border-color 0.4s ease,
+              filter 0.6s ease,
+              opacity 0.6s ease;
+}
+
+/* Right edge subtle gradient fade */
+.display-card::after {
+  content: "";
+  position: absolute;
+  top: -5%;
+  right: -1px;
+  height: 110%;
+  width: 120px;
+  background: linear-gradient(to left, var(--bg) 0%, transparent 100%);
+  border-radius: 0 16px 16px 0;
+  pointer-events: none;
+  opacity: 0.35;
+  transition: opacity 0.4s ease;
+}
+
+/* Grayscale overlay for depth */
+.display-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: 14px;
+  background: var(--bg);
+  opacity: 0.15;
+  mix-blend-mode: overlay;
+  pointer-events: none;
+  transition: opacity 0.5s ease;
+}
+
+.display-card:hover::after,
+.display-card:focus-visible::after,
+.display-card.is-active::after {
+  opacity: 0;
+}
+
+.display-card:hover::before,
+.display-card:focus-visible::before,
+.display-card.is-active::before {
+  opacity: 0;
+}
+
+.display-card:hover,
+.display-card:focus-visible,
+.display-card.is-active {
+  border-color: var(--line-2);
+  box-shadow: 0 20px 36px -6px rgba(15, 23, 42, 0.16);
+  outline: none;
+}
+
+/* Header & Icon */
+.display-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+  position: relative;
+  z-index: 2;
+}
+
+.display-card-title-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.display-card-icon {
+  width: 34px;
+  height: 34px;
+  min-width: 34px;
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--line);
+}
+
+.display-card-icon.warn {
+  background: var(--warn-bg);
+  border-color: var(--warn-line);
+  color: var(--warn);
+}
+
+.display-card-icon.info {
+  background: var(--accent-bg);
+  border-color: var(--accent-line);
+  color: var(--accent);
+}
+
+.display-card-icon.bad {
+  background: var(--bad-bg);
+  border-color: var(--bad-line);
+  color: var(--bad);
+}
+
+.display-card-svg {
+  width: 17px;
+  height: 17px;
+}
+
+.display-card-title {
+  font-family: var(--font-display);
+  font-size: 16.5px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+  margin: 0;
+}
+
+.display-card-desc {
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--ink-2);
+  margin: 0;
+  position: relative;
+  z-index: 1;
+}
+
+/* Desktop 3D Skew & Cascading Stack */
+@media (min-width: 681px) {
+  .display-card {
+    transform: skewY(-8deg);
+  }
+
+  /* Card 1: Top-Left */
+  .display-card-1 {
+    transform: skewY(-8deg) translate(0, 0);
+    z-index: 1;
+    filter: grayscale(80%);
+    opacity: 0.85;
+  }
+  .display-card-1:hover,
+  .display-card-1:focus-visible,
+  .display-card-1.is-active {
+    transform: skewY(-8deg) translateY(-32px);
+    z-index: 25 !important;
+    filter: grayscale(0%);
+    opacity: 1;
+  }
+
+  /* Card 2: Mid-Center Offset */
+  .display-card-2 {
+    transform: skewY(-8deg) translate(56px, 58px);
+    z-index: 2;
+    filter: grayscale(80%);
+    opacity: 0.92;
+  }
+  .display-card-2:hover,
+  .display-card-2:focus-visible,
+  .display-card-2.is-active {
+    transform: skewY(-8deg) translate(56px, 18px);
+    z-index: 25 !important;
+    filter: grayscale(0%);
+    opacity: 1;
+  }
+
+  /* Card 3: Front-Right Offset */
+  .display-card-3 {
+    transform: skewY(-8deg) translate(112px, 116px);
+    z-index: 3;
+    filter: grayscale(0%);
+    opacity: 1;
+  }
+  .display-card-3:hover,
+  .display-card-3:focus-visible,
+  .display-card-3.is-active {
+    transform: skewY(-8deg) translate(112px, 80px);
+    z-index: 25 !important;
+    filter: grayscale(0%);
+    opacity: 1;
+  }
+}
+
+/* Mobile Responsive: Flatten into Clean Stack (Zero Overflow at 320px) */
+@media (max-width: 680px) {
+  .display-cards-container {
+    padding: 16px 0;
+  }
+  .display-cards-deck {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    min-height: auto;
+  }
+  .display-card {
+    width: 100% !important;
+    max-width: 100% !important;
+    transform: none !important;
+    filter: none !important;
+    opacity: 1 !important;
+    box-sizing: border-box;
+  }
+  .display-card::after {
+    display: none;
+  }
+}
+
 /* ── 4-Stage Pipeline Schematic ──────────────────────────────── */
 .pipeline {
   display: grid;
