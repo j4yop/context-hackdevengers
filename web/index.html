@@ -30,6 +30,7 @@
       <a href="/" aria-current="page">Overview</a>
       <a href="#failures" class="desk-only">Failures</a>
       <a href="#workflow" class="desk-only">Workflow</a>
+      <a href="#globe" class="desk-only">Mesh</a>
       <a href="#features" class="desk-only">Features</a>
       <a href="#measured" class="desk-only">Benchmarks</a>
       <a href="#limits" class="desk-only">Limits</a>
@@ -235,6 +236,48 @@
           Injects the authoritative <code>[ACTIVE_AGENT_STATE]</code> register and formats messages with
           byte-identical prefixes for maximal KV cache hit rates.
         </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Section: Global Context Mesh (Aceternity Globe) ──────── -->
+  <section class="band band-globe" id="globe">
+    <div class="band-header">
+      <span class="band-eyebrow">Distributed Infrastructure</span>
+      <h2>Global Context Mesh. Real-Time State Sync.</h2>
+      <p class="lede">
+        Autonomous multi-region agents routing, compacting, and synchronizing token caches with sub-millisecond determinism across worldwide nodes.
+      </p>
+    </div>
+
+    <div class="globe-stage">
+      <div class="globe-metrics-bar" role="region" aria-label="Global Mesh Telemetry">
+        <div class="globe-metric-pill">
+          <span class="globe-metric-dot pulse-blue"></span>
+          <span class="globe-metric-label">Active Mesh Nodes</span>
+          <span class="globe-metric-val">128 Cities</span>
+        </div>
+        <div class="globe-metric-pill">
+          <span class="globe-metric-dot pulse-green"></span>
+          <span class="globe-metric-label">Cache Sync Latency</span>
+          <span class="globe-metric-val">&lt; 14ms p99</span>
+        </div>
+        <div class="globe-metric-pill">
+          <span class="globe-metric-dot pulse-purple"></span>
+          <span class="globe-metric-label">State Throughput</span>
+          <span class="globe-metric-val">3.4B Tokens/hr</span>
+        </div>
+      </div>
+
+      <div class="globe-viewport" id="globeViewport">
+        <canvas id="globeCanvas" class="globe-canvas" aria-label="Interactive 3D Global Context Mesh visualization showing distributed agent traffic and real-time state sync arcs across worldwide nodes"></canvas>
+        <div class="globe-fade-overlay" aria-hidden="true"></div>
+      </div>
+
+      <div class="globe-legend">
+        <span class="globe-legend-item"><span class="legend-swatch swatch-arc1"></span> Agent RPC Arcs</span>
+        <span class="globe-legend-item"><span class="legend-swatch swatch-arc2"></span> State Synchronization</span>
+        <span class="globe-legend-item"><span class="legend-swatch swatch-arc3"></span> KV-Cache Broadcast</span>
       </div>
     </div>
   </section>
@@ -1349,6 +1392,518 @@ syncThemeIcon();
     // a still field still reads as designed.
     step();
     paint();
+  }
+})();
+
+/* ── Aceternity Globe Network 3D Interactive Visualization ── */
+(function initAceternityGlobe() {
+  const canvas = document.getElementById('globeCanvas');
+  const viewport = document.getElementById('globeViewport');
+  if (!canvas || !viewport) return;
+
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return;
+
+  let width = 0;
+  let height = 0;
+  let dpr = 1;
+  let radius = 180;
+  let cx = 0;
+  let cy = 0;
+
+  // Rotation angles: yaw (longitude) and pitch (latitude)
+  let yaw = -0.65;
+  let pitch = 0.32;
+  let velYaw = 0;
+  let velPitch = 0;
+  let isDragging = false;
+  let lastPointerX = 0;
+  let lastPointerY = 0;
+  let lastInteractionTime = 0;
+
+  // Theme colors cache
+  let palette = {
+    sphere: '#f1f5f9',
+    sphereStroke: 'rgba(203, 213, 225, 0.7)',
+    dot: 'rgba(148, 163, 184, 0.7)',
+    nodeActive: '#2563eb',
+    halo: 'rgba(37, 99, 235, 0.12)',
+    arcs: ['#2563eb', '#059669', '#7c3aed']
+  };
+
+  function updatePalette() {
+    const computed = getComputedStyle(document.documentElement);
+    palette.sphere = computed.getPropertyValue('--globe-sphere').trim() || '#f1f5f9';
+    palette.sphereStroke = computed.getPropertyValue('--globe-sphere-stroke').trim() || 'rgba(203, 213, 225, 0.7)';
+    palette.dot = computed.getPropertyValue('--globe-dot').trim() || 'rgba(148, 163, 184, 0.7)';
+    palette.nodeActive = computed.getPropertyValue('--globe-node-active').trim() || '#2563eb';
+    palette.halo = computed.getPropertyValue('--globe-halo').trim() || 'rgba(37, 99, 235, 0.12)';
+    palette.arcs = [
+      computed.getPropertyValue('--globe-arc-1').trim() || '#2563eb',
+      computed.getPropertyValue('--globe-arc-2').trim() || '#059669',
+      computed.getPropertyValue('--globe-arc-3').trim() || '#7c3aed'
+    ];
+  }
+
+  // Generate continent landmass dots deterministically
+  const RAD = Math.PI / 180;
+  function toUnitVec(lat, lng) {
+    const phi = lat * RAD;
+    const lam = lng * RAD;
+    return {
+      x: Math.cos(phi) * Math.sin(lam),
+      y: Math.sin(phi),
+      z: Math.cos(phi) * Math.cos(lam)
+    };
+  }
+
+  // Continental landmass bounding boxes with density
+  const CONTINENT_ZONES = [
+    { minLat: 24, maxLat: 58, minLng: -125, maxLng: -70, count: 180 },
+    { minLat: 58, maxLat: 72, minLng: -165, maxLng: -130, count: 40 },
+    { minLat: 60, maxLat: 80, minLng: -60, maxLng: -20, count: 35 },
+    { minLat: 14, maxLat: 28, minLng: -110, maxLng: -85, count: 50 },
+    { minLat: -12, maxLat: 12, minLng: -78, maxLng: -50, count: 100 },
+    { minLat: -35, maxLat: -12, minLng: -70, maxLng: -38, count: 90 },
+    { minLat: -55, maxLat: -35, minLng: -75, maxLng: -62, count: 30 },
+    { minLat: 36, maxLat: 58, minLng: -10, maxLng: 32, count: 120 },
+    { minLat: 50, maxLat: 59, minLng: -8, maxLng: 2, count: 30 },
+    { minLat: 56, maxLat: 70, minLng: 5, maxLng: 28, count: 40 },
+    { minLat: 15, maxLat: 36, minLng: -14, maxLng: 40, count: 90 },
+    { minLat: -10, maxLat: 15, minLng: -12, maxLng: 44, count: 110 },
+    { minLat: -35, maxLat: -10, minLng: 12, maxLng: 36, count: 60 },
+    { minLat: 8, maxLat: 34, minLng: 68, maxLng: 90, count: 110 },
+    { minLat: 20, maxLat: 45, minLng: 95, maxLng: 122, count: 140 },
+    { minLat: 45, maxLat: 68, minLng: 40, maxLng: 135, count: 90 },
+    { minLat: 15, maxLat: 38, minLng: 35, maxLng: 65, count: 60 },
+    { minLat: 30, maxLat: 44, minLng: 130, maxLng: 144, count: 40 },
+    { minLat: -8, maxLat: 15, minLng: 96, maxLng: 130, count: 65 },
+    { minLat: -38, maxLat: -14, minLng: 114, maxLng: 152, count: 85 },
+    { minLat: -46, maxLat: -36, minLng: 166, maxLng: 178, count: 20 }
+  ];
+
+  let seed = 1337;
+  function rand() {
+    seed = (seed * 16807) % 2147483647;
+    return (seed - 1) / 2147483646;
+  }
+
+  const landDots = [];
+  for (const zone of CONTINENT_ZONES) {
+    for (let i = 0; i < zone.count; i++) {
+      const lat = zone.minLat + rand() * (zone.maxLat - zone.minLat);
+      const lng = zone.minLng + rand() * (zone.maxLng - zone.minLng);
+      landDots.push({
+        vec: toUnitVec(lat, lng),
+        size: 1.2 + rand() * 1.0
+      });
+    }
+  }
+
+  // Major Global Agent Nodes
+  const AGENT_NODES = [
+    { name: 'San Francisco', lat: 37.7749, lng: -122.4194 },
+    { name: 'New York', lat: 40.7128, lng: -74.0060 },
+    { name: 'London', lat: 51.5072, lng: -0.1276 },
+    { name: 'Frankfurt', lat: 50.1109, lng: 8.6821 },
+    { name: 'Tokyo', lat: 35.6762, lng: 139.6503 },
+    { name: 'Singapore', lat: 1.3521, lng: 103.8198 },
+    { name: 'Sydney', lat: -33.8688, lng: 151.2093 },
+    { name: 'São Paulo', lat: -23.5505, lng: -46.6333 },
+    { name: 'Bengaluru', lat: 12.9716, lng: 77.5946 },
+    { name: 'Paris', lat: 48.8566, lng: 2.3522 },
+    { name: 'Hong Kong', lat: 22.3193, lng: 114.1694 },
+    { name: 'Dubai', lat: 25.2048, lng: 55.2708 },
+    { name: 'Nairobi', lat: -1.2921, lng: 36.8219 },
+    { name: 'Berlin', lat: 52.5200, lng: 13.4050 },
+    { name: 'Seoul', lat: 37.5665, lng: 126.9780 },
+    { name: 'Johannesburg', lat: -26.2041, lng: 28.0473 }
+  ].map(node => ({
+    ...node,
+    vec: toUnitVec(node.lat, node.lng)
+  }));
+
+  const RAW_ARCS = [
+    { from: 'San Francisco', to: 'Tokyo', alt: 0.35, order: 1, colorIdx: 0 },
+    { from: 'New York', to: 'London', alt: 0.28, order: 2, colorIdx: 0 },
+    { from: 'London', to: 'Frankfurt', alt: 0.15, order: 3, colorIdx: 1 },
+    { from: 'Frankfurt', to: 'Bengaluru', alt: 0.32, order: 4, colorIdx: 1 },
+    { from: 'Singapore', to: 'Tokyo', alt: 0.25, order: 5, colorIdx: 0 },
+    { from: 'Singapore', to: 'Sydney', alt: 0.30, order: 6, colorIdx: 2 },
+    { from: 'São Paulo', to: 'New York', alt: 0.40, order: 7, colorIdx: 0 },
+    { from: 'Tokyo', to: 'Hong Kong', alt: 0.20, order: 8, colorIdx: 1 },
+    { from: 'London', to: 'Singapore', alt: 0.45, order: 9, colorIdx: 2 },
+    { from: 'San Francisco', to: 'London', alt: 0.42, order: 10, colorIdx: 2 },
+    { from: 'Bengaluru', to: 'Singapore', alt: 0.22, order: 11, colorIdx: 0 },
+    { from: 'Dubai', to: 'Frankfurt', alt: 0.28, order: 12, colorIdx: 1 },
+    { from: 'Nairobi', to: 'London', alt: 0.35, order: 13, colorIdx: 2 },
+    { from: 'Seoul', to: 'San Francisco', alt: 0.40, order: 14, colorIdx: 0 }
+  ];
+
+  const nodeMap = new Map();
+  AGENT_NODES.forEach(n => nodeMap.set(n.name, n));
+
+  const arcs = [];
+  for (const a of RAW_ARCS) {
+    const fromNode = nodeMap.get(a.from);
+    const toNode = nodeMap.get(a.to);
+    if (!fromNode || !toNode) continue;
+
+    const v1 = fromNode.vec;
+    const v2 = toNode.vec;
+    const dot = Math.max(-1, Math.min(1, v1.x * v2.x + v1.y * v2.y + v1.z * v2.z));
+    const angle = Math.acos(dot);
+    if (angle < 0.05) continue;
+
+    arcs.push({
+      fromNode,
+      toNode,
+      v1,
+      v2,
+      angle,
+      alt: a.alt,
+      order: a.order,
+      colorIdx: a.colorIdx,
+      speed: 0.00045 + (a.order % 3) * 0.0001
+    });
+  }
+
+  function slerpWithAlt(v1, v2, angle, t, alt) {
+    const sinAngle = Math.sin(angle);
+    if (sinAngle < 0.001) return v1;
+    const w1 = Math.sin((1 - t) * angle) / sinAngle;
+    const w2 = Math.sin(t * angle) / sinAngle;
+    const r = 1.0 + alt * Math.sin(t * Math.PI);
+    return {
+      x: (w1 * v1.x + w2 * v2.x) * r,
+      y: (w1 * v1.y + w2 * v2.y) * r,
+      z: (w1 * v1.z + w2 * v2.z) * r
+    };
+  }
+
+  function project(vec, cosY, sinY, cosP, sinP) {
+    const x1 = vec.x * cosY + vec.z * sinY;
+    const y1 = vec.y;
+    const z1 = -vec.x * sinY + vec.z * cosY;
+
+    const x2 = x1;
+    const y2 = y1 * cosP - z1 * sinP;
+    const z2 = y1 * sinP + z1 * cosP;
+
+    return {
+      px: cx + x2 * radius,
+      py: cy - y2 * radius,
+      z: z2,
+      vis: z2 > -0.05
+    };
+  }
+
+  function resize() {
+    const rect = viewport.getBoundingClientRect();
+    width = Math.floor(rect.width);
+    height = Math.floor(rect.height || 480);
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
+
+    canvas.width = Math.floor(width * dpr);
+    canvas.height = Math.floor(height * dpr);
+    canvas.style.width = width + 'px';
+    canvas.style.height = height + 'px';
+
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.scale(dpr, dpr);
+
+    cx = width / 2;
+    cy = height / 2 + 10;
+    radius = Math.min(width * 0.44, height * 0.44);
+    if (radius > 230) radius = 230;
+    if (radius < 110) radius = 110;
+  }
+
+  viewport.addEventListener('pointerdown', (e) => {
+    isDragging = true;
+    lastPointerX = e.clientX;
+    lastPointerY = e.clientY;
+    velYaw = 0;
+    velPitch = 0;
+    lastInteractionTime = performance.now();
+    try { viewport.setPointerCapture(e.pointerId); } catch (_) {}
+  });
+
+  viewport.addEventListener('pointermove', (e) => {
+    if (!isDragging) return;
+    const dx = e.clientX - lastPointerX;
+    const dy = e.clientY - lastPointerY;
+    lastPointerX = e.clientX;
+    lastPointerY = e.clientY;
+
+    const sens = 0.0055;
+    yaw += dx * sens;
+    pitch += dy * sens;
+    pitch = Math.max(-0.85, Math.min(0.85, pitch));
+
+    velYaw = dx * sens;
+    velPitch = dy * sens;
+    lastInteractionTime = performance.now();
+  });
+
+  function endDrag(e) {
+    if (!isDragging) return;
+    isDragging = false;
+    try { viewport.releasePointerCapture(e.pointerId); } catch (_) {}
+  }
+  viewport.addEventListener('pointerup', endDrag);
+  viewport.addEventListener('pointercancel', endDrag);
+
+  let isVisible = true;
+  let isRunning = false;
+  let lastTime = performance.now();
+
+  function render(now) {
+    if (!isRunning) return;
+    lastTime = now;
+
+    if (!isDragging) {
+      const idleTime = now - lastInteractionTime;
+      if (Math.abs(velYaw) > 0.0001 || Math.abs(velPitch) > 0.0001) {
+        yaw += velYaw;
+        pitch += velPitch;
+        pitch = Math.max(-0.85, Math.min(0.85, pitch));
+        velYaw *= 0.94;
+        velPitch *= 0.94;
+      } else if (idleTime > 1200) {
+        yaw += 0.0022;
+      }
+    }
+
+    const cosY = Math.cos(yaw);
+    const sinY = Math.sin(yaw);
+    const cosP = Math.cos(pitch);
+    const sinP = Math.sin(pitch);
+
+    ctx.clearRect(0, 0, width, height);
+
+    // 1. Atmosphere Radial Halo
+    const haloGrad = ctx.createRadialGradient(cx, cy, radius * 0.92, cx, cy, radius * 1.32);
+    haloGrad.addColorStop(0, palette.halo);
+    haloGrad.addColorStop(0.7, palette.halo.replace(/[\d\.]+\)$/, '0.04)'));
+    haloGrad.addColorStop(1, 'transparent');
+    ctx.fillStyle = haloGrad;
+    ctx.beginPath();
+    ctx.arc(cx, cy, radius * 1.32, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 2. Base Sphere Fill & Shading
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+    ctx.clip();
+
+    const sphereGrad = ctx.createRadialGradient(cx - radius * 0.35, cy - radius * 0.35, radius * 0.1, cx, cy, radius);
+    sphereGrad.addColorStop(0, palette.sphere);
+    sphereGrad.addColorStop(0.8, palette.sphere);
+    sphereGrad.addColorStop(1, palette.sphereStroke);
+    ctx.fillStyle = sphereGrad;
+    ctx.fill();
+
+    // 3. Landmass Dots
+    ctx.fillStyle = palette.dot;
+    for (let i = 0; i < landDots.length; i++) {
+      const dot = landDots[i];
+      const proj = project(dot.vec, cosY, sinY, cosP, sinP);
+      if (proj.z > 0) {
+        const alpha = Math.max(0.12, Math.min(0.95, proj.z * 1.1));
+        ctx.globalAlpha = alpha;
+        ctx.beginPath();
+        const rDot = dot.size * (0.55 + 0.45 * proj.z);
+        ctx.arc(proj.px, proj.py, rDot, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+    ctx.globalAlpha = 1.0;
+    ctx.restore();
+
+    // Sphere Rim Stroke
+    ctx.strokeStyle = palette.sphereStroke;
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // 4. Arcs & Animated Pulses
+    const arcSegCount = 36;
+    for (let a = 0; a < arcs.length; a++) {
+      const arc = arcs[a];
+      const strokeColor = palette.arcs[arc.colorIdx % palette.arcs.length];
+
+      const pts = [];
+      let anyVisible = false;
+      for (let s = 0; s <= arcSegCount; s++) {
+        const t = s / arcSegCount;
+        const vec = slerpWithAlt(arc.v1, arc.v2, arc.angle, t, arc.alt);
+        const proj = project(vec, cosY, sinY, cosP, sinP);
+        pts.push(proj);
+        if (proj.z > 0) anyVisible = true;
+      }
+
+      if (!anyVisible) continue;
+
+      ctx.lineWidth = 1.1;
+      ctx.beginPath();
+      let drawing = false;
+      for (let s = 0; s <= arcSegCount; s++) {
+        const pt = pts[s];
+        if (pt.z > -0.05) {
+          if (!drawing) {
+            ctx.moveTo(pt.px, pt.py);
+            drawing = true;
+          } else {
+            ctx.lineTo(pt.px, pt.py);
+          }
+        } else {
+          drawing = false;
+        }
+      }
+      ctx.strokeStyle = strokeColor;
+      ctx.globalAlpha = 0.22;
+      ctx.stroke();
+      ctx.globalAlpha = 1.0;
+
+      const cycle = ((now * arc.speed + arc.order * 0.14) % 1.45);
+      if (cycle <= 1.0) {
+        const tHead = cycle;
+        const tTail = Math.max(0, tHead - 0.22);
+        const sTail = Math.floor(tTail * arcSegCount);
+        const sHead = Math.ceil(tHead * arcSegCount);
+
+        ctx.beginPath();
+        let tailDrawing = false;
+        for (let s = sTail; s <= sHead && s < pts.length; s++) {
+          const pt = pts[s];
+          if (pt.z > -0.05) {
+            if (!tailDrawing) {
+              ctx.moveTo(pt.px, pt.py);
+              tailDrawing = true;
+            } else {
+              ctx.lineTo(pt.px, pt.py);
+            }
+          }
+        }
+        ctx.strokeStyle = strokeColor;
+        ctx.lineWidth = 2.4;
+        ctx.globalAlpha = 0.85;
+        ctx.stroke();
+        ctx.globalAlpha = 1.0;
+
+        const headVec = slerpWithAlt(arc.v1, arc.v2, arc.angle, tHead, arc.alt);
+        const headProj = project(headVec, cosY, sinY, cosP, sinP);
+        if (headProj.z > -0.02) {
+          ctx.fillStyle = strokeColor;
+          ctx.shadowColor = strokeColor;
+          ctx.shadowBlur = 10;
+          ctx.beginPath();
+          ctx.arc(headProj.px, headProj.py, 3.2, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.shadowBlur = 0;
+        }
+      } else {
+        const ripProgress = (cycle - 1.0) / 0.45;
+        const endProj = project(arc.v2, cosY, sinY, cosP, sinP);
+        if (endProj.z > 0.05) {
+          const ripRadius = 3 + ripProgress * 20;
+          const ripAlpha = (1 - ripProgress) * 0.65;
+          ctx.strokeStyle = strokeColor;
+          ctx.lineWidth = 1.2;
+          ctx.globalAlpha = ripAlpha;
+          ctx.beginPath();
+          ctx.arc(endProj.px, endProj.py, ripRadius, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.globalAlpha = 1.0;
+        }
+      }
+    }
+
+    // 5. Active Agent Node Hubs
+    for (let n = 0; n < AGENT_NODES.length; n++) {
+      const node = AGENT_NODES[n];
+      const proj = project(node.vec, cosY, sinY, cosP, sinP);
+      if (proj.z > 0.08) {
+        const pulse = 0.6 + 0.4 * Math.sin(now * 0.004 + n);
+        ctx.fillStyle = palette.nodeActive;
+        ctx.beginPath();
+        ctx.arc(proj.px, proj.py, 2.8, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.strokeStyle = palette.nodeActive;
+        ctx.lineWidth = 1.0;
+        ctx.globalAlpha = pulse * 0.7;
+        ctx.beginPath();
+        ctx.arc(proj.px, proj.py, 6.0 + pulse * 2.0, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.globalAlpha = 1.0;
+      }
+    }
+
+    requestAnimationFrame(render);
+  }
+
+  function start() {
+    if (isRunning) return;
+    isRunning = true;
+    lastTime = performance.now();
+    requestAnimationFrame(render);
+  }
+
+  function stop() {
+    isRunning = false;
+  }
+
+  if ('IntersectionObserver' in window) {
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          isVisible = true;
+          start();
+        } else {
+          isVisible = false;
+          stop();
+        }
+      });
+    }, { threshold: 0.05 });
+    observer.observe(viewport);
+  } else {
+    start();
+  }
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) stop();
+    else if (isVisible) start();
+  });
+
+  const themeObserver = new MutationObserver(updatePalette);
+  themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+  if (window.matchMedia) {
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', updatePalette);
+  }
+  window.addEventListener('storage', updatePalette);
+
+  let resizeQueued = false;
+  window.addEventListener('resize', () => {
+    if (resizeQueued) return;
+    resizeQueued = true;
+    requestAnimationFrame(() => {
+      resizeQueued = false;
+      resize();
+    });
+  });
+
+  updatePalette();
+  resize();
+
+  const prefersReducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (!prefersReducedMotion) {
+    start();
+  } else {
+    render(performance.now());
   }
 })();
 </script>
