@@ -250,13 +250,9 @@
           <span class="n8n-header-title">ContextGC · DAG Orchestrator</span>
         </div>
         <div class="n8n-header-actions">
-          <button type="button" class="n8n-btn" id="n8n-add-stage" aria-label="Add processing stage">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
-            <span>Add Stage</span>
-          </button>
           <button type="button" class="n8n-btn" id="n8n-reset-btn" aria-label="Reset layout">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
-            <span>Reset</span>
+            <span>Reset Layout</span>
           </button>
         </div>
       </div>
@@ -1388,7 +1384,6 @@ syncThemeIcon();
   const svgLayer = document.getElementById('n8n-svg-layer');
   const nodeCountEl = document.getElementById('n8n-node-count');
   const connCountEl = document.getElementById('n8n-conn-count');
-  const addBtn = document.getElementById('n8n-add-stage');
   const resetBtn = document.getElementById('n8n-reset-btn');
   const viewport = document.getElementById('n8n-viewport');
 
@@ -1407,8 +1402,8 @@ syncThemeIcon();
       footer: "TRANSCRIPT INGEST",
       color: "emerald",
       iconSvg: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 16.98h-5.99c-1.1 0-1.95.94-2.48 1.9A4 4 0 0 1 2 17c.01-.7.2-1.4.57-2"/><path d="m6 17 3.13-5.78c.53-.97.1-2.18-.5-3.1a4 4 0 1 1 6.89-4.06l3.19 5.76c.55.99.14 2.22-.5 3.16"/></svg>',
-      x: 30,
-      y: 60
+      x: 35,
+      y: 65
     },
     {
       id: "node-2",
@@ -1419,8 +1414,8 @@ syncThemeIcon();
       footer: "LWW TIMESTAMPS",
       color: "blue",
       iconSvg: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5V19A9 3 0 0 0 21 19V5"/><path d="M3 12A9 3 0 0 0 21 12"/></svg>',
-      x: 290,
-      y: 170
+      x: 305,
+      y: 175
     },
     {
       id: "node-3",
@@ -1431,8 +1426,8 @@ syncThemeIcon();
       footer: "SUPERSEDED PURGE",
       color: "amber",
       iconSvg: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>',
-      x: 550,
-      y: 60
+      x: 575,
+      y: 65
     },
     {
       id: "node-4",
@@ -1443,27 +1438,8 @@ syncThemeIcon();
       footer: "KV CACHE HIT ALIGN",
       color: "purple",
       iconSvg: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7"/></svg>',
-      x: 810,
-      y: 170
-    }
-  ];
-
-  const poolTemplates = [
-    {
-      badge: "Telemetry",
-      title: "Telemetry & Audit Log",
-      desc: "Streams compact trace hashes, token delta receipts, and compression metrics to observability sinks.",
-      footer: "TRACE OBSERVABILITY",
-      color: "blue",
-      iconSvg: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>'
-    },
-    {
-      badge: "Guardrail",
-      title: "Deterministic Safety Gate",
-      desc: "Verifies zero hallucination or safety rule regressions against frozen ground truth invariants.",
-      footer: "SAFETY ENFORCER",
-      color: "emerald",
-      iconSvg: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/></svg>'
+      x: 845,
+      y: 175
     }
   ];
 
@@ -1514,7 +1490,7 @@ syncThemeIcon();
         const onPointerMove = (ev) => {
           const dx = ev.clientX - startX;
           const dy = ev.clientY - startY;
-          node.x = Math.max(10, Math.min(1080 - NODE_WIDTH - 10, initialNodeX + dx));
+          node.x = Math.max(10, Math.min(1100 - NODE_WIDTH - 10, initialNodeX + dx));
           node.y = Math.max(10, Math.min(420 - NODE_HEIGHT - 10, initialNodeY + dy));
           el.style.left = `${node.x}px`;
           el.style.top = `${node.y}px`;
@@ -1538,7 +1514,7 @@ syncThemeIcon();
       el.addEventListener('keydown', (e) => {
         let changed = false;
         if (e.key === 'ArrowLeft') { node.x = Math.max(10, node.x - 20); changed = true; }
-        else if (e.key === 'ArrowRight') { node.x = Math.min(1080 - NODE_WIDTH - 10, node.x + 20); changed = true; }
+        else if (e.key === 'ArrowRight') { node.x = Math.min(1100 - NODE_WIDTH - 10, node.x + 20); changed = true; }
         else if (e.key === 'ArrowUp') { node.y = Math.max(10, node.y - 20); changed = true; }
         else if (e.key === 'ArrowDown') { node.y = Math.min(420 - NODE_HEIGHT - 10, node.y + 20); changed = true; }
 
@@ -1586,47 +1562,6 @@ syncThemeIcon();
     if (connCountEl) connCountEl.textContent = String(connections.length);
   }
 
-  if (addBtn) {
-    let nextIndex = 0;
-    addBtn.addEventListener('click', () => {
-      const template = poolTemplates[nextIndex % poolTemplates.length];
-      nextIndex++;
-      const lastNode = nodes[nodes.length - 1];
-      const newId = `node-${Date.now()}`;
-      const newX = lastNode ? Math.min(1080 - NODE_WIDTH - 20, lastNode.x + 230) : 30;
-      const newY = lastNode ? (lastNode.y > 100 ? 50 : 170) : 100;
-
-      const newNode = {
-        id: newId,
-        stepNum: String(nodes.length + 1).padStart(2, '0'),
-        badge: template.badge,
-        title: template.title,
-        desc: template.desc,
-        footer: template.footer,
-        color: template.color,
-        iconSvg: template.iconSvg,
-        x: newX,
-        y: newY
-      };
-
-      nodes.push(newNode);
-      if (lastNode) {
-        connections.push({ from: lastNode.id, to: newId });
-      }
-
-      const worldEl = document.getElementById('n8n-canvas-world');
-      if (worldEl && newX + NODE_WIDTH + 50 > worldEl.offsetWidth) {
-        worldEl.style.minWidth = `${newX + NODE_WIDTH + 80}px`;
-      }
-
-      renderNodes();
-
-      if (viewport) {
-        viewport.scrollTo({ left: newX - 100, behavior: 'smooth' });
-      }
-    });
-  }
-
   if (resetBtn) {
     resetBtn.addEventListener('click', () => {
       nodes = JSON.parse(JSON.stringify(initialNodes));
@@ -1635,8 +1570,6 @@ syncThemeIcon();
         { from: "node-2", to: "node-3" },
         { from: "node-3", to: "node-4" }
       ];
-      const worldEl = document.getElementById('n8n-canvas-world');
-      if (worldEl) worldEl.style.minWidth = '1080px';
       renderNodes();
       if (viewport) {
         viewport.scrollTo({ left: 0, behavior: 'smooth' });
