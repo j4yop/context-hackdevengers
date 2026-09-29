@@ -239,41 +239,50 @@
       </p>
     </div>
 
-    <div class="pipeline">
-      <div class="pipeline-step">
-        <div class="pipeline-num">01</div>
-        <h3>Ingest &amp; Normalize</h3>
-        <p>
-          Parses OpenAI, Anthropic, or raw text transcripts into normalized turn records with role signatures,
-          tool IDs, and payload boundaries.
-        </p>
+    <!-- Interactive N8N Workflow Builder DAG -->
+    <div class="n8n-workflow-block" id="n8n-workflow-block">
+      <div class="n8n-header">
+        <div class="n8n-header-left">
+          <span class="n8n-pill">
+            <span class="n8n-pill-dot"></span>
+            PIPELINE ACTIVE
+          </span>
+          <span class="n8n-header-title">ContextGC · DAG Orchestrator</span>
+        </div>
+        <div class="n8n-header-actions">
+          <button type="button" class="n8n-btn" id="n8n-add-stage" aria-label="Add processing stage">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+            <span>Add Stage</span>
+          </button>
+          <button type="button" class="n8n-btn" id="n8n-reset-btn" aria-label="Reset layout">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+            <span>Reset</span>
+          </button>
+        </div>
       </div>
 
-      <div class="pipeline-step">
-        <div class="pipeline-num">02</div>
-        <h3>State DAG Construction</h3>
-        <p>
-          Constructs an Entity State DAG tracking entity lifetimes, confidence, Last-Write-Wins timestamps,
-          and provenance (<code>declared</code> vs <code>inferred</code>).
-        </p>
+      <div class="n8n-canvas-viewport" id="n8n-viewport" tabindex="0" role="region" aria-label="Interactive Context Pipeline Canvas">
+        <div class="n8n-canvas-world" id="n8n-canvas-world">
+          <svg class="n8n-svg-layer" id="n8n-svg-layer" aria-hidden="true"></svg>
+          <div class="n8n-nodes-container" id="n8n-nodes-container">
+            <!-- Pipeline stage cards dynamically rendered and draggable -->
+          </div>
+        </div>
       </div>
 
-      <div class="pipeline-step">
-        <div class="pipeline-num">03</div>
-        <h3>Retire &amp; Compact</h3>
-        <p>
-          Retires turns whose facts are completely superseded. Compactor samples bulk rows while strictly
-          protecting safety flags (allergens, PII, expiry).
-        </p>
-      </div>
-
-      <div class="pipeline-step">
-        <div class="pipeline-num">04</div>
-        <h3>Assemble &amp; Cache Align</h3>
-        <p>
-          Injects the authoritative <code>[ACTIVE_AGENT_STATE]</code> register and formats messages with
-          byte-identical prefixes for maximal KV cache hit rates.
-        </p>
+      <div class="n8n-footer">
+        <div class="n8n-footer-stats">
+          <span class="n8n-stat-item">
+            <span class="n8n-dot dot-emerald"></span>
+            <span id="n8n-node-count">4</span> Stages Active
+          </span>
+          <span class="n8n-stat-item">
+            <span class="n8n-dot dot-primary"></span>
+            <span id="n8n-conn-count">3</span> Transforms
+          </span>
+          <span class="n8n-tag-mono">PURE DAG</span>
+        </div>
+        <p class="n8n-footer-hint">Drag stages to re-route · Cubic Bézier connectors update dynamically</p>
       </div>
     </div>
   </section>
@@ -1371,6 +1380,271 @@ syncThemeIcon();
       }
     });
   });
+})();
+
+// N8N Workflow Block Interactive DAG Engine
+(() => {
+  const container = document.getElementById('n8n-nodes-container');
+  const svgLayer = document.getElementById('n8n-svg-layer');
+  const nodeCountEl = document.getElementById('n8n-node-count');
+  const connCountEl = document.getElementById('n8n-conn-count');
+  const addBtn = document.getElementById('n8n-add-stage');
+  const resetBtn = document.getElementById('n8n-reset-btn');
+  const viewport = document.getElementById('n8n-viewport');
+
+  if (!container || !svgLayer) return;
+
+  const NODE_WIDTH = 220;
+  const NODE_HEIGHT = 160;
+
+  const initialNodes = [
+    {
+      id: "node-1",
+      stepNum: "01",
+      badge: "Ingest",
+      title: "Ingest & Normalize",
+      desc: "Parses OpenAI, Anthropic, or raw text transcripts into normalized turn records with role signatures and boundaries.",
+      footer: "TRANSCRIPT INGEST",
+      color: "emerald",
+      iconSvg: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 16.98h-5.99c-1.1 0-1.95.94-2.48 1.9A4 4 0 0 1 2 17c.01-.7.2-1.4.57-2"/><path d="m6 17 3.13-5.78c.53-.97.1-2.18-.5-3.1a4 4 0 1 1 6.89-4.06l3.19 5.76c.55.99.14 2.22-.5 3.16"/></svg>',
+      x: 30,
+      y: 60
+    },
+    {
+      id: "node-2",
+      stepNum: "02",
+      badge: "DAG Engine",
+      title: "State DAG Construction",
+      desc: "Constructs an Entity State DAG tracking entity lifetimes, confidence, Last-Write-Wins timestamps, and provenance.",
+      footer: "LWW TIMESTAMPS",
+      color: "blue",
+      iconSvg: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5V19A9 3 0 0 0 21 19V5"/><path d="M3 12A9 3 0 0 0 21 12"/></svg>',
+      x: 290,
+      y: 170
+    },
+    {
+      id: "node-3",
+      stepNum: "03",
+      badge: "Compactor",
+      title: "Retire & Compact",
+      desc: "Retires turns whose facts are completely superseded. Compactor samples bulk rows while strictly protecting safety flags.",
+      footer: "SUPERSEDED PURGE",
+      color: "amber",
+      iconSvg: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>',
+      x: 550,
+      y: 60
+    },
+    {
+      id: "node-4",
+      stepNum: "04",
+      badge: "Cache Align",
+      title: "Assemble & Cache Align",
+      desc: "Injects the authoritative [ACTIVE_AGENT_STATE] register and formats messages with byte-identical prefixes for KV cache hits.",
+      footer: "KV CACHE HIT ALIGN",
+      color: "purple",
+      iconSvg: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7"/></svg>',
+      x: 810,
+      y: 170
+    }
+  ];
+
+  const poolTemplates = [
+    {
+      badge: "Telemetry",
+      title: "Telemetry & Audit Log",
+      desc: "Streams compact trace hashes, token delta receipts, and compression metrics to observability sinks.",
+      footer: "TRACE OBSERVABILITY",
+      color: "blue",
+      iconSvg: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>'
+    },
+    {
+      badge: "Guardrail",
+      title: "Deterministic Safety Gate",
+      desc: "Verifies zero hallucination or safety rule regressions against frozen ground truth invariants.",
+      footer: "SAFETY ENFORCER",
+      color: "emerald",
+      iconSvg: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/></svg>'
+    }
+  ];
+
+  let nodes = JSON.parse(JSON.stringify(initialNodes));
+  let connections = [
+    { from: "node-1", to: "node-2" },
+    { from: "node-2", to: "node-3" },
+    { from: "node-3", to: "node-4" }
+  ];
+
+  function renderNodes() {
+    container.innerHTML = '';
+    nodes.forEach(node => {
+      const el = document.createElement('div');
+      el.className = `n8n-node n8n-node-${node.color}`;
+      el.id = node.id;
+      el.tabIndex = 0;
+      el.setAttribute('role', 'group');
+      el.setAttribute('aria-label', `${node.title} Stage`);
+      el.style.left = `${node.x}px`;
+      el.style.top = `${node.y}px`;
+
+      el.innerHTML = `
+        <div class="n8n-node-top">
+          <div class="n8n-node-icon" aria-hidden="true">${node.iconSvg}</div>
+          <div class="n8n-node-header-text">
+            <span class="n8n-node-badge">${node.stepNum ? node.stepNum + ' · ' : ''}${node.badge}</span>
+            <div class="n8n-node-title" title="${node.title}">${node.title}</div>
+          </div>
+        </div>
+        <p class="n8n-node-desc">${node.desc}</p>
+        <div class="n8n-node-footer">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+          <span>${node.footer}</span>
+        </div>
+      `;
+
+      // Pointer drag handlers
+      el.addEventListener('pointerdown', (e) => {
+        if (e.button !== 0) return;
+        el.setPointerCapture(e.pointerId);
+        el.classList.add('is-dragging');
+        const startX = e.clientX;
+        const startY = e.clientY;
+        const initialNodeX = node.x;
+        const initialNodeY = node.y;
+
+        const onPointerMove = (ev) => {
+          const dx = ev.clientX - startX;
+          const dy = ev.clientY - startY;
+          node.x = Math.max(10, Math.min(1080 - NODE_WIDTH - 10, initialNodeX + dx));
+          node.y = Math.max(10, Math.min(420 - NODE_HEIGHT - 10, initialNodeY + dy));
+          el.style.left = `${node.x}px`;
+          el.style.top = `${node.y}px`;
+          renderConnections();
+        };
+
+        const onPointerUp = () => {
+          el.classList.remove('is-dragging');
+          try { el.releasePointerCapture(e.pointerId); } catch {}
+          window.removeEventListener('pointermove', onPointerMove);
+          window.removeEventListener('pointerup', onPointerUp);
+          window.removeEventListener('pointercancel', onPointerUp);
+        };
+
+        window.addEventListener('pointermove', onPointerMove);
+        window.addEventListener('pointerup', onPointerUp);
+        window.addEventListener('pointercancel', onPointerUp);
+      });
+
+      // Keyboard accessibility (arrows to reposition)
+      el.addEventListener('keydown', (e) => {
+        let changed = false;
+        if (e.key === 'ArrowLeft') { node.x = Math.max(10, node.x - 20); changed = true; }
+        else if (e.key === 'ArrowRight') { node.x = Math.min(1080 - NODE_WIDTH - 10, node.x + 20); changed = true; }
+        else if (e.key === 'ArrowUp') { node.y = Math.max(10, node.y - 20); changed = true; }
+        else if (e.key === 'ArrowDown') { node.y = Math.min(420 - NODE_HEIGHT - 10, node.y + 20); changed = true; }
+
+        if (changed) {
+          e.preventDefault();
+          el.style.left = `${node.x}px`;
+          el.style.top = `${node.y}px`;
+          renderConnections();
+        }
+      });
+
+      container.appendChild(el);
+    });
+
+    updateCounters();
+    renderConnections();
+  }
+
+  function renderConnections() {
+    svgLayer.innerHTML = '';
+    connections.forEach(conn => {
+      const fromNode = nodes.find(n => n.id === conn.from);
+      const toNode = nodes.find(n => n.id === conn.to);
+      if (!fromNode || !toNode) return;
+
+      const fromX = fromNode.x + NODE_WIDTH;
+      const fromY = fromNode.y + 44;
+      const toX = toNode.x;
+      const toY = toNode.y + 44;
+
+      const dx = toX - fromX;
+      const curvature = Math.max(40, Math.abs(dx) * 0.45);
+
+      const pathData = `M ${fromX} ${fromY} C ${fromX + curvature} ${fromY}, ${toX - curvature} ${toY}, ${toX} ${toY}`;
+
+      const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      path.setAttribute('d', pathData);
+      path.setAttribute('class', 'n8n-conn-path');
+      svgLayer.appendChild(path);
+    });
+  }
+
+  function updateCounters() {
+    if (nodeCountEl) nodeCountEl.textContent = String(nodes.length);
+    if (connCountEl) connCountEl.textContent = String(connections.length);
+  }
+
+  if (addBtn) {
+    let nextIndex = 0;
+    addBtn.addEventListener('click', () => {
+      const template = poolTemplates[nextIndex % poolTemplates.length];
+      nextIndex++;
+      const lastNode = nodes[nodes.length - 1];
+      const newId = `node-${Date.now()}`;
+      const newX = lastNode ? Math.min(1080 - NODE_WIDTH - 20, lastNode.x + 230) : 30;
+      const newY = lastNode ? (lastNode.y > 100 ? 50 : 170) : 100;
+
+      const newNode = {
+        id: newId,
+        stepNum: String(nodes.length + 1).padStart(2, '0'),
+        badge: template.badge,
+        title: template.title,
+        desc: template.desc,
+        footer: template.footer,
+        color: template.color,
+        iconSvg: template.iconSvg,
+        x: newX,
+        y: newY
+      };
+
+      nodes.push(newNode);
+      if (lastNode) {
+        connections.push({ from: lastNode.id, to: newId });
+      }
+
+      const worldEl = document.getElementById('n8n-canvas-world');
+      if (worldEl && newX + NODE_WIDTH + 50 > worldEl.offsetWidth) {
+        worldEl.style.minWidth = `${newX + NODE_WIDTH + 80}px`;
+      }
+
+      renderNodes();
+
+      if (viewport) {
+        viewport.scrollTo({ left: newX - 100, behavior: 'smooth' });
+      }
+    });
+  }
+
+  if (resetBtn) {
+    resetBtn.addEventListener('click', () => {
+      nodes = JSON.parse(JSON.stringify(initialNodes));
+      connections = [
+        { from: "node-1", to: "node-2" },
+        { from: "node-2", to: "node-3" },
+        { from: "node-3", to: "node-4" }
+      ];
+      const worldEl = document.getElementById('n8n-canvas-world');
+      if (worldEl) worldEl.style.minWidth = '1080px';
+      renderNodes();
+      if (viewport) {
+        viewport.scrollTo({ left: 0, behavior: 'smooth' });
+      }
+    });
+  }
+
+  renderNodes();
 })();
 </script>
 </body>
