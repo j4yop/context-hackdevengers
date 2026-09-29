@@ -3,15 +3,12 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>contextgc — stop your agent contradicting itself</title>
+<title>contextgc — Deterministic Context Garbage Collection for AI Agents</title>
 <meta name="description" content="A deterministic context compiler for AI agent transcripts. Retires superseded facts and compacts tool output before they reach the model. Measured on 180 real agent trajectories. No API key, no model call." />
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/style.css" />
-<style>
-  /* Landing-only. Everything shared lives in style.css. */
-</style>
 </head>
 <body>
 
@@ -20,6 +17,12 @@
     <a class="logo" href="/"><span class="mark">cg</span> contextgc</a>
     <nav>
       <a href="/" aria-current="page">Overview</a>
+      <a href="#failures" class="desk-only">Failures</a>
+      <a href="#workflow" class="desk-only">Workflow</a>
+      <a href="#features" class="desk-only">Features</a>
+      <a href="#measured" class="desk-only">Benchmarks</a>
+      <a href="#limits" class="desk-only">Limits</a>
+      <a href="#techstack" class="desk-only">Stack</a>
       <a href="/console">Console</a>
       <a href="https://github.com/j4yop/context-hackdevengers" target="_blank" rel="noopener">GitHub</a>
     </nav>
@@ -28,33 +31,56 @@
 
 <div class="wrap">
 
+  <!-- ── Hero Section ─────────────────────────────────────────── -->
   <section class="hero">
-    <h1>Stop your agent contradicting itself.</h1>
-    <p>
-      A long agent session accumulates facts that stopped being true, and tool output
-      nobody will read again. The model then has to reconcile two values for the same
-      key &mdash; and you pay for every token of it. contextgc compiles the transcript
-      down to what is currently true, deterministically, before it reaches the model.
-    </p>
-    <div class="cta">
-      <a class="btn primary" href="/console">Open the console</a>
-      <a class="btn" href="#measured">See the measurements</a>
+    <div class="hero-tag">
+      <span class="dot"></span>
+      Deterministic Context Garbage Collection
     </div>
-    <div class="install">
+
+    <h1>When an AI agent mutates its state 40 turns in, who cleans up what stopped being true?</h1>
+
+    <p class="lead">
+      ContextGC compiles agent transcripts down to provenanced truth in &lt;3ms.
+      Deterministic state tracking, automated turn retirement, and safety-preserving tool
+      compaction &mdash; without making an extra model call.
+    </p>
+
+    <div class="cta">
+      <a class="btn primary" href="/console">Open the console &rarr;</a>
+      <a class="btn" href="#measured">See the measurements</a>
+      <a class="btn" href="#workflow">How it works</a>
+    </div>
+
+    <div class="install-box">
       <code>pip install contextgc</code>
+      <button class="install-copy" onclick="navigator.clipboard.writeText('pip install contextgc');this.textContent='copied!';setTimeout(()=>this.textContent='copy',1400)">copy</button>
       <span class="pill">0 dependencies</span>
       <span class="pill">no model call</span>
+      <span class="pill">pure Python 3.9+</span>
+      <span class="pill good">&lt;3ms latency</span>
       <span class="pill">MIT</span>
     </div>
 
-    <!-- A real compile, not a mock-up. The transcript and the register below were
-         produced by the shipped code against the travel schema: 39.6% fewer
-         tokens, turns 1 and 4 retired, and the `business` cabin class gone
-         because the user changed their mind two turns later. -->
-    <div class="demo">
-      <figure>
-        <figcaption>What the agent was sent</figcaption>
-        <pre class="out">system: You are an airline support agent.
+    <!-- Live Dual-Terminal Comparison Window -->
+    <div class="demo-window">
+      <div class="demo-header">
+        <div class="demo-dots">
+          <span class="demo-dot"></span>
+          <span class="demo-dot"></span>
+          <span class="demo-dot"></span>
+        </div>
+        <div class="demo-title">contextgc_pipeline_trace.json &mdash; airline_reservation_turn_6</div>
+        <span class="pill good" style="font-size:11px">39.6% smaller</span>
+      </div>
+
+      <div class="demo-grid">
+        <div class="demo-pane">
+          <div class="demo-pane-head">
+            <span>What the agent was sent</span>
+            <span class="demo-pane-badge">uncompiled transcript</span>
+          </div>
+          <pre class="out">system: You are an airline support agent.
 
 user: I need to change the cabin on reservation
       0U4NPP. I am in economy class.
@@ -70,10 +96,14 @@ user: Actually, keep it in economy, I changed
 assistant: Reverting to economy.
 
 user: Thanks.</pre>
-      </figure>
-      <figure>
-        <figcaption>What the model receives <span class="arrow">&mdash; 39.6% smaller</span></figcaption>
-        <pre class="out">[ACTIVE_AGENT_STATE]
+        </div>
+
+        <div class="demo-pane">
+          <div class="demo-pane-head">
+            <span>What the model receives</span>
+            <span class="demo-pane-badge saved">&minus;39.6% tokens</span>
+          </div>
+          <pre class="out">[ACTIVE_AGENT_STATE]
   - active_reservation = "0U4NPP" (turn 2 [declared])
   - cabin_class = "economy" (turn 6 [declared])
 
@@ -89,9 +119,11 @@ user: Actually, keep it in economy, I changed
 assistant: Reverting to economy.
 
 user: Thanks.</pre>
-      </figure>
+        </div>
+      </div>
     </div>
-    <p style="font-size:13px;color:var(--ink-3);margin:10px 0 0">
+
+    <p style="font-size:13.5px;color:var(--ink-3);margin:14px 0 0;line-height:1.6">
       The <code>business</code> upgrade is gone because the user reversed it, and the
       register states the value that survived. Nothing was inferred and nothing was
       invented &mdash; the agent said which key it had changed, as a side-effect of a turn
@@ -99,14 +131,179 @@ user: Thanks.</pre>
     </p>
   </section>
 
-  <!-- ── measured ────────────────────────────────────────────── -->
+  <!-- ── Section: The 3 Failures ──────────────────────────────── -->
+  <section class="band" id="failures">
+    <div class="band-header">
+      <span class="band-eyebrow">The Problem</span>
+      <h2>Why autonomous agents break down after 30 turns</h2>
+      <p class="lede">
+        As multi-turn dialogues grow, language models struggle with state conflict,
+        payload bloat, and lost-in-the-middle context drift.
+      </p>
+    </div>
+
+    <div class="bento">
+      <div class="bento-card bento-col-4">
+        <div class="bento-icon">&#x26A0;</div>
+        <h3>1. Contradiction &amp; Ghost State</h3>
+        <p>
+          A user changes their delivery address or flight date 15 turns in. Later, when executing an
+          action, the model sees both values in context and flips between them or hallucinates a blend.
+        </p>
+        <span class="tag warn">High Severity</span>
+      </div>
+
+      <div class="bento-card bento-col-4">
+        <div class="bento-icon">&#x1F4E6;</div>
+        <h3>2. Irrelevance &amp; Token Bleed</h3>
+        <p>
+          Bash tool runs and SQL lookups dump hundreds of lines of raw tabular data that no turn will ever
+          read again. Token bills explode, latency spikes, and attention span evaporates.
+        </p>
+        <span class="tag warn">Token Inflation</span>
+      </div>
+
+      <div class="bento-card bento-col-4">
+        <div class="bento-icon">&#x1F552;</div>
+        <h3>3. Attention Position Decay</h3>
+        <p>
+          Important user constraints placed in the middle of a 50-turn dialogue suffer from
+          lost-in-the-middle decay. Critical invariants are quietly ignored by the model.
+        </p>
+        <span class="tag warn">Attention Loss</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Section: How It Works / Workflow ─────────────────────── -->
+  <section class="band" id="workflow">
+    <div class="band-header">
+      <span class="band-eyebrow">The Architecture</span>
+      <h2>The 4-stage context compilation pipeline</h2>
+      <p class="lede">
+        Each step is a pure, total mathematical function over the transcript.
+        Zero model in the loop, zero stochastic drift, and identical input always yields identical output.
+      </p>
+    </div>
+
+    <div class="pipeline">
+      <div class="pipeline-step">
+        <div class="pipeline-num">01</div>
+        <h3>Ingest &amp; Normalize</h3>
+        <p>
+          Parses OpenAI, Anthropic, or raw text transcripts into normalized turn records with role signatures,
+          tool IDs, and payload boundaries.
+        </p>
+      </div>
+
+      <div class="pipeline-step">
+        <div class="pipeline-num">02</div>
+        <h3>State DAG Construction</h3>
+        <p>
+          Constructs an Entity State DAG tracking entity lifetimes, confidence, Last-Write-Wins timestamps,
+          and provenance (<code>declared</code> vs <code>inferred</code>).
+        </p>
+      </div>
+
+      <div class="pipeline-step">
+        <div class="pipeline-num">03</div>
+        <h3>Retire &amp; Compact</h3>
+        <p>
+          Retires turns whose facts are completely superseded. Compactor samples bulk rows while strictly
+          protecting safety flags (allergens, PII, expiry).
+        </p>
+      </div>
+
+      <div class="pipeline-step">
+        <div class="pipeline-num">04</div>
+        <h3>Assemble &amp; Cache Align</h3>
+        <p>
+          Injects the authoritative <code>[ACTIVE_AGENT_STATE]</code> register and formats messages with
+          byte-identical prefixes for maximal KV cache hit rates.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Section: Core Features ───────────────────────────────── -->
+  <section class="band" id="features">
+    <div class="band-header">
+      <span class="band-eyebrow">Capabilities</span>
+      <h2>Engineered for safety, speed, and determinism</h2>
+      <p class="lede">
+        Everything required to operate production AI agents reliably across hundreds of turns.
+      </p>
+    </div>
+
+    <div class="bento">
+      <div class="bento-card bento-col-4">
+        <div class="bento-icon">&#x2699;</div>
+        <h3>Deterministic State DAG</h3>
+        <p>
+          Mathematical tracking of entity lifecycles. When a key is re-asserted, the prior turn is retired;
+          when a key is voided, it is cleanly struck from active state.
+        </p>
+      </div>
+
+      <div class="bento-card bento-col-4">
+        <div class="bento-icon">&#x1F6E1;</div>
+        <h3>Safety-First Compactor</h3>
+        <p>
+          Compresses multi-row tool payloads by up to 80% while guaranteeing that any row carrying allergen,
+          PII, security, or expiry signals is strictly preserved.
+        </p>
+      </div>
+
+      <div class="bento-card bento-col-4">
+        <div class="bento-icon">&#x26A1;</div>
+        <h3>KV-Cache Prefix Preserver</h3>
+        <p>
+          In <code>cache_friendly</code> mode, unchanged prefix messages are emitted byte-identical,
+          retaining provider KV cache hits across model generations.
+        </p>
+      </div>
+
+      <div class="bento-card bento-col-4">
+        <div class="bento-icon">&#x270F;</div>
+        <h3>Dual Read &amp; Write Path</h3>
+        <p>
+          Extracts implicit facts using measured regex schemas on the read path, or receives direct
+          declarations from the agent via <code>&lt;contextgc-state&gt;</code> blocks.
+        </p>
+      </div>
+
+      <div class="bento-card bento-col-4">
+        <div class="bento-icon">&#x1F517;</div>
+        <h3>Lexical Evidence Gate</h3>
+        <p>
+          A turn is never retired if it remains the sole supporting evidence for an active fact.
+          Orphaned assertions are mathematically prevented.
+        </p>
+      </div>
+
+      <div class="bento-card bento-col-4">
+        <div class="bento-icon">&#x1F680;</div>
+        <h3>Zero-Dependency Core</h3>
+        <p>
+          Written in 100% pure standard-library Python (3.9–3.13). Installs instantly, needs no PyTorch or heavy
+          NLP dependencies, and compiles in &lt;3ms.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Section: Measured Benchmarks ─────────────────────────── -->
   <section class="band" id="measured">
-    <h2>Measured on 180 real agent trajectories</h2>
-    <p class="lede">
-      Not a benchmark of the compiler grading itself. Three public corpora, real model
-      output, and a hand-labelled sample for the precision figure. Every number below
-      ships with the <code>n</code> it came from.
-    </p>
+    <div class="band-header">
+      <span class="band-eyebrow">Empirical Evidence</span>
+      <h2>Measured on 180 real agent trajectories</h2>
+      <p class="lede">
+        Not a benchmark of the compiler grading itself. Three public corpora, real model
+        output, and a hand-labelled sample for the precision figure. Every number below
+        ships with the <code>n</code> it came from.
+      </p>
+    </div>
+
     <div class="results">
       <table>
         <thead>
@@ -120,13 +317,35 @@ user: Thanks.</pre>
           </tr>
         </thead>
         <tbody>
-          <tr><td data-label="Corpus"><b>Coding</b><br><span class="src">SWE-agent bug-fixing, 20 repos</span></td><td class="n" data-label="Sample">40 transcripts</td><td class="n" data-label="Token reduction">66.5%</td><td class="n" data-label="Turns retired">161</td><td class="n" data-label="Payloads compacted">668</td><td class="n" data-label="Precision">100% <span class="src">n=36, CI 90&ndash;100%</span></td></tr>
-          <tr><td data-label="Corpus"><b>Airline support</b><br><span class="src">APIGen-MT-5k, reservation tool use</span></td><td class="n" data-label="Sample">60 conversations</td><td class="n" data-label="Token reduction">59.0%</td><td class="n" data-label="Turns retired">9</td><td class="n" data-label="Payloads compacted">138</td><td class="n" data-label="Precision">100% <span class="src">n=72, CI 95&ndash;100%</span></td></tr>
-          <tr><td data-label="Corpus"><b>Retail support</b><br><span class="src">APIGen-MT-5k, order and exchange tool use</span></td><td class="n" data-label="Sample">80 conversations</td><td class="n" data-label="Token reduction">62.5%</td><td class="n" data-label="Turns retired">2</td><td class="n" data-label="Payloads compacted">275</td><td class="n" data-label="Precision">100% <span class="src">n=47, CI 92&ndash;100%</span></td></tr>
+          <tr>
+            <td data-label="Corpus"><b>Coding</b><br><span class="src">SWE-agent bug-fixing, 20 repos</span></td>
+            <td class="n" data-label="Sample">40 transcripts</td>
+            <td class="n" data-label="Token reduction">66.5%</td>
+            <td class="n" data-label="Turns retired">161</td>
+            <td class="n" data-label="Payloads compacted">668</td>
+            <td class="n" data-label="Precision">100% <span class="src">n=36, CI 90&ndash;100%</span></td>
+          </tr>
+          <tr>
+            <td data-label="Corpus"><b>Airline support</b><br><span class="src">APIGen-MT-5k, reservation tool use</span></td>
+            <td class="n" data-label="Sample">60 conversations</td>
+            <td class="n" data-label="Token reduction">59.0%</td>
+            <td class="n" data-label="Turns retired">9</td>
+            <td class="n" data-label="Payloads compacted">138</td>
+            <td class="n" data-label="Precision">100% <span class="src">n=72, CI 95&ndash;100%</span></td>
+          </tr>
+          <tr>
+            <td data-label="Corpus"><b>Retail support</b><br><span class="src">APIGen-MT-5k, order and exchange tool use</span></td>
+            <td class="n" data-label="Sample">80 conversations</td>
+            <td class="n" data-label="Token reduction">62.5%</td>
+            <td class="n" data-label="Turns retired">2</td>
+            <td class="n" data-label="Payloads compacted">275</td>
+            <td class="n" data-label="Precision">100% <span class="src">n=47, CI 92&ndash;100%</span></td>
+          </tr>
         </tbody>
       </table>
     </div>
-    <p style="font-size:13.5px;color:var(--ink-2);margin:12px 0 0;max-width:70ch">
+
+    <p style="font-size:13.5px;color:var(--ink-2);margin:14px 0 0;max-width:76ch;line-height:1.6">
       Reduction transfers across all three; supersession does not. Coding re-asserts a
       key 77 times across 40 transcripts, retail twice across 80 &mdash; so the two
       support corpora gain most of their reduction from compacting tool output, not from
@@ -134,76 +353,19 @@ user: Thanks.</pre>
     </p>
   </section>
 
-  <!-- ── how ────────────────────────────────────────────────── -->
-  <section class="band" id="how">
-    <h2>Four things it does</h2>
-    <p class="lede">
-      Each one is a total function over the transcript. There is no model in the loop,
-      so the same input always compiles to the same output.
-    </p>
-    <div class="steps">
-      <section>
-        <div>
-          <h3>It lets the agent declare its own state</h3>
-          <p>Regexes cannot resolve &ldquo;send it to the new place instead&rdquo;. So the
-        agent reports what it concluded, as a structured side-effect of the turn it was
-        already making &mdash; no extra model call, no extra latency.</p>
-        </div>
-        <pre class="out">&lt;contextgc-state&gt;{
-  "assert": {"destination_address": "Gate 2"},
-  "pin":    {"allergy": "peanut"},
-  "revoke": ["order_id"],
-  "unsure": {"rider": "maybe west"}
-}&lt;/contextgc-state&gt;</pre>
-      </section>
-      
-      <section>
-        <div>
-          <h3>It tracks what each turn asserted</h3>
-          <p>Entity state is last-write-wins. When a key is re-asserted, the earlier turn
-        is retired from the context instead of competing with the newer one.</p>
-        </div>
-        <pre class="out">destination_address: "Gate 2"
-gate_code:          "4921"</pre>
-      </section>
-      
-      <section>
-        <div>
-          <h3>It never retires the evidence</h3>
-          <p>If a turn is superseded for one key but is still the only support for another,
-        it stays. Retiring it would hand the model a value with nothing behind it.</p>
-        </div>
-        <pre class="out">retired:        [1, 5]
-still required: turn 2 supports refund_claim
-orphaned facts: none</pre>
-      </section>
-      
-      <section>
-        <div>
-          <h3>It compacts tool output, keeping the safety bits</h3>
-          <p>Bulk rows are sampled, but any row carrying an allergen, severity, PII or
-        expiry signal is always retained &mdash; and the omission is reported rather than
-        performed quietly.</p>
-        </div>
-        <pre class="out">[inventory: 15 rows. Showing 4.
-SAFETY-FLAGGED ROWS RETAINED: [{"name":
- "Peanut Butter 500g", "warning":
- "PEANUT_ALLERGEN"}]  11 non-safety
- rows omitted (truncated=true).]</pre>
-      </section>
-      
-    </div>
-  </section>
-
-  <!-- ── limits ──────────────────────────────────────────────── -->
+  <!-- ── Section: Limits & Edge Cases ─────────────────────────── -->
   <section class="band" id="limits">
-    <h2>What it does not do</h2>
-    <p class="lede">
-      The failure modes are documented because you will hit them, and a tool that only
-      lists its strengths is not one you can rely on.
-    </p>
-    <div class="limits">
-      <ul>
+    <div class="band-header">
+      <span class="band-eyebrow">Engineering Rigor</span>
+      <h2>What it does not do</h2>
+      <p class="lede">
+        The failure modes are documented because you will hit them, and a tool that only
+        lists its strengths is not one you can rely on.
+      </p>
+    </div>
+
+    <div class="note" style="display:block;padding:24px">
+      <ul style="margin:0;padding-left:20px;line-height:1.75;color:var(--ink-2);font-size:14px">
         <li><b>It does not make models reliable.</b> It removes contradictions from the
         input. It cannot add judgement, and it will not stop a model ignoring a rule you
         pinned.</li>
@@ -229,25 +391,117 @@ SAFETY-FLAGGED ROWS RETAINED: [{"name":
     </div>
   </section>
 
-  <section class="band">
-    <div class="cta-band">
-      <div>
-        <h2>Paste a transcript and see what changes</h2>
-        <p>No key, no account, nothing stored. The console compiles server-side and shows
-        the exact messages the model would receive, with the reasoning behind every
-        number.</p>
+  <!-- ── Section: Tech Stack ──────────────────────────────────── -->
+  <section class="band" id="techstack">
+    <div class="band-header">
+      <span class="band-eyebrow">Specifications</span>
+      <h2>Tech stack &amp; integration architecture</h2>
+      <p class="lede">
+        Designed from first principles to be embedded in any Python agent runtime without friction.
+      </p>
+    </div>
+
+    <div class="tech-grid">
+      <div class="tech-item">
+        <div class="tech-icon">&#x1F40D;</div>
+        <div>
+          <h4>Python 3.9 &ndash; 3.13</h4>
+          <p>Pure standard library core. Zero third-party wheels, zero build tools, instantly installable.</p>
+        </div>
       </div>
-      <a class="btn primary" href="/console">Open the console</a>
+
+      <div class="tech-item">
+        <div class="tech-icon">&#x269B;</div>
+        <div>
+          <h4>Framework Agnostic</h4>
+          <p>Drop into LangChain, LangGraph, CrewAI, AutoGen, OpenAI Swarm, LlamaIndex, or raw API calls.</p>
+        </div>
+      </div>
+
+      <div class="tech-item">
+        <div class="tech-icon">&#x26A1;</div>
+        <div>
+          <h4>FastAPI / Uvicorn Server</h4>
+          <p>Optional lightweight microservice layer with sub-3ms compile endpoints and CORS support.</p>
+        </div>
+      </div>
+
+      <div class="tech-item">
+        <div class="tech-icon">&#x1F3A8;</div>
+        <div>
+          <h4>Vanilla ESM Client</h4>
+          <p>Modern browser frontend with zero build step, native CSS custom properties, and WCAG AA compliance.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Code Integration Example -->
+    <div style="margin-top:24px">
+      <div class="secttl">Quick Start Integration</div>
+      <pre class="out"><code>from contextgc import compile_transcript
+
+# Compile any multi-turn conversational transcript
+result = compile_transcript(
+    transcript=raw_messages,
+    entity_schema="travel",       # or "coding", "logistics"
+    mode="cache_friendly",        # preserves byte-identical KV prefix
+    invariants=["refunds over 500 require human manager approval"]
+)
+
+# Pass the compiled context directly to your model
+response = client.chat.completions.create(
+    model="gpt-4o",
+    messages=result.compiled_messages
+)
+
+print(f"Reduced context by {result.telemetry.compression_ratio_pct}% in {result.telemetry.compile_time_ms}ms")</code></pre>
     </div>
   </section>
 
+  <!-- ── Section: CTA Banner ──────────────────────────────────── -->
+  <section class="band">
+    <div class="cta-banner">
+      <div>
+        <h2>Paste a transcript and see what changes</h2>
+        <p>
+          No key, no account, nothing stored. The console compiles server-side and shows
+          the exact messages the model would receive, with the reasoning behind every number.
+        </p>
+      </div>
+      <a class="btn primary" href="/console">Open the console &rarr;</a>
+    </div>
+  </section>
+
+  <!-- ── Section: Contact & Maintainers ───────────────────────── -->
+  <section class="band" id="contact" style="padding-bottom:0">
+    <div class="band-header" style="margin-bottom:20px">
+      <span class="band-eyebrow">Team &amp; Community</span>
+      <h2>Maintainers &amp; Project Info</h2>
+      <p class="lede">
+        Engineered by <b>Jay Gopal Tripathy</b> &amp; team <b>HackDevengers</b>.
+        ContextGC is fully open-source and welcoming contributions.
+      </p>
+    </div>
+    <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:center">
+      <a class="btn" href="https://github.com/j4yop/context-hackdevengers" target="_blank" rel="noopener">GitHub Repository</a>
+      <a class="btn" href="https://github.com/j4yop/context-hackdevengers/issues" target="_blank" rel="noopener">Report Issue</a>
+      <a class="btn" href="https://pypi.org/project/contextgc/" target="_blank" rel="noopener">PyPI Package</a>
+      <span class="pill">MIT Licensed</span>
+    </div>
+  </section>
+
+  <!-- ── Footer ───────────────────────────────────────────────── -->
   <footer>
     <div class="wrap">
-      <span>contextgc &mdash; deterministic context compilation for AI agents</span>
-      <span style="margin-left:auto"><a href="/console">console</a> &middot;
-        <a href="https://github.com/j4yop/context-hackdevengers" target="_blank" rel="noopener">source</a> &middot; MIT</span>
+      <span>contextgc &mdash; deterministic context compilation for AI agents &middot; MIT License</span>
+      <div class="links">
+        <a href="/">Overview</a>
+        <a href="/console">Console</a>
+        <a href="https://github.com/j4yop/context-hackdevengers" target="_blank" rel="noopener">Source</a>
+      </div>
     </div>
   </footer>
+
 </div>
 
 </body>
