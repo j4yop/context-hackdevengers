@@ -1898,7 +1898,7 @@ details > div { padding: 16px; }
 
 .n8n-canvas-world {
   position: relative;
-  min-width: 1080px;
+  min-width: 1100px;
   min-height: 400px;
   height: 100%;
 }

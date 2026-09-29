@@ -9,9 +9,7 @@ import { Card } from "@/components/ui/card";
 import {
   ArrowRight,
   Database,
-  Mail,
-  Plus,
-  Settings,
+  RotateCcw,
   Webhook,
   Zap,
 } from "lucide-react";
@@ -36,50 +34,12 @@ interface WorkflowConnection {
 const NODE_WIDTH = 200;
 const NODE_HEIGHT = 100;
 
-const nodeTemplates: Omit<WorkflowNode, "id" | "position">[] = [
-  {
-    type: "trigger",
-    title: "Webhook",
-    description: "Receive data from external service",
-    icon: Webhook,
-    color: "emerald",
-  },
-  {
-    type: "action",
-    title: "Database Query",
-    description: "Fetch user records",
-    icon: Database,
-    color: "blue",
-  },
-  {
-    type: "condition",
-    title: "Condition",
-    description: "Check user status",
-    icon: Settings,
-    color: "amber",
-  },
-  {
-    type: "action",
-    title: "Send Email",
-    description: "Notify user",
-    icon: Mail,
-    color: "purple",
-  },
-  {
-    type: "action",
-    title: "Log Event",
-    description: "Record activity",
-    icon: Zap,
-    color: "indigo",
-  },
-];
-
 const initialNodes: WorkflowNode[] = [
   {
     id: "node-1",
     type: "trigger",
-    title: "Webhook",
-    description: "Receive data from external service",
+    title: "Ingest & Normalize",
+    description: "Parses transcripts into normalized turn records",
     icon: Webhook,
     color: "emerald",
     position: { x: 50, y: 100 },
@@ -87,8 +47,8 @@ const initialNodes: WorkflowNode[] = [
   {
     id: "node-2",
     type: "action",
-    title: "Database Query",
-    description: "Fetch user records",
+    title: "State DAG Construction",
+    description: "Constructs an Entity State DAG with LWW timestamps",
     icon: Database,
     color: "blue",
     position: { x: 300, y: 100 },
@@ -96,17 +56,27 @@ const initialNodes: WorkflowNode[] = [
   {
     id: "node-3",
     type: "condition",
-    title: "Condition",
-    description: "Check user status",
-    icon: Settings,
+    title: "Retire & Compact",
+    description: "Retires superseded turns and compacts state",
+    icon: Zap,
     color: "amber",
     position: { x: 550, y: 100 },
+  },
+  {
+    id: "node-4",
+    type: "action",
+    title: "Assemble & Cache Align",
+    description: "Injects authoritative state for KV cache alignment",
+    icon: ArrowRight,
+    color: "purple",
+    position: { x: 800, y: 100 },
   },
 ];
 
 const initialConnections: WorkflowConnection[] = [
   { from: "node-1", to: "node-2" },
   { from: "node-2", to: "node-3" },
+  { from: "node-3", to: "node-4" },
 ];
 
 const colorClasses: Record<string, string> = {
@@ -212,43 +182,24 @@ export function N8nWorkflowBlock() {
     dragStartPosition.current = null;
   };
 
-  // Add Node Handler
-  const addNode = () => {
-    const template =
-      nodeTemplates[Math.floor(Math.random() * nodeTemplates.length)];
-    const lastNode = nodes[nodes.length - 1];
-    const newPosition = lastNode
-      ? { x: lastNode.position.x + 250, y: lastNode.position.y }
-      : { x: 50, y: 100 };
-
-    const newNode: WorkflowNode = {
-      id: `node-${Date.now()}`,
-      ...template,
-      position: newPosition,
-    };
-
+  // Reset Layout Handler
+  const resetLayout = () => {
     flushSync(() => {
-      setNodes((prev) => [...prev, newNode]);
-      if (lastNode) {
-        setConnections((prev) => [
-          ...prev,
-          { from: lastNode.id, to: newNode.id },
-        ]);
-      }
+      setNodes(initialNodes);
+      setConnections(initialConnections);
     });
 
-    setContentSize((prev) => ({
-      width: Math.max(prev.width, newPosition.x + NODE_WIDTH + 50),
-      height: Math.max(prev.height, newPosition.y + NODE_HEIGHT + 50),
-    }));
+    const maxX = Math.max(
+      ...initialNodes.map((n) => n.position.x + NODE_WIDTH)
+    );
+    const maxY = Math.max(
+      ...initialNodes.map((n) => n.position.y + NODE_HEIGHT)
+    );
+    setContentSize({ width: maxX + 50, height: maxY + 50 });
 
-    // Scroll to new node
     const canvas = canvasRef.current;
     if (canvas) {
-      canvas.scrollTo({
-        left: newPosition.x + NODE_WIDTH - canvas.clientWidth + 100,
-        behavior: "smooth",
-      });
+      canvas.scrollTo({ left: 0, behavior: "smooth" });
     }
   };
 
@@ -270,12 +221,12 @@ export function N8nWorkflowBlock() {
         <Button
           variant="outline"
           size="sm"
-          onClick={addNode}
+          onClick={resetLayout}
           className="h-8 gap-2 rounded-lg text-xs uppercase tracking-[0.2em] text-foreground/70 hover:text-foreground"
-          aria-label="Add new node"
+          aria-label="Reset layout"
         >
-          <Plus className="h-3.5 w-3.5" aria-hidden="true" />
-          <span className="hidden sm:inline">Add Node</span>
+          <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />
+          <span className="hidden sm:inline">Reset Layout</span>
         </Button>
       </div>
 
