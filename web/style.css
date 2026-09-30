@@ -1141,6 +1141,26 @@ details > div { padding: 16px; }
   text-wrap: balance;
 }
 
+/* ── ASCII Glitch Ripple Hero Heading ───────────────────────── */
+.ascii-glitch-ripple {
+  position: relative;
+  cursor: pointer;
+  user-select: none;
+  transition: color 0.2s ease, text-shadow 0.25s ease;
+  max-width: 100%;
+}
+
+.ascii-glitch-ripple.as {
+  color: var(--ink);
+  text-shadow: 0 0 22px var(--accent-glow), 0 0 10px rgba(37, 99, 235, 0.4);
+}
+
+[data-theme="dark"] .ascii-glitch-ripple.as,
+:root:not([data-theme="light"]) .ascii-glitch-ripple.as {
+  color: var(--ink);
+  text-shadow: 0 0 28px rgba(96, 165, 250, 0.45), 0 0 12px rgba(59, 130, 246, 0.6);
+}
+
 .hero .lead {
   font-size: clamp(16.5px, 2.1vw, 20px);
   color: var(--ink-2);
