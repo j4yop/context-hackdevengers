@@ -49,10 +49,24 @@
     --bad-line: #fecaca;
 
     /* Tech / Code */
-    --code-bg: #0f172a;
+    --code-bg: #050811;
     --code-ink: #f8fafc;
     --code-line: #1e293b;
     --code-muted: #64748b;
+
+    /* Terminal Layout & Colors (Obsidian Black Theme) */
+    --terminal-frame-bg: #090d16;
+    --terminal-header-bg: #0e1424;
+    --terminal-body-bg: #050811;
+    --terminal-pane-bg: #070a14;
+    --terminal-border: rgba(255, 255, 255, 0.12);
+    --terminal-border-subtle: rgba(255, 255, 255, 0.08);
+    --terminal-text: #f8fafc;
+    --terminal-text-muted: #94a3b8;
+    --terminal-text-dim: #64748b;
+    --terminal-btn-bg: rgba(30, 41, 59, 0.7);
+    --terminal-btn-border: rgba(255, 255, 255, 0.14);
+    --terminal-btn-hover: rgba(51, 65, 85, 0.9);
 
     /* Shadows & Elevation */
     --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.05);
@@ -62,7 +76,8 @@
     /* Fonts (VengenceUI Typography System) */
     --font: 'Inter', 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     --font-display: 'Orbitron', 'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
-    --mono: 'JetBrains Mono', 'Geist Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+    --mono: 'Fira Code', 'JetBrains Mono', 'Geist Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+    --font-terminal: 'Fira Code', 'JetBrains Mono', 'Geist Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 
     /* ThreeUI Constellation Field */
     --constellation-line: #8b6914;
@@ -71,21 +86,21 @@
     --constellation-depth: linear-gradient(180deg, transparent 0%, rgba(241, 245, 249, 0.4) 60%, #f8fafc 100%);
 
     /* Tron Terminal */
-    --terminal-scan: rgba(37, 99, 235, 0.35);
-    --terminal-scanline: rgba(0, 0, 0, 0.035);
+    --terminal-scan: rgba(96, 165, 250, 0.4);
+    --terminal-scanline: rgba(255, 255, 255, 0.03);
 
     /* Aceternity Terminal & Syntax */
     --mac-dot-red: #ef4444;
     --mac-dot-yellow: #eab308;
     --mac-dot-green: #22c55e;
-    --syntax-cmd: #059669;
-    --syntax-flag: #0284c7;
-    --syntax-str: #d97706;
-    --syntax-num: #9333ea;
-    --syntax-op: #dc2626;
-    --syntax-path: #0891b2;
-    --syntax-var: #db2777;
-    --syntax-comment: #64748b;
+    --syntax-cmd: #34d399;
+    --syntax-flag: #38bdf8;
+    --syntax-str: #fcd34d;
+    --syntax-num: #c084fc;
+    --syntax-op: #f87171;
+    --syntax-path: #67e8f9;
+    --syntax-var: #f472b6;
+    --syntax-comment: #94a3b8;
   }
 
   @media (prefers-color-scheme: dark) {
@@ -134,13 +149,28 @@
       --code-line: #1e293b;
       --code-muted: #64748b;
 
+      /* Terminal Layout & Colors (Obsidian Black Theme) */
+      --terminal-frame-bg: #090d16;
+      --terminal-header-bg: #0e1424;
+      --terminal-body-bg: #050811;
+      --terminal-pane-bg: #070a14;
+      --terminal-border: rgba(255, 255, 255, 0.12);
+      --terminal-border-subtle: rgba(255, 255, 255, 0.08);
+      --terminal-text: #f8fafc;
+      --terminal-text-muted: #94a3b8;
+      --terminal-text-dim: #64748b;
+      --terminal-btn-bg: rgba(30, 41, 59, 0.7);
+      --terminal-btn-border: rgba(255, 255, 255, 0.14);
+      --terminal-btn-hover: rgba(51, 65, 85, 0.9);
+      --font-terminal: 'Fira Code', 'JetBrains Mono', 'Geist Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+
       --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
       --shadow-md: 0 4px 16px -2px rgba(0, 0, 0, 0.4);
       --shadow-lg: 0 12px 32px -4px rgba(0, 0, 0, 0.5);
 
       --font: 'Inter', 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       --font-display: 'Orbitron', 'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
-      --mono: 'JetBrains Mono', 'Geist Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+      --mono: 'Fira Code', 'JetBrains Mono', 'Geist Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
 
       /* ThreeUI Constellation Field */
       --constellation-line: #e6c879;
@@ -202,10 +232,26 @@
     --bad-ink: #991b1b;
     --bad-bg: #fef2f2;
     --bad-line: #fecaca;
-    --code-bg: #0f172a;
+    --code-bg: #050811;
     --code-ink: #f8fafc;
     --code-line: #1e293b;
     --code-muted: #64748b;
+
+    /* Terminal Layout & Colors (Obsidian Black Theme) */
+    --terminal-frame-bg: #090d16;
+    --terminal-header-bg: #0e1424;
+    --terminal-body-bg: #050811;
+    --terminal-pane-bg: #070a14;
+    --terminal-border: rgba(255, 255, 255, 0.12);
+    --terminal-border-subtle: rgba(255, 255, 255, 0.08);
+    --terminal-text: #f8fafc;
+    --terminal-text-muted: #94a3b8;
+    --terminal-text-dim: #64748b;
+    --terminal-btn-bg: rgba(30, 41, 59, 0.7);
+    --terminal-btn-border: rgba(255, 255, 255, 0.14);
+    --terminal-btn-hover: rgba(51, 65, 85, 0.9);
+    --font-terminal: 'Fira Code', 'JetBrains Mono', 'Geist Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+
     --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.05);
     --shadow-md: 0 4px 16px -2px rgba(15, 23, 42, 0.06), 0 2px 6px -1px rgba(15, 23, 42, 0.04);
     --shadow-lg: 0 12px 32px -4px rgba(15, 23, 42, 0.08), 0 4px 12px -2px rgba(15, 23, 42, 0.04);
@@ -213,19 +259,19 @@
     --constellation-node: #8b6914;
     --constellation-radial: radial-gradient(ellipse at center, rgba(226, 232, 240, 0.45) 0%, rgba(248, 250, 252, 0.95) 100%);
     --constellation-depth: linear-gradient(180deg, transparent 0%, rgba(241, 245, 249, 0.4) 60%, #f8fafc 100%);
-    --terminal-scan: rgba(37, 99, 235, 0.35);
-    --terminal-scanline: rgba(0, 0, 0, 0.035);
+    --terminal-scan: rgba(96, 165, 250, 0.4);
+    --terminal-scanline: rgba(255, 255, 255, 0.03);
     --mac-dot-red: #ef4444;
     --mac-dot-yellow: #eab308;
     --mac-dot-green: #22c55e;
-    --syntax-cmd: #059669;
-    --syntax-flag: #0284c7;
-    --syntax-str: #d97706;
-    --syntax-num: #9333ea;
-    --syntax-op: #dc2626;
-    --syntax-path: #0891b2;
-    --syntax-var: #db2777;
-    --syntax-comment: #64748b;
+    --syntax-cmd: #34d399;
+    --syntax-flag: #38bdf8;
+    --syntax-str: #fcd34d;
+    --syntax-num: #c084fc;
+    --syntax-op: #f87171;
+    --syntax-path: #67e8f9;
+    --syntax-var: #f472b6;
+    --syntax-comment: #94a3b8;
   }
 
   [data-theme="dark"] {
@@ -266,6 +312,20 @@
     --code-ink: #f8fafc;
     --code-line: #1e293b;
     --code-muted: #64748b;
+    --terminal-frame-bg: #090d16;
+    --terminal-header-bg: #0e1424;
+    --terminal-body-bg: #050811;
+    --terminal-pane-bg: #070a14;
+    --terminal-border: rgba(255, 255, 255, 0.12);
+    --terminal-border-subtle: rgba(255, 255, 255, 0.08);
+    --terminal-text: #f8fafc;
+    --terminal-text-muted: #94a3b8;
+    --terminal-text-dim: #64748b;
+    --terminal-btn-bg: rgba(30, 41, 59, 0.7);
+    --terminal-btn-border: rgba(255, 255, 255, 0.14);
+    --terminal-btn-hover: rgba(51, 65, 85, 0.9);
+    --font-terminal: 'Fira Code', 'JetBrains Mono', 'Geist Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+
     --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
     --shadow-md: 0 4px 16px -2px rgba(0, 0, 0, 0.4);
     --shadow-lg: 0 12px 32px -4px rgba(0, 0, 0, 0.5);
@@ -1106,11 +1166,12 @@ details > div { padding: 16px; }
 .demo-window {
   position: relative;
   margin-top: 48px;
-  background: var(--panel);
-  border: 1px solid var(--code-line);
+  background: var(--terminal-frame-bg);
+  border: 1px solid var(--terminal-border);
   border-radius: 14px;
-  box-shadow: var(--shadow-lg), 0 0 24px var(--accent-glow);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45), 0 0 24px var(--accent-glow);
   overflow: hidden;
+  font-family: var(--font-terminal);
 }
 
 /* Tron Cyber Corner Brackets */
@@ -1214,8 +1275,8 @@ details > div { padding: 16px; }
 /* Tron Header */
 .demo-header {
   padding: 12px 18px;
-  background: var(--panel-2);
-  border-bottom: 1px solid var(--line);
+  background: var(--terminal-header-bg);
+  border-bottom: 1px solid var(--terminal-border-subtle);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1237,19 +1298,20 @@ details > div { padding: 16px; }
 }
 .demo-dots {
   display: flex;
-  gap: 6px;
+  gap: 7px;
+  align-items: center;
 }
 .demo-dot {
   width: 10px;
   height: 10px;
   border-radius: 50%;
-  background: var(--line-2);
+  background: rgba(255, 255, 255, 0.22);
 }
 .demo-title {
   font-size: 12px;
   font-weight: 600;
-  font-family: var(--mono);
-  color: var(--ink-2);
+  font-family: var(--font-terminal);
+  color: var(--terminal-text-muted);
   display: flex;
   align-items: center;
   gap: 8px;
@@ -1257,13 +1319,14 @@ details > div { padding: 16px; }
 .tron-tag {
   display: inline-flex;
   align-items: center;
+  font-family: var(--font-terminal);
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--accent);
-  border: 1px solid var(--accent-line);
-  background: var(--accent-bg);
+  color: #60a5fa;
+  border: 1px solid rgba(96, 165, 250, 0.35);
+  background: rgba(37, 99, 235, 0.2);
   padding: 1px 6px;
   border-radius: 4px;
 }
@@ -1274,13 +1337,13 @@ details > div { padding: 16px; }
 }
 .tron-btn {
   appearance: none;
-  background: var(--panel);
-  border: 1px solid var(--line);
-  color: var(--ink-2);
-  font-family: var(--mono);
+  background: var(--terminal-btn-bg);
+  border: 1px solid var(--terminal-btn-border);
+  color: #cbd5e1;
+  font-family: var(--font-terminal);
   font-size: 11px;
   font-weight: 600;
-  padding: 3px 9px;
+  padding: 4px 10px;
   border-radius: 6px;
   cursor: pointer;
   display: inline-flex;
@@ -1289,9 +1352,9 @@ details > div { padding: 16px; }
   transition: all 0.2s ease;
 }
 .tron-btn:hover {
-  background: var(--panel-3);
-  border-color: var(--accent-line);
-  color: var(--accent);
+  background: var(--terminal-btn-hover);
+  border-color: rgba(96, 165, 250, 0.5);
+  color: #60a5fa;
   box-shadow: 0 0 10px var(--accent-glow);
 }
 .tron-btn:active {
@@ -1302,7 +1365,7 @@ details > div { padding: 16px; }
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 1px;
-  background: var(--line);
+  background: var(--terminal-border-subtle);
   position: relative;
   z-index: 5;
 }
@@ -1311,7 +1374,7 @@ details > div { padding: 16px; }
 }
 
 .demo-pane {
-  background: var(--panel);
+  background: var(--terminal-pane-bg);
   padding: 20px;
   display: flex;
   flex-direction: column;
@@ -1321,34 +1384,44 @@ details > div { padding: 16px; }
   align-items: center;
   justify-content: space-between;
   margin-bottom: 12px;
+  font-family: var(--font-terminal);
   font-size: 11.5px;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.08em;
   font-weight: 700;
-  color: var(--ink-3);
+  color: var(--terminal-text-muted);
 }
 .demo-pane-badge {
-  font-family: var(--mono);
+  font-family: var(--font-terminal);
   font-size: 11px;
   padding: 3px 8px;
   border-radius: 6px;
-  background: var(--panel-2);
-  color: var(--ink-2);
+  background: rgba(30, 41, 59, 0.6);
+  border: 1px solid var(--terminal-border-subtle);
+  color: var(--terminal-text-muted);
 }
 .demo-pane-badge.saved {
-  background: var(--good-bg);
-  color: var(--good);
-  border: 1px solid var(--good-line);
+  background: rgba(6, 78, 59, 0.45);
+  color: #34d399;
+  border: 1px solid #065f46;
 }
 
 /* Tron Stream Lines */
 .tron-stream {
   min-height: 270px;
+  background: var(--terminal-body-bg) !important;
+  border: 1px solid var(--terminal-border-subtle) !important;
+  font-family: var(--font-terminal);
+  font-size: 12.5px;
+  line-height: 1.65;
+  font-feature-settings: "liga" 1, "calt" 1;
 }
 .tron-line {
+  font-family: var(--font-terminal);
   line-height: 1.55;
   white-space: pre-wrap;
   word-break: break-word;
+  font-feature-settings: "liga" 1, "calt" 1;
 }
 .tron-prefix {
   opacity: 0.6;
@@ -1356,19 +1429,19 @@ details > div { padding: 16px; }
   font-weight: 600;
 }
 .tron-line.system {
-  color: var(--warn);
+  color: #fbbf24;
 }
 .tron-line.input {
-  color: var(--accent);
+  color: #38bdf8;
 }
 .tron-line.output {
-  color: var(--code-ink);
+  color: #f8fafc;
 }
 .tron-line.error {
-  color: var(--bad);
+  color: #f87171;
 }
 .tron-line.gone {
-  color: var(--code-muted);
+  color: #64748b;
   text-decoration: line-through;
 }
 
@@ -2481,10 +2554,10 @@ details > div { padding: 16px; }
 .aceternity-terminal {
   border-radius: 12px;
   overflow: hidden;
-  border: 1px solid var(--code-line);
-  background: var(--code-bg);
-  box-shadow: var(--shadow-lg), 0 0 24px var(--accent-glow);
-  font-family: var(--mono);
+  border: 1px solid var(--terminal-border);
+  background: var(--terminal-body-bg);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4), 0 0 24px var(--accent-glow);
+  font-family: var(--font-terminal);
   font-size: 13px;
   position: relative;
 }
@@ -2494,10 +2567,11 @@ details > div { padding: 16px; }
   align-items: center;
   justify-content: space-between;
   padding: 12px 16px;
-  background: var(--panel-2);
-  border-bottom: 1px solid var(--line);
+  background: var(--terminal-header-bg);
+  border-bottom: 1px solid var(--terminal-border-subtle);
   gap: 12px;
   user-select: none;
+  font-family: var(--font-terminal);
 }
 
 @media (max-width: 640px) {
@@ -2533,17 +2607,18 @@ details > div { padding: 16px; }
 .aceternity-title {
   flex: 1;
   text-align: center;
+  font-family: var(--font-terminal);
   font-size: 11.5px;
-  color: var(--ink-3);
+  color: var(--terminal-text-muted);
   letter-spacing: 0.02em;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.aceternity-user { color: var(--syntax-flag); font-weight: 600; }
-.aceternity-sep { color: var(--ink-4); }
-.aceternity-path { color: var(--syntax-path); }
-.aceternity-shell { color: var(--ink-3); }
+.aceternity-user { color: #38bdf8; font-weight: 600; }
+.aceternity-sep { color: #64748b; }
+.aceternity-path { color: #67e8f9; }
+.aceternity-shell { color: #94a3b8; }
 
 .aceternity-actions {
   display: flex;
@@ -2553,8 +2628,8 @@ details > div { padding: 16px; }
 
 .aceternity-tabs {
   display: flex;
-  background: var(--panel);
-  border: 1px solid var(--line);
+  background: rgba(15, 23, 42, 0.75);
+  border: 1px solid var(--terminal-border-subtle);
   border-radius: 6px;
   padding: 2px;
 }
@@ -2563,8 +2638,8 @@ details > div { padding: 16px; }
   appearance: none;
   background: transparent;
   border: none;
-  color: var(--ink-3);
-  font-family: var(--mono);
+  color: var(--terminal-text-muted);
+  font-family: var(--font-terminal);
   font-size: 11px;
   font-weight: 600;
   padding: 3px 8px;
@@ -2573,20 +2648,20 @@ details > div { padding: 16px; }
   transition: all 0.15s ease;
 }
 .aceternity-tab:hover {
-  color: var(--ink);
+  color: #f8fafc;
 }
 .aceternity-tab.active {
-  background: var(--panel-3);
-  color: var(--ink);
-  box-shadow: var(--shadow-sm);
+  background: rgba(30, 41, 59, 0.9);
+  color: #f8fafc;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
 }
 
 .aceternity-btn {
   appearance: none;
-  background: var(--panel);
-  border: 1px solid var(--line);
-  color: var(--ink-2);
-  font-family: var(--mono);
+  background: var(--terminal-btn-bg);
+  border: 1px solid var(--terminal-btn-border);
+  color: #cbd5e1;
+  font-family: var(--font-terminal);
   font-size: 11px;
   font-weight: 600;
   padding: 4px 9px;
@@ -2598,9 +2673,9 @@ details > div { padding: 16px; }
   transition: all 0.2s ease;
 }
 .aceternity-btn:hover {
-  background: var(--panel-3);
-  border-color: var(--accent-line);
-  color: var(--accent);
+  background: var(--terminal-btn-hover);
+  border-color: rgba(96, 165, 250, 0.5);
+  color: #60a5fa;
 }
 .aceternity-btn:active {
   transform: translateY(1px);
@@ -2612,43 +2687,49 @@ details > div { padding: 16px; }
   min-height: 290px;
   max-height: 480px;
   overflow-y: auto;
-  box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.25);
+  background: var(--terminal-body-bg);
+  box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.4);
+  font-family: var(--font-terminal);
 }
 
 .aceternity-lines {
   display: flex;
   flex-direction: column;
   gap: 4px;
+  font-family: var(--font-terminal);
 }
 
 .aceternity-line {
   line-height: 1.6;
   white-space: pre-wrap;
   word-break: break-word;
+  font-family: var(--font-terminal);
+  font-feature-settings: "liga" 1, "calt" 1;
 }
 .aceternity-line.command {
-  color: var(--ink);
+  color: #f8fafc;
 }
 .aceternity-line.output {
-  color: var(--ink-2);
+  color: #cbd5e1;
   padding-left: 2px;
 }
 
 .aceternity-prompt {
   user-select: none;
   margin-right: 6px;
+  font-family: var(--font-terminal);
 }
-.aceternity-prompt .prompt-user { color: var(--syntax-flag); }
-.aceternity-prompt .prompt-colon { color: var(--syntax-cmd); }
-.aceternity-prompt .prompt-tilde { color: var(--syntax-path); }
-.aceternity-prompt .prompt-dollar { color: var(--syntax-comment); }
+.aceternity-prompt .prompt-user { color: #38bdf8; }
+.aceternity-prompt .prompt-colon { color: #34d399; }
+.aceternity-prompt .prompt-tilde { color: #67e8f9; }
+.aceternity-prompt .prompt-dollar { color: #94a3b8; }
 
 /* Blinking Terminal Block Cursor */
 .aceternity-cursor {
   display: inline-block;
   width: 8px;
   height: 15px;
-  background: var(--ink);
+  background: #38bdf8;
   vertical-align: middle;
   margin-left: 2px;
   animation: aceternityBlink 1.06s infinite;
@@ -2659,25 +2740,35 @@ details > div { padding: 16px; }
 }
 
 /* Syntax Highlighting Tokens */
-.syn-cmd { color: var(--syntax-cmd); font-weight: 600; }
-.syn-flag { color: var(--syntax-flag); }
-.syn-str { color: var(--syntax-str); }
-.syn-num { color: var(--syntax-num); }
-.syn-op { color: var(--syntax-op); }
-.syn-path { color: var(--syntax-path); }
-.syn-var { color: var(--syntax-var); }
-.syn-comment { color: var(--syntax-comment); font-style: italic; }
+.syn-cmd { color: #34d399; font-weight: 600; }
+.syn-flag { color: #38bdf8; }
+.syn-str { color: #fcd34d; }
+.syn-num { color: #c084fc; }
+.syn-op { color: #f87171; }
+.syn-path { color: #67e8f9; }
+.syn-var { color: #f472b6; }
+.syn-comment { color: #94a3b8; font-style: italic; }
+
+.aceternity-code {
+  margin: 0;
+  background: transparent;
+  padding: 0;
+  border: none;
+  box-shadow: none;
+  font-family: var(--font-terminal);
+}
 
 .aceternity-code {
   margin: 0;
   padding: 0;
   background: transparent;
   color: var(--code-ink);
-  font-family: var(--mono);
+  font-family: var(--font-terminal);
   font-size: 13px;
   line-height: 1.65;
   white-space: pre-wrap;
   word-break: break-word;
+  font-feature-settings: "liga" 1, "calt" 1;
 }
 
 /* ── CTA Banner ──────────────────────────────────────────────── */
