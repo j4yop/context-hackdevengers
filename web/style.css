@@ -1442,7 +1442,9 @@ details > div { padding: 16px; }
   position: relative;
   width: 100%;
   max-width: 360px;
-  min-height: 390px;
+  min-height: 270px;
+  display: flex;
+  flex-direction: column;
   margin: 0 auto;
   box-sizing: border-box;
   transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
@@ -1575,12 +1577,13 @@ details > div { padding: 16px; }
   position: relative;
   z-index: 20;
   left: 0;
-  min-height: 390px;
-  padding: 32px 28px;
+  min-height: 270px;
+  height: 100%;
+  padding: 28px 24px 26px;
   border-radius: 18px;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
+  justify-content: flex-start;
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
   background: rgba(255, 255, 255, 0.88);
@@ -1621,33 +1624,39 @@ details > div { padding: 16px; }
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 20px;
-}
-
-.skew-card-icon {
-  width: 38px;
-  height: 38px;
-  border-radius: 10px;
-  background: var(--panel-2);
-  border: 1px solid var(--line);
-  display: grid;
-  place-items: center;
-  font-size: 17px;
-  color: var(--ink);
-  box-shadow: var(--shadow-sm);
+  margin-bottom: 18px;
 }
 
 .skew-card-tag {
   font-family: var(--mono);
-  font-size: 10px;
+  font-size: 10.5px;
   font-weight: 700;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
-  padding: 3px 8px;
+  padding: 4px 10px;
   border-radius: 6px;
   background: var(--panel-2);
   border: 1px solid var(--line);
   color: var(--ink-3);
+  transition: all 0.25s ease;
+}
+
+.skew-card:hover .skew-card-tag {
+  color: var(--ink);
+  border-color: var(--line-2);
+}
+
+.skew-card-num {
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: var(--ink-4);
+  transition: color 0.3s ease;
+}
+
+.skew-card:hover .skew-card-num {
+  color: var(--accent);
 }
 
 .skew-card-content h3 {
@@ -1664,7 +1673,7 @@ details > div { padding: 16px; }
   font-size: 13.5px;
   line-height: 1.6;
   color: var(--ink-2);
-  margin: 0 0 24px;
+  margin: 0;
   letter-spacing: -0.006em;
 }
 
@@ -1676,35 +1685,6 @@ details > div { padding: 16px; }
   background: var(--panel-2);
   border: 1px solid var(--line);
   color: var(--ink);
-}
-
-.skew-card-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  font-family: var(--mono);
-  font-size: 11.5px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  padding: 9px 16px;
-  border-radius: 8px;
-  text-decoration: none;
-  background: var(--ink);
-  color: var(--bg);
-  border: 1px solid transparent;
-  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-  box-shadow: var(--shadow-sm);
-  width: fit-content;
-}
-
-.skew-card-btn:hover {
-  background: #ffcf4d;
-  color: #000000;
-  border-color: rgba(255, 0, 88, 0.4);
-  box-shadow: 0 6px 16px rgba(255, 0, 88, 0.25);
-  transform: translateY(-1px);
 }
 
 /* ── Display Cards Stack & Failures Side-by-Side ───────────── */
