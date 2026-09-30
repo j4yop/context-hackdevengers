@@ -114,6 +114,9 @@
     --bento-modal-bg: #ffffff;
     --bento-modal-border: #cbd5e1;
     --bento-code-bg: #050811;
+
+    /* Animated Reveal Footer Tokens */
+    --footer-ascii-color: var(--accent-ink);
   }
 
   @media (prefers-color-scheme: dark) {
@@ -220,6 +223,9 @@
       --bento-modal-bg: #0f172a;
       --bento-modal-border: #1e293b;
       --bento-code-bg: #050811;
+
+      /* Animated Reveal Footer Tokens */
+      --footer-ascii-color: var(--ink-3);
     }
   }
 
@@ -311,6 +317,9 @@
     --bento-modal-bg: #ffffff;
     --bento-modal-border: #cbd5e1;
     --bento-code-bg: #050811;
+
+    /* Animated Reveal Footer Tokens */
+    --footer-ascii-color: var(--accent-ink);
   }
 
   [data-theme="dark"] {
@@ -398,6 +407,9 @@
     --bento-modal-bg: #0f172a;
     --bento-modal-border: #1e293b;
     --bento-code-bg: #050811;
+
+    /* Animated Reveal Footer Tokens */
+    --footer-ascii-color: var(--ink-3);
   }
 
 /* ── ThreeUI Constellation Field Background ─────────────────── */
