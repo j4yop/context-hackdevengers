@@ -147,7 +147,37 @@
   <!-- ── Section: The Problem / Animated Cards Stack (youcefbnm) ── -->
   <section class="band failures-band" id="failures">
     <div class="failures-layout">
-      <!-- Left Column: Scroll-Animated Cards Stack (CardsStackContainer + CardSticky) -->
+      <!-- Left Column: Sticky Narrative & Live Step Tracker -->
+      <div class="failures-text-col">
+        <div class="failures-sticky-pane">
+          <span class="band-eyebrow">The Problem</span>
+          <h2>Why autonomous agents break down after 30 turns</h2>
+          <p class="lede">
+            As multi-turn dialogues grow, language models struggle with state conflict,
+            payload bloat, attention loss, and provider cache eviction.
+          </p>
+          <div class="failures-progress-tracker" id="failuresTracker" aria-label="Problem phases">
+            <button type="button" class="failures-tracker-pill active" data-index="0" aria-label="Go to 01 Contradiction &amp; Ghost State">
+              <span class="tracker-num">01</span>
+              <span class="tracker-name">Ghost State</span>
+            </button>
+            <button type="button" class="failures-tracker-pill" data-index="1" aria-label="Go to 02 Payload Bloat">
+              <span class="tracker-num">02</span>
+              <span class="tracker-name">Payload Bloat</span>
+            </button>
+            <button type="button" class="failures-tracker-pill" data-index="2" aria-label="Go to 03 Attention Decay">
+              <span class="tracker-num">03</span>
+              <span class="tracker-name">Attention Decay</span>
+            </button>
+            <button type="button" class="failures-tracker-pill" data-index="3" aria-label="Go to 04 Cache Thrashing">
+              <span class="tracker-num">04</span>
+              <span class="tracker-name">Cache Thrashing</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Column: Scroll-Animated Cards Stack (CardsStackContainer + CardSticky) -->
       <div class="failures-cards-col">
         <div class="cards-stack-container" id="cardsStackContainer">
           <!-- Card 0: Contradiction & Ghost State -->
@@ -312,36 +342,6 @@
                 <span class="card-metric-val">100% KV prefix preservation with ContextGC</span>
               </div>
             </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Right Column: Sticky Narrative & Live Step Tracker -->
-      <div class="failures-text-col">
-        <div class="failures-sticky-pane">
-          <span class="band-eyebrow">The Problem</span>
-          <h2>Why autonomous agents break down after 30 turns</h2>
-          <p class="lede">
-            As multi-turn dialogues grow, language models struggle with state conflict,
-            payload bloat, attention loss, and provider cache eviction.
-          </p>
-          <div class="failures-progress-tracker" id="failuresTracker" aria-label="Problem phases">
-            <button type="button" class="failures-tracker-pill active" data-index="0" aria-label="Go to 01 Contradiction &amp; Ghost State">
-              <span class="tracker-num">01</span>
-              <span class="tracker-name">Ghost State</span>
-            </button>
-            <button type="button" class="failures-tracker-pill" data-index="1" aria-label="Go to 02 Payload Bloat">
-              <span class="tracker-num">02</span>
-              <span class="tracker-name">Payload Bloat</span>
-            </button>
-            <button type="button" class="failures-tracker-pill" data-index="2" aria-label="Go to 03 Attention Decay">
-              <span class="tracker-num">03</span>
-              <span class="tracker-name">Attention Decay</span>
-            </button>
-            <button type="button" class="failures-tracker-pill" data-index="3" aria-label="Go to 04 Cache Thrashing">
-              <span class="tracker-num">04</span>
-              <span class="tracker-name">Cache Thrashing</span>
-            </button>
           </div>
         </div>
       </div>

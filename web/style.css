@@ -1861,7 +1861,7 @@ details > div { padding: 16px; }
   box-sizing: border-box;
 }
 
-/* Left Column: Stacking Cards Track */
+/* Right Column: Stacking Cards Track */
 .failures-cards-col {
   flex: 1.15;
   min-width: 0;
@@ -1869,7 +1869,7 @@ details > div { padding: 16px; }
   box-sizing: border-box;
 }
 
-/* Right Column: Sticky Narrative & Step Tracker */
+/* Left Column: Sticky Narrative & Step Tracker */
 .failures-text-col {
   flex: 0.95;
   min-width: 0;
