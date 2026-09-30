@@ -269,15 +269,12 @@
       </div>
     </div>
 
-    <div class="tron-footnote-bar">
-      <div class="tron-footnote-badge">
-        <span class="tron-badge-pulse" aria-hidden="true"></span>
-        <span>VERIFIED REDUCTION</span>
-      </div>
-      <p class="tron-footnote-text">
-        <strong class="tron-footnote-strong">Reversal Verified:</strong> The <code>business</code> upgrade is evicted because turn 4 was explicitly negated. The register states only the surviving state &mdash; zero inferred keys, zero stochastic drift.
-      </p>
-    </div>
+    <p style="font-size:13.5px;color:var(--ink-3);margin:14px 0 0;line-height:1.6">
+      The <code>business</code> upgrade is gone because the user reversed it, and the
+      register states the value that survived. Nothing was inferred and nothing was
+      invented &mdash; the agent said which key it had changed, as a side-effect of a turn
+      it was already making.
+    </p>
   </section>
 
   <!-- ── Section: The Problem / Animated Cards Stack (youcefbnm) ── -->
@@ -288,30 +285,10 @@
         <div class="failures-sticky-pane">
           <span class="band-eyebrow">The Problem</span>
           <h2>Why autonomous agents break down after 30 turns</h2>
-          <div class="failures-lede-shield">
-            <p class="lede lede-editorial">
-              <strong class="lede-kicker">Compounding degradation:</strong>
-              As multi-turn dialogues scale past 30 turns, uncompiled agent payloads trigger state conflict, payload bloat, attention decay, and cache eviction.
-            </p>
-            <div class="failures-chips-row" aria-label="Systemic failure modes">
-              <button type="button" class="failure-chip" data-step="0" title="Inspect Ghost State">
-                <span class="failure-chip-dot dot-rose" aria-hidden="true"></span>
-                <span>Ghost State</span>
-              </button>
-              <button type="button" class="failure-chip" data-step="1" title="Inspect Payload Bloat">
-                <span class="failure-chip-dot dot-amber" aria-hidden="true"></span>
-                <span>Payload Bloat</span>
-              </button>
-              <button type="button" class="failure-chip" data-step="2" title="Inspect Attention Decay">
-                <span class="failure-chip-dot dot-purple" aria-hidden="true"></span>
-                <span>Attention Decay</span>
-              </button>
-              <button type="button" class="failure-chip" data-step="3" title="Inspect Cache Thrashing">
-                <span class="failure-chip-dot dot-cyan" aria-hidden="true"></span>
-                <span>Cache Eviction</span>
-              </button>
-            </div>
-          </div>
+          <p class="lede">
+            As multi-turn dialogues grow, language models struggle with state conflict,
+            payload bloat, attention loss, and provider cache eviction.
+          </p>
           <div class="failures-progress-tracker" id="failuresTracker" aria-label="Problem phases">
             <button type="button" class="failures-tracker-pill active" data-index="0" aria-label="Go to 01 Contradiction &amp; Ghost State">
               <span class="tracker-num">01</span>
@@ -509,13 +486,10 @@
     <div class="band-header">
       <span class="band-eyebrow">The Architecture</span>
       <h2>The 4-stage context compilation pipeline</h2>
-      <div class="band-lede-shield">
-        <p class="lede lede-editorial">
-          <strong class="lede-kicker">Zero stochastic drift:</strong>
-          Every compilation stage is a pure, total mathematical function over the transcript.
-          Zero model in the loop, zero LLM variance &mdash; identical input is mathematically guaranteed to yield bit-for-bit identical output.
-        </p>
-      </div>
+      <p class="lede">
+        Each step is a pure, total mathematical function over the transcript.
+        Zero model in the loop, zero stochastic drift, and identical input always yields identical output.
+      </p>
     </div>
 
     <!-- Interactive N8N Workflow Builder DAG -->
@@ -567,12 +541,9 @@
     <div class="band-header">
       <span class="band-eyebrow">Capabilities</span>
       <h2>Engineered for safety, speed, and determinism</h2>
-      <div class="band-lede-shield">
-        <p class="lede lede-editorial">
-          <strong class="lede-kicker">Deterministic core:</strong>
-          Everything required to operate production AI agents reliably across hundreds of turns without payload bloat or state drift.
-        </p>
-      </div>
+      <p class="lede">
+        Everything required to operate production AI agents reliably across hundreds of turns.
+      </p>
     </div>
 
     <div class="skew-cards-container">
@@ -709,16 +680,11 @@
     <div class="band-header">
       <span class="band-eyebrow">Empirical Evidence</span>
       <h2>Measured on 180 real agent trajectories</h2>
-      <div class="band-lede-shield">
-        <div class="provenance-guarantee-tag">
-          <span class="provenance-tag-icon" aria-hidden="true">◈</span>
-          <span>Zero Self-Grading · Verified Provenance</span>
-        </div>
-        <p class="lede lede-editorial">
-          <strong class="lede-kicker">Verified empirical ground truth:</strong>
-          Evaluated across 180 real production agent trajectories over three public corpora with hand-labelled precision verification. Every metric below ships with its verified sample size <span class="mono-sample-pill">n</span>.
-        </p>
-      </div>
+      <p class="lede">
+        Not a benchmark of the compiler grading itself. Three public corpora, real model
+        output, and a hand-labelled sample for the precision figure. Every number below
+        ships with the <code>n</code> it came from.
+      </p>
     </div>
 
     <div class="results paired-bars-card">
@@ -931,12 +897,9 @@
     <div class="band-header">
       <span class="band-eyebrow">Specifications</span>
       <h2>Tech stack &amp; integration architecture</h2>
-      <div class="band-lede-shield">
-        <p class="lede lede-editorial">
-          <strong class="lede-kicker">Zero runtime friction:</strong>
-          Designed from first principles to be embedded in any Python agent runtime without infrastructure overhead.
-        </p>
-      </div>
+      <p class="lede">
+        Designed from first principles to be embedded in any Python agent runtime without friction.
+      </p>
     </div>
 
     <!-- Expandable Bento Grid Component (In-Place Drawer) -->
@@ -2718,16 +2681,6 @@ syncThemeIcon();
         const stickyTop = (isMobile ? 70 : 88) + idx * (isMobile ? 16 : 28);
         const targetScroll = targetCard.getBoundingClientRect().top + window.scrollY - stickyTop;
         window.scrollTo({ top: targetScroll, behavior: 'smooth' });
-      }
-    });
-  });
-
-  // Click on failure chips also triggers navigation to the failure card
-  document.querySelectorAll('.failure-chip').forEach((chip) => {
-    chip.addEventListener('click', () => {
-      const stepIdx = parseInt(chip.getAttribute('data-step') || '0', 10);
-      if (trackerPills[stepIdx]) {
-        trackerPills[stepIdx].click();
       }
     });
   });
