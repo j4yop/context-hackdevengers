@@ -649,36 +649,107 @@
       </p>
     </div>
 
-    <div class="tech-grid">
-      <div class="tech-item">
-        <div class="tech-icon">&#x1F40D;</div>
-        <div>
-          <h4>Python 3.9 &ndash; 3.13</h4>
-          <p>Pure standard library core. Zero third-party wheels, zero build tools, instantly installable.</p>
+    <!-- Expandable Bento Grid Component (VengeanceUI) -->
+    <div class="expandable-bento-grid" id="expandableBentoGrid">
+      <div class="bento-card" role="button" tabindex="0" data-bento-id="python" aria-haspopup="dialog" aria-expanded="false" title="Click to inspect Python runtime architecture">
+        <div class="bento-card-inner">
+          <div class="bento-icon-box" aria-hidden="true">
+            <span class="bento-icon-symbol">&#x1F40D;</span>
+          </div>
+          <div class="bento-card-info">
+            <div class="bento-title-row">
+              <h3 class="bento-title">Python 3.9 &ndash; 3.13</h3>
+              <span class="bento-expand-cue" aria-hidden="true">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6"></path><path d="M10 14L21 3"></path><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path></svg>
+              </span>
+            </div>
+            <p class="bento-subtitle">Pure standard library core. Zero third-party wheels, zero build tools, instantly installable.</p>
+          </div>
         </div>
       </div>
 
-      <div class="tech-item">
-        <div class="tech-icon">&#x269B;</div>
-        <div>
-          <h4>Framework Agnostic</h4>
-          <p>Drop into LangChain, LangGraph, CrewAI, AutoGen, OpenAI Swarm, LlamaIndex, or raw API calls.</p>
+      <div class="bento-card" role="button" tabindex="0" data-bento-id="framework" aria-haspopup="dialog" aria-expanded="false" title="Click to inspect Framework integration architecture">
+        <div class="bento-card-inner">
+          <div class="bento-icon-box" aria-hidden="true">
+            <span class="bento-icon-symbol">&#x269B;</span>
+          </div>
+          <div class="bento-card-info">
+            <div class="bento-title-row">
+              <h3 class="bento-title">Framework Agnostic</h3>
+              <span class="bento-expand-cue" aria-hidden="true">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6"></path><path d="M10 14L21 3"></path><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path></svg>
+              </span>
+            </div>
+            <p class="bento-subtitle">Drop into LangChain, LangGraph, CrewAI, AutoGen, OpenAI Swarm, LlamaIndex, or raw API calls.</p>
+          </div>
         </div>
       </div>
 
-      <div class="tech-item">
-        <div class="tech-icon">&#x26A1;</div>
-        <div>
-          <h4>FastAPI / Uvicorn Server</h4>
-          <p>Optional lightweight microservice layer with sub-3ms compile endpoints and CORS support.</p>
+      <div class="bento-card" role="button" tabindex="0" data-bento-id="fastapi" aria-haspopup="dialog" aria-expanded="false" title="Click to inspect FastAPI microservice architecture">
+        <div class="bento-card-inner">
+          <div class="bento-icon-box" aria-hidden="true">
+            <span class="bento-icon-symbol">&#x26A1;</span>
+          </div>
+          <div class="bento-card-info">
+            <div class="bento-title-row">
+              <h3 class="bento-title">FastAPI / Uvicorn Server</h3>
+              <span class="bento-expand-cue" aria-hidden="true">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6"></path><path d="M10 14L21 3"></path><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path></svg>
+              </span>
+            </div>
+            <p class="bento-subtitle">Optional lightweight microservice layer with sub-3ms compile endpoints and CORS support.</p>
+          </div>
         </div>
       </div>
 
-      <div class="tech-item">
-        <div class="tech-icon">&#x1F3A8;</div>
-        <div>
-          <h4>Vanilla ESM Client</h4>
-          <p>Modern browser frontend with zero build step, native CSS custom properties, and WCAG AA compliance.</p>
+      <div class="bento-card" role="button" tabindex="0" data-bento-id="esm" aria-haspopup="dialog" aria-expanded="false" title="Click to inspect Vanilla ESM Client architecture">
+        <div class="bento-card-inner">
+          <div class="bento-icon-box" aria-hidden="true">
+            <span class="bento-icon-symbol">&#x1F3A8;</span>
+          </div>
+          <div class="bento-card-info">
+            <div class="bento-title-row">
+              <h3 class="bento-title">Vanilla ESM Client</h3>
+              <span class="bento-expand-cue" aria-hidden="true">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6"></path><path d="M10 14L21 3"></path><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path></svg>
+              </span>
+            </div>
+            <p class="bento-subtitle">Modern browser frontend with zero build step, native CSS custom properties, and WCAG AA compliance.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Expandable Bento Modal Backdrop & Dialog -->
+    <div class="bento-modal-overlay" id="bentoModalOverlay" aria-hidden="true">
+      <div class="bento-modal-wrapper" id="bentoModalWrapper">
+        <div class="bento-modal" id="bentoModal" role="dialog" aria-modal="true" aria-labelledby="bentoModalTitle" aria-describedby="bentoModalDesc">
+          <!-- Close Button -->
+          <button type="button" class="bento-close-btn" id="bentoModalCloseBtn" aria-label="Close dialog">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg>
+          </button>
+
+          <!-- 3D Perspective Hero Header -->
+          <div class="bento-modal-hero" id="bentoModalHero">
+            <div class="bento-modal-hero-pattern" aria-hidden="true"></div>
+            <div class="bento-hero-icon-3d" id="bentoModalHeroIcon"></div>
+          </div>
+
+          <!-- Modal Body -->
+          <div class="bento-modal-body">
+            <div class="bento-modal-top-row">
+              <div class="bento-modal-text-block">
+                <h3 class="bento-modal-title" id="bentoModalTitle"></h3>
+                <p class="bento-modal-desc" id="bentoModalDesc"></p>
+              </div>
+              <a class="bento-modal-action-btn" id="bentoModalActionBtn" href="#quickstartTerminal">
+                <span id="bentoModalActionText">Quick Start</span>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg>
+              </a>
+            </div>
+
+            <div class="bento-modal-content" id="bentoModalContent"></div>
+          </div>
         </div>
       </div>
     </div>
@@ -2029,6 +2100,181 @@ syncThemeIcon();
       startWave(Math.floor(totalChars / 2));
     }
   }, 900);
+})();
+
+// ── Expandable Bento Grid Controller (VengeanceUI) ───────────
+(function initExpandableBentoGrid() {
+  const BENTO_DATA = {
+    python: {
+      id: 'python',
+      icon: '🐍',
+      title: 'Python 3.9 – 3.13',
+      subtitle: 'Pure standard library core. Zero third-party wheels, zero build tools, instantly installable.',
+      description: 'Zero-dependency transcript compilation running at native CPython speeds with zero stochastic drift.',
+      actionText: 'Quick Start',
+      actionHref: '#quickstartTerminal',
+      highlights: [
+        { label: 'Runtime Footprint', value: '0 Dependencies (std library)' },
+        { label: 'Compile Speed', value: '2.14ms Mean Latency' },
+        { label: 'Reliability', value: '100% Deterministic DAG' }
+      ],
+      details: 'ContextGC runs natively on Python 3.9 through 3.13 standard libraries using pure functional state transitions. There are zero C extensions, zero binary wheels to compile, and zero pip dependency conflicts, ensuring instant cold starts on AWS Lambda, Cloud Run, or minimal Alpine containers.',
+      code: '<span class="syn-cmd">import</span> contextgc\n\n<span class="syn-comment"># Compiles multi-turn transcripts deterministically in &lt;3ms:</span>\nresult = contextgc.<span class="syn-cmd">compile_transcript</span>(\n    transcript=history,\n    schema=<span class="syn-str">"travel"</span>,\n    mode=<span class="syn-str">"cache_friendly"</span>\n)\n<span class="syn-cmd">print</span>(<span class="syn-str">f"Saved {result.telemetry.compression_ratio_pct}% tokens in {result.telemetry.compile_time_ms}ms"</span>)'
+    },
+    framework: {
+      id: 'framework',
+      icon: '⚛️',
+      title: 'Framework Agnostic',
+      subtitle: 'Drop into LangChain, LangGraph, CrewAI, AutoGen, OpenAI Swarm, LlamaIndex, or raw API calls.',
+      description: 'Seam-level context optimizer that fits seamlessly between any agent orchestrator and LLM provider.',
+      actionText: 'Quick Start',
+      actionHref: '#quickstartTerminal',
+      highlights: [
+        { label: 'Ecosystem', value: 'LangChain, LangGraph, CrewAI' },
+        { label: 'Prompt Cache', value: 'Preserves Byte-Identical Prefix' },
+        { label: 'Wire Format', value: 'Standard OpenAI JSON Messages' }
+      ],
+      details: 'Transparent message interceptor: accepts standard OpenAI-compatible message arrays, compacts obsolete tool payloads, and retires superseded entity facts. Because it strictly preserves common conversational prefixes, provider-level KV caching hits stay near 100%.',
+      code: '<span class="syn-comment"># Drop into any LangGraph node or CrewAI tool loop:</span>\n<span class="syn-cmd">def</span> <span class="syn-var">context_cleaner_node</span>(state):\n    compiled = contextgc.<span class="syn-cmd">compile_transcript</span>(state[<span class="syn-str">"messages"</span>])\n    <span class="syn-cmd">return</span> {<span class="syn-str">"messages"</span>: compiled.compiled_messages}'
+    },
+    fastapi: {
+      id: 'fastapi',
+      icon: '⚡',
+      title: 'FastAPI / Uvicorn Server',
+      subtitle: 'Optional lightweight microservice layer with sub-3ms compile endpoints and CORS support.',
+      description: 'High-throughput async REST API service for polyglot infrastructure, microservices, and distributed pipelines.',
+      actionText: 'Open Console',
+      actionHref: '/console',
+      highlights: [
+        { label: 'Throughput', value: 'Asynchronous Non-blocking ASGI' },
+        { label: 'Polyglot', value: 'TypeScript, Go, Rust, Python' },
+        { label: 'Endpoints', value: '/api/compile, /api/schemas' }
+      ],
+      details: 'Easily deployed as a standalone microservice or sidecar with CORS support. Perfect for polyglot production environments where TypeScript, Go, or Rust services need to execute sub-3ms prompt garbage collection without hosting a Python runtime inside their main process.',
+      code: '<span class="syn-comment"># Call ContextGC REST API from any language:</span>\n<span class="syn-cmd">curl</span> -X POST http://localhost:8914/api/compile \\\n  -H <span class="syn-str">"Content-Type: application/json"</span> \\\n  -d <span class="syn-str">\'{"schema": "travel", "transcript": [...]}\'</span>'
+    },
+    esm: {
+      id: 'esm',
+      icon: '🎨',
+      title: 'Vanilla ESM Client',
+      subtitle: 'Modern browser frontend with zero build step, native CSS custom properties, and WCAG AA compliance.',
+      description: 'Zero-build browser interface leveraging native ECMAScript modules, CSS tokens, and accessible reactive components.',
+      actionText: 'Open Console',
+      actionHref: '/console',
+      highlights: [
+        { label: 'Zero Bundler', value: 'No Webpack, Vite, or npm build' },
+        { label: 'Accessibility', value: 'WCAG 2.1 AA Contrast Audited' },
+        { label: 'Theming', value: 'Hardware-Accelerated Dark/Light' }
+      ],
+      details: 'Built entirely with vanilla ECMAScript modules and native CSS custom properties. Zero build step, zero client bundle weight, and direct DOM streaming. Complete with WCAG 2.1 AA audited contrast ratios and fluid responsive layouts across all mobile screen sizes.',
+      code: '<span class="syn-comment">// Direct browser fetch & streaming without bundler:</span>\n<span class="syn-cmd">const</span> res = <span class="syn-cmd">await</span> <span class="syn-cmd">fetch</span>(<span class="syn-str">"/api/compile"</span>, {\n  method: <span class="syn-str">"POST"</span>,\n  headers: { <span class="syn-str">"Content-Type"</span>: <span class="syn-str">"application/json"</span> },\n  body: JSON.stringify({ transcript, schema: <span class="syn-str">"travel"</span> })\n});'
+    }
+  };
+
+  const overlay = document.getElementById('bentoModalOverlay');
+  const modal = document.getElementById('bentoModal');
+  const closeBtn = document.getElementById('bentoModalCloseBtn');
+  const heroIcon = document.getElementById('bentoModalHeroIcon');
+  const titleEl = document.getElementById('bentoModalTitle');
+  const descEl = document.getElementById('bentoModalDesc');
+  const actionBtn = document.getElementById('bentoModalActionBtn');
+  const actionText = document.getElementById('bentoModalActionText');
+  const contentEl = document.getElementById('bentoModalContent');
+  const cards = document.querySelectorAll('.bento-card');
+
+  if (!overlay || !modal || !cards.length) return;
+
+  let activeCard = null;
+
+  function openModal(id, triggerEl) {
+    const data = BENTO_DATA[id];
+    if (!data) return;
+
+    activeCard = triggerEl;
+    if (triggerEl) {
+      triggerEl.setAttribute('aria-expanded', 'true');
+    }
+
+    // Populate modal
+    heroIcon.innerHTML = `<span class="bento-hero-symbol" aria-hidden="true">${data.icon}</span>`;
+    titleEl.textContent = data.title;
+    descEl.textContent = data.description;
+    actionBtn.setAttribute('href', data.actionHref);
+    actionText.textContent = data.actionText;
+
+    // Render highlights, details, and code
+    let highlightsHtml = '<div class="bento-modal-highlights">';
+    data.highlights.forEach(h => {
+      highlightsHtml += `<div class="bento-highlight-pill"><span>${h.label}</span><b>${h.value}</b></div>`;
+    });
+    highlightsHtml += '</div>';
+
+    let detailsHtml = `<p class="bento-modal-detail-text">${data.details}</p>`;
+    let codeHtml = `<div class="bento-modal-code-snippet"><pre><code>${data.code}</code></pre></div>`;
+
+    contentEl.innerHTML = highlightsHtml + detailsHtml + codeHtml;
+
+    // Show modal & overlay
+    overlay.classList.add('active');
+    overlay.setAttribute('aria-hidden', 'false');
+    document.body.style.overflow = 'hidden';
+
+    // Focus close button for accessibility
+    setTimeout(() => {
+      if (closeBtn) closeBtn.focus();
+    }, 50);
+  }
+
+  function closeModal() {
+    overlay.classList.remove('active');
+    overlay.setAttribute('aria-hidden', 'true');
+    document.body.style.overflow = '';
+
+    if (activeCard) {
+      activeCard.setAttribute('aria-expanded', 'false');
+      activeCard.focus();
+      activeCard = null;
+    }
+  }
+
+  cards.forEach(card => {
+    const id = card.getAttribute('data-bento-id');
+    card.addEventListener('click', () => openModal(id, card));
+    card.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        openModal(id, card);
+      }
+    });
+  });
+
+  if (closeBtn) {
+    closeBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      closeModal();
+    });
+  }
+
+  // Click outside to close (backdrop click)
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay || e.target.classList.contains('bento-modal-wrapper')) {
+      closeModal();
+    }
+  });
+
+  // Action button click: smooth close
+  if (actionBtn) {
+    actionBtn.addEventListener('click', () => {
+      closeModal();
+    });
+  }
+
+  // Escape key closes modal
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && overlay.classList.contains('active')) {
+      closeModal();
+    }
+  });
 })();
 </script>
 </body>
