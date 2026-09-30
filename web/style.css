@@ -3499,9 +3499,11 @@ details > div { padding: 16px; }
 }
 
 /* ── Animated Reveal Footer (VengeanceUI AnimatedFooter) ─────── */
+/* ── Animated Reveal Footer (VengeanceUI AnimatedFooter) ─────── */
 footer,
 .animated-footer {
   position: relative;
+  width: 100%;
   overflow: hidden;
   border-top: 1px solid var(--line);
   margin-top: 100px;
@@ -3510,7 +3512,7 @@ footer,
   font-size: 13.5px;
   background: var(--panel);
   box-sizing: border-box;
-  min-height: 580px;
+  min-height: 600px;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
@@ -3604,10 +3606,12 @@ footer,
   transform: translateX(2px);
 }
 
-/* ASCII Canvas Stage */
+/* ASCII Canvas Stage - Spans entirely edge-to-edge across the screen */
 .footer-ascii-stage {
   position: absolute;
   inset: 0;
+  width: 100%;
+  height: 100%;
   pointer-events: auto;
   overflow: hidden;
   z-index: 2;
@@ -3616,13 +3620,13 @@ footer,
 .footer-hand-wrap {
   position: absolute;
   top: 50%;
-  width: 44%;
-  min-width: 240px;
-  max-width: 600px;
+  width: 50%;
+  min-width: 260px;
+  max-width: none;
   transform: translateY(-50%);
   will-change: transform;
   pointer-events: auto;
-  opacity: 0.85;
+  opacity: 0.9;
   transition: opacity 0.3s ease;
 }
 
@@ -3631,11 +3635,11 @@ footer,
 }
 
 .footer-hand-wrap.left {
-  left: -20px;
+  left: 0;
 }
 
 .footer-hand-wrap.right {
-  right: -20px;
+  right: 0;
 }
 
 .footer-hand-canvas {
@@ -3661,7 +3665,7 @@ footer,
   display: flex;
   justify-content: center;
   align-items: flex-end;
-  gap: clamp(2px, 0.4vw, 8px);
+  gap: clamp(2px, 0.6vw, 12px);
   width: 100%;
   user-select: none;
   font-family: var(--font-display, var(--sans));
@@ -3671,7 +3675,7 @@ footer,
   line-height: 0.82;
   margin: 0 0 20px;
   overflow: hidden;
-  font-size: clamp(3.2rem, 13.5vw, 11.5rem);
+  font-size: clamp(3.5rem, 16vw, 14.5rem);
 }
 
 .af-char-wrap {
@@ -3732,7 +3736,7 @@ footer,
 /* Tablet & Mobile Responsiveness */
 @media (max-width: 900px) {
   .animated-footer {
-    min-height: 480px;
+    min-height: 500px;
     padding: 44px 0 24px;
     margin-top: 72px;
   }
@@ -3741,8 +3745,7 @@ footer,
     gap: 32px;
   }
   .footer-hand-wrap {
-    width: 48%;
-    min-width: 180px;
+    width: 52%;
     opacity: 0.6;
   }
 }
@@ -3762,7 +3765,7 @@ footer,
   }
   .footer-hand-wrap {
     top: 66%;
-    width: 48%;
+    width: 52%;
     min-width: 130px;
     opacity: 0.3;
   }
