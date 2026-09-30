@@ -293,59 +293,149 @@
       </p>
     </div>
 
-    <div class="bento">
-      <div class="bento-card bento-col-4">
-        <div class="bento-icon">&#x2699;</div>
-        <h3>Deterministic State DAG</h3>
-        <p>
-          Mathematical tracking of entity lifecycles. When a key is re-asserted, the prior turn is retired;
-          when a key is voided, it is cleanly struck from active state.
-        </p>
+    <div class="skew-cards-container">
+      <!-- Card 1 -->
+      <div class="skew-card skew-card-1" style="--g-from: #ffbc00; --g-to: #ff0058;">
+        <span class="skew-panel-skew" aria-hidden="true"></span>
+        <span class="skew-panel-glow" aria-hidden="true"></span>
+        <span class="skew-blobs" aria-hidden="true">
+          <span class="skew-blob skew-blob-tl"></span>
+          <span class="skew-blob skew-blob-br"></span>
+        </span>
+        <div class="skew-card-content">
+          <div>
+            <div class="skew-card-top">
+              <span class="skew-card-icon" aria-hidden="true">&#x2699;</span>
+              <span class="skew-card-tag">DAG Engine</span>
+            </div>
+            <h3>Deterministic State DAG</h3>
+            <p>
+              Mathematical tracking of entity lifecycles. When a key is re-asserted, the prior turn is retired;
+              when a key is voided, it is cleanly struck from active state.
+            </p>
+          </div>
+          <a href="/console" class="skew-card-btn">Explore Engine <span>&rarr;</span></a>
+        </div>
       </div>
 
-      <div class="bento-card bento-col-4">
-        <div class="bento-icon">&#x1F6E1;</div>
-        <h3>Safety-First Compactor</h3>
-        <p>
-          Compresses multi-row tool payloads by up to 80% while guaranteeing that any row carrying allergen,
-          PII, security, or expiry signals is strictly preserved.
-        </p>
+      <!-- Card 2 -->
+      <div class="skew-card skew-card-2" style="--g-from: #03a9f4; --g-to: #ff0058;">
+        <span class="skew-panel-skew" aria-hidden="true"></span>
+        <span class="skew-panel-glow" aria-hidden="true"></span>
+        <span class="skew-blobs" aria-hidden="true">
+          <span class="skew-blob skew-blob-tl"></span>
+          <span class="skew-blob skew-blob-br"></span>
+        </span>
+        <div class="skew-card-content">
+          <div>
+            <div class="skew-card-top">
+              <span class="skew-card-icon" aria-hidden="true">&#x1F6E1;</span>
+              <span class="skew-card-tag">Safety Gate</span>
+            </div>
+            <h3>Safety-First Compactor</h3>
+            <p>
+              Compresses multi-row tool payloads by up to 80% while guaranteeing that any row carrying allergen,
+              PII, security, or expiry signals is strictly preserved.
+            </p>
+          </div>
+          <a href="/console" class="skew-card-btn">Explore Safety <span>&rarr;</span></a>
+        </div>
       </div>
 
-      <div class="bento-card bento-col-4">
-        <div class="bento-icon">&#x26A1;</div>
-        <h3>KV-Cache Prefix Preserver</h3>
-        <p>
-          In <code>cache_friendly</code> mode, unchanged prefix messages are emitted byte-identical,
-          retaining provider KV cache hits across model generations.
-        </p>
+      <!-- Card 3 -->
+      <div class="skew-card skew-card-3" style="--g-from: #4dff03; --g-to: #00d0ff;">
+        <span class="skew-panel-skew" aria-hidden="true"></span>
+        <span class="skew-panel-glow" aria-hidden="true"></span>
+        <span class="skew-blobs" aria-hidden="true">
+          <span class="skew-blob skew-blob-tl"></span>
+          <span class="skew-blob skew-blob-br"></span>
+        </span>
+        <div class="skew-card-content">
+          <div>
+            <div class="skew-card-top">
+              <span class="skew-card-icon" aria-hidden="true">&#x26A1;</span>
+              <span class="skew-card-tag">Cache Align</span>
+            </div>
+            <h3>KV-Cache Prefix Preserver</h3>
+            <p>
+              In <code>cache_friendly</code> mode, unchanged prefix messages are emitted byte-identical,
+              retaining provider KV cache hits across model generations.
+            </p>
+          </div>
+          <a href="/console" class="skew-card-btn">Explore Cache <span>&rarr;</span></a>
+        </div>
       </div>
 
-      <div class="bento-card bento-col-4">
-        <div class="bento-icon">&#x270F;</div>
-        <h3>Dual Read &amp; Write Path</h3>
-        <p>
-          Extracts implicit facts using measured regex schemas on the read path, or receives direct
-          declarations from the agent via <code>&lt;contextgc-state&gt;</code> blocks.
-        </p>
+      <!-- Card 4 -->
+      <div class="skew-card skew-card-4" style="--g-from: #7928ca; --g-to: #ff0080;">
+        <span class="skew-panel-skew" aria-hidden="true"></span>
+        <span class="skew-panel-glow" aria-hidden="true"></span>
+        <span class="skew-blobs" aria-hidden="true">
+          <span class="skew-blob skew-blob-tl"></span>
+          <span class="skew-blob skew-blob-br"></span>
+        </span>
+        <div class="skew-card-content">
+          <div>
+            <div class="skew-card-top">
+              <span class="skew-card-icon" aria-hidden="true">&#x270F;</span>
+              <span class="skew-card-tag">Dual Path I/O</span>
+            </div>
+            <h3>Dual Read &amp; Write Path</h3>
+            <p>
+              Extracts implicit facts using measured regex schemas on the read path, or receives direct
+              declarations from the agent via <code>&lt;contextgc-state&gt;</code> blocks.
+            </p>
+          </div>
+          <a href="/console" class="skew-card-btn">Explore I/O <span>&rarr;</span></a>
+        </div>
       </div>
 
-      <div class="bento-card bento-col-4">
-        <div class="bento-icon">&#x1F517;</div>
-        <h3>Lexical Evidence Gate</h3>
-        <p>
-          A turn is never retired if it remains the sole supporting evidence for an active fact.
-          Orphaned assertions are mathematically prevented.
-        </p>
+      <!-- Card 5 -->
+      <div class="skew-card skew-card-5" style="--g-from: #0070f3; --g-to: #00dfd8;">
+        <span class="skew-panel-skew" aria-hidden="true"></span>
+        <span class="skew-panel-glow" aria-hidden="true"></span>
+        <span class="skew-blobs" aria-hidden="true">
+          <span class="skew-blob skew-blob-tl"></span>
+          <span class="skew-blob skew-blob-br"></span>
+        </span>
+        <div class="skew-card-content">
+          <div>
+            <div class="skew-card-top">
+              <span class="skew-card-icon" aria-hidden="true">&#x1F517;</span>
+              <span class="skew-card-tag">Evidence Gate</span>
+            </div>
+            <h3>Lexical Evidence Gate</h3>
+            <p>
+              A turn is never retired if it remains the sole supporting evidence for an active fact.
+              Orphaned assertions are mathematically prevented.
+            </p>
+          </div>
+          <a href="/console" class="skew-card-btn">Explore Invariants <span>&rarr;</span></a>
+        </div>
       </div>
 
-      <div class="bento-card bento-col-4">
-        <div class="bento-icon">&#x1F680;</div>
-        <h3>Zero-Dependency Core</h3>
-        <p>
-          Written in 100% pure standard-library Python (3.9–3.13). Installs instantly, needs no PyTorch or heavy
-          NLP dependencies, and compiles in &lt;3ms.
-        </p>
+      <!-- Card 6 -->
+      <div class="skew-card skew-card-6" style="--g-from: #ff4b1f; --g-to: #ff9068;">
+        <span class="skew-panel-skew" aria-hidden="true"></span>
+        <span class="skew-panel-glow" aria-hidden="true"></span>
+        <span class="skew-blobs" aria-hidden="true">
+          <span class="skew-blob skew-blob-tl"></span>
+          <span class="skew-blob skew-blob-br"></span>
+        </span>
+        <div class="skew-card-content">
+          <div>
+            <div class="skew-card-top">
+              <span class="skew-card-icon" aria-hidden="true">&#x1F680;</span>
+              <span class="skew-card-tag">Pure Python</span>
+            </div>
+            <h3>Zero-Dependency Core</h3>
+            <p>
+              Written in 100% pure standard-library Python (3.9–3.13). Installs instantly, needs no PyTorch or heavy
+              NLP dependencies, and compiles in &lt;3ms.
+            </p>
+          </div>
+          <a href="/console" class="skew-card-btn">Explore Core <span>&rarr;</span></a>
+        </div>
       </div>
     </div>
   </section>
