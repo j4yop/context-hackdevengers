@@ -114,6 +114,9 @@
     --bento-modal-bg: #ffffff;
     --bento-modal-border: #cbd5e1;
     --bento-code-bg: #050811;
+
+    /* Animated Reveal Footer Tokens */
+    --footer-ascii-color: var(--accent-ink);
   }
 
   @media (prefers-color-scheme: dark) {
@@ -220,6 +223,9 @@
       --bento-modal-bg: #0f172a;
       --bento-modal-border: #1e293b;
       --bento-code-bg: #050811;
+
+      /* Animated Reveal Footer Tokens */
+      --footer-ascii-color: var(--ink-3);
     }
   }
 
@@ -311,6 +317,9 @@
     --bento-modal-bg: #ffffff;
     --bento-modal-border: #cbd5e1;
     --bento-code-bg: #050811;
+
+    /* Animated Reveal Footer Tokens */
+    --footer-ascii-color: var(--accent-ink);
   }
 
   [data-theme="dark"] {
@@ -398,6 +407,9 @@
     --bento-modal-bg: #0f172a;
     --bento-modal-border: #1e293b;
     --bento-code-bg: #050811;
+
+    /* Animated Reveal Footer Tokens */
+    --footer-ascii-color: var(--ink-3);
   }
 
 /* ── ThreeUI Constellation Field Background ─────────────────── */
@@ -633,6 +645,345 @@ nav a[aria-current="page"] {
   .logo .mark { width: 20px; height: 20px; font-size: 10px; border-radius: 5px; }
   nav { gap: 1px; }
   nav a { padding: 4px 5px; font-size: 11.5px; }
+}
+
+/* ── Notch Navbar Component (VengeanceUI NotchNavbar) ────────── */
+header.notch-header {
+  border-bottom: none;
+  background: transparent;
+  backdrop-filter: blur(14px) saturate(1.4);
+  -webkit-backdrop-filter: blur(14px) saturate(1.4);
+  height: 64px;
+  display: flex;
+  align-items: flex-start;
+  padding: 0;
+  width: 100%;
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  overflow: visible;
+}
+
+@media (min-width: 769px) {
+  :root.is-scrolling header.notch-header {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    background: transparent;
+  }
+}
+
+/* Wing Bars on Left & Right (height 40px) */
+.notch-wing {
+  flex: 1;
+  height: 40px;
+  background: var(--panel-glass);
+  position: relative;
+  min-width: 0;
+  z-index: 20;
+}
+
+:root.is-scrolling .notch-wing,
+:root.is-scrolling .notch-slice-bg,
+:root.is-scrolling .notch-center-bg {
+  background: var(--panel-solid);
+}
+
+.notch-lines {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  stroke: var(--line);
+  stroke-width: 1;
+}
+
+/* Center Notch Container (Left slice + Center content + Right slice) */
+.notch-container {
+  display: flex;
+  height: 64px;
+  position: relative;
+  z-index: 30;
+  flex-shrink: 0;
+  margin-left: -1px;
+  margin-right: -1px;
+}
+
+/* Curved Shoulder Slices */
+.notch-slice {
+  width: 50px;
+  height: 64px;
+  position: relative;
+  flex-shrink: 0;
+}
+
+.notch-slice.left {
+  margin-right: -1px;
+}
+
+.notch-slice.left .notch-slice-bg {
+  position: absolute;
+  inset: 0;
+  background: var(--panel-glass);
+  clip-path: path('M0 0 H50 V64 C25 64 25 40 0 40 Z');
+  -webkit-clip-path: path('M0 0 H50 V64 C25 64 25 40 0 40 Z');
+}
+
+.notch-slice.left .notch-slice-lines {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  stroke: var(--line);
+  stroke-width: 1;
+}
+
+.notch-slice.right {
+  margin-left: -1px;
+}
+
+.notch-slice.right .notch-slice-bg {
+  position: absolute;
+  inset: 0;
+  background: var(--panel-glass);
+  clip-path: path('M0 0 H50 V40 C25 40 25 64 0 64 Z');
+  -webkit-clip-path: path('M0 0 H50 V40 C25 40 25 64 0 64 Z');
+}
+
+.notch-slice.right .notch-slice-lines {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  stroke: var(--line);
+  stroke-width: 1;
+}
+
+/* Center Notch Area */
+.notch-center {
+  height: 64px;
+  position: relative;
+  min-width: 0;
+  display: flex;
+  align-items: flex-end;
+}
+
+.notch-center-bg {
+  position: absolute;
+  inset: 0;
+  background: var(--panel-glass);
+  z-index: 1;
+}
+
+.notch-content {
+  position: relative;
+  z-index: 5;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 0 16px 8px;
+  box-sizing: border-box;
+}
+
+.notch-nav {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 4px;
+  flex-shrink: 0;
+}
+
+.notch-nav-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--ink-2);
+  text-decoration: none;
+  padding: 4px 6px;
+  border-radius: 6px;
+  transition: color 0.15s ease, background 0.15s ease;
+  white-space: nowrap;
+}
+
+.notch-nav-link:hover {
+  color: var(--ink);
+  background: var(--panel-2);
+  text-decoration: none;
+}
+
+.notch-nav-link[aria-current="page"] {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.notch-icon {
+  opacity: 0.7;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+.notch-nav-link:hover .notch-icon {
+  opacity: 1;
+  transform: translateY(-1px);
+}
+
+.notch-console-pill {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.notch-console-pill:hover {
+  color: var(--accent-hover);
+}
+
+.notch-logo-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 6px;
+  padding: 0 12px;
+  flex-shrink: 0;
+}
+
+.notch-theme-wrap {
+  display: inline-flex;
+  align-items: center;
+  padding-left: 12px;
+  border-left: 1px solid var(--line-2);
+}
+
+/* Mobile Controls */
+.notch-mobile-btn {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--line);
+  background: var(--panel-2);
+  border-radius: 8px;
+  color: var(--ink);
+  cursor: pointer;
+  margin-bottom: 4px;
+  transition: background 0.15s ease;
+  padding: 0;
+}
+
+.notch-mobile-btn svg {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
+.notch-mobile-btn .icon-close {
+  display: none;
+}
+
+header.notch-header.is-mobile-open .notch-mobile-btn .icon-open {
+  display: none;
+}
+
+header.notch-header.is-mobile-open .notch-mobile-btn .icon-close {
+  display: block;
+}
+
+.notch-mobile-theme {
+  display: none;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+/* Mobile Drawer Overlay */
+.notch-mobile-menu {
+  position: fixed;
+  top: 64px;
+  left: 0;
+  right: 0;
+  background: var(--panel-solid);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--line);
+  box-shadow: var(--shadow-lg);
+  z-index: 45;
+  padding: 16px 20px 24px;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-10px);
+  transition: opacity 0.25s cubic-bezier(0.16, 1, 0.3, 1), transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.25s ease;
+  pointer-events: none;
+}
+
+header.notch-header.is-mobile-open + .notch-mobile-menu {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+.notch-mobile-drawer {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.notch-mobile-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--ink);
+  text-decoration: none;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.notch-mobile-item:hover {
+  background: var(--panel-2);
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.notch-mobile-cta {
+  color: var(--accent);
+  font-weight: 600;
+  background: var(--accent-bg);
+  border: 1px solid var(--accent-line);
+}
+
+.notch-mobile-sep {
+  height: 1px;
+  background: var(--line);
+  margin: 8px 0;
+}
+
+/* Breakpoint for Tablets & Phones */
+@media (max-width: 860px) {
+  .notch-nav {
+    display: none;
+  }
+  .notch-mobile-btn,
+  .notch-mobile-theme {
+    display: inline-flex;
+  }
+  .notch-content {
+    justify-content: space-between;
+    gap: 8px;
+    padding: 0 8px 6px;
+  }
+  .notch-logo-wrap {
+    margin-bottom: 4px;
+    padding: 0 4px;
+  }
 }
 
 /* ── VengeanceUI Theme Toggle Button ─────────────────────────── */
@@ -3498,34 +3849,277 @@ details > div { padding: 16px; }
   letter-spacing: -0.01em;
 }
 
-/* ── Footer ─────────────────────────────────────────────────── */
-footer {
+/* ── Animated Reveal Footer (VengeanceUI AnimatedFooter) ─────── */
+/* ── Animated Reveal Footer (VengeanceUI AnimatedFooter) ─────── */
+footer,
+.animated-footer {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
   border-top: 1px solid var(--line);
-  margin-top: 80px;
-  padding: 40px 0 60px;
-  color: var(--ink-3);
+  margin-top: 100px;
+  padding: 56px 0 32px;
+  color: var(--ink-2);
   font-size: 13.5px;
   background: var(--panel);
-}
-footer .wrap {
+  box-sizing: border-box;
+  min-height: 600px;
   display: flex;
-  flex-wrap: wrap;
-  gap: 24px;
-  align-items: center;
+  flex-direction: column;
   justify-content: space-between;
 }
-footer .links {
+
+.footer-top-nav {
+  position: relative;
+  z-index: 10;
   display: flex;
-  gap: 18px;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 48px;
+  flex-wrap: wrap;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 32px 38px;
+  background: var(--panel-glass);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  box-shadow: var(--shadow-sm);
+}
+
+.footer-brand {
+  max-width: 420px;
+}
+
+.footer-logo-row {
+  display: flex;
   align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
 }
-footer a {
-  color: var(--ink-2);
-  text-decoration: none;
+
+.footer-logo-row .logo-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  background: var(--ink);
+  color: var(--panel);
+  border-radius: 7px;
+  font-family: var(--font-display, var(--sans));
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: -0.04em;
 }
-footer a:hover {
+
+.footer-brand-title {
+  font-family: var(--font-display, var(--sans));
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
   color: var(--ink);
-  text-decoration: underline;
+}
+
+.footer-tagline {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.6;
+  color: var(--ink-2);
+}
+
+.footer-nav-grid {
+  display: flex;
+  gap: 60px;
+  flex-wrap: wrap;
+}
+
+.footer-col {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.footer-col-header {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 4px;
+}
+
+.footer-col a {
+  color: var(--ink);
+  font-weight: 600;
+  text-decoration: none;
+  font-size: 14px;
+  transition: color 0.15s ease, transform 0.15s ease;
+  width: fit-content;
+}
+
+.footer-col a:hover {
+  color: var(--accent);
+  transform: translateX(4px);
+}
+
+/* ASCII Canvas Stage - Spans entirely edge-to-edge across the screen */
+.footer-ascii-stage {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: auto;
+  overflow: hidden;
+  z-index: 2;
+}
+
+.footer-hand-wrap {
+  position: absolute;
+  top: 56%;
+  width: 50%;
+  min-width: 260px;
+  max-width: none;
+  transform: translateY(-50%);
+  will-change: transform;
+  pointer-events: auto;
+  opacity: 0.9;
+  transition: opacity 0.3s ease;
+}
+
+.footer-hand-wrap:hover {
+  opacity: 1;
+}
+
+.footer-hand-wrap.left {
+  left: 0;
+}
+
+.footer-hand-wrap.right {
+  right: 0;
+}
+
+.footer-hand-canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+  pointer-events: auto;
+}
+
+/* Display Heading & Reveal Stage */
+.footer-display-stage {
+  position: relative;
+  z-index: 6;
+  margin-top: auto;
+  padding-top: 40px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+}
+
+.footer-display-heading {
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  gap: clamp(2px, 0.6vw, 12px);
+  width: 100%;
+  user-select: none;
+  font-family: var(--font-display, var(--sans));
+  font-weight: 800;
+  letter-spacing: -0.035em;
+  text-transform: uppercase;
+  line-height: 0.82;
+  margin: 0 0 20px;
+  overflow: hidden;
+  font-size: clamp(3.5rem, 16vw, 14.5rem);
+}
+
+.af-char-wrap {
+  display: inline-block;
+  overflow: hidden;
+  padding-bottom: 0.08em;
+  margin-bottom: -0.08em;
+}
+
+.af-char {
+  display: inline-block;
+  color: var(--ink);
+  transform: translateY(125%);
+  transition: transform 0.9s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: transform;
+}
+
+.animated-footer.is-revealed .af-char {
+  transform: translateY(0%);
+}
+
+.footer-bottom-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line-2);
+  width: 100%;
+  box-sizing: border-box;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink-3);
+  position: relative;
+  z-index: 10;
+  text-align: center;
+}
+
+/* Tablet & Mobile Responsiveness */
+@media (max-width: 900px) {
+  .animated-footer {
+    min-height: 500px;
+    padding: 44px 0 24px;
+    margin-top: 72px;
+  }
+  .footer-top-nav {
+    flex-direction: column;
+    gap: 32px;
+    padding: 24px 28px;
+  }
+  .footer-hand-wrap {
+    width: 52%;
+    opacity: 0.6;
+  }
+}
+
+@media (max-width: 680px) {
+  .animated-footer {
+    min-height: 440px;
+    padding: 36px 0 20px;
+    margin-top: 56px;
+  }
+  .footer-top-nav {
+    padding: 20px 20px;
+    border-radius: 16px;
+  }
+  .footer-nav-grid {
+    gap: 32px;
+  }
+  .footer-display-heading {
+    font-size: clamp(2.2rem, 13vw, 4rem);
+    margin-bottom: 14px;
+  }
+  .footer-hand-wrap {
+    top: 66%;
+    width: 52%;
+    min-width: 130px;
+    opacity: 0.3;
+  }
+  .footer-bottom-bar {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
 }
 
 /* ── Render below the fold only when it is looked at ──────────────────────
