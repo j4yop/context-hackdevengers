@@ -144,86 +144,206 @@
     </p>
   </section>
 
-  <!-- ── Section: The 3 Failures ──────────────────────────────── -->
-  <section class="band" id="failures">
+  <!-- ── Section: The Problem / Animated Cards Stack (youcefbnm) ── -->
+  <section class="band failures-band" id="failures">
     <div class="failures-layout">
-      <!-- Left Column: Display Cards Stack -->
+      <!-- Left Column: Scroll-Animated Cards Stack (CardsStackContainer + CardSticky) -->
       <div class="failures-cards-col">
-        <div class="display-cards-container">
-          <div class="display-cards-deck">
-            <!-- Card 1: Contradiction & Ghost State -->
-            <div class="display-card display-card-1" tabindex="0" role="region" aria-label="1. Contradiction &amp; Ghost State">
-              <div class="display-card-header">
-                <div class="display-card-title-group">
-                  <span class="display-card-icon warn">
-                    <svg class="display-card-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                      <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/>
-                      <line x1="12" y1="9" x2="12" y2="13"/>
-                      <line x1="12" y1="17" x2="12.01" y2="17"/>
+        <div class="cards-stack-container" id="cardsStackContainer">
+          <!-- Card 0: Contradiction & Ghost State -->
+          <div class="card-sticky" data-card-index="0" style="--card-index: 0;" tabindex="0" role="region" aria-label="01. Contradiction &amp; Ghost State">
+            <div class="card-sticky-inner">
+              <div class="card-sticky-header">
+                <div class="card-sticky-title-group">
+                  <span class="card-sticky-icon warn" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M16 3h5v5"></path>
+                      <path d="M8 21H3v-5"></path>
+                      <path d="M21 3l-7.5 7.5"></path>
+                      <path d="M3 21l7.5-7.5"></path>
+                      <circle cx="12" cy="12" r="2.5"></circle>
                     </svg>
                   </span>
-                  <h3 class="display-card-title">1. Contradiction &amp; Ghost State</h3>
+                  <div>
+                    <span class="card-sticky-step">01 &bull; State Conflict</span>
+                    <h3 class="card-sticky-title">Contradiction &amp; Ghost State</h3>
+                  </div>
                 </div>
                 <span class="tag warn">High Severity</span>
               </div>
-              <p class="display-card-desc">
-                A user changes their delivery address or flight date 15 turns in. Later, when executing an
-                action, the model sees both values in context and flips between them or hallucinates a blend.
+              <p class="card-sticky-desc">
+                A user updates their delivery address or flight date 15 turns in. Later, when executing an action, the LLM hallucinates between both values in context or silently executes against the obsolete state.
               </p>
+              <div class="stack-card-trace">
+                <div class="stack-trace-header">
+                  <span class="stack-trace-label">Transcript Drift Trace</span>
+                  <span class="stack-trace-badge warn">State Collision</span>
+                </div>
+                <pre class="stack-trace-code"><code><span class="syn-comment"># Turn 3: User sets initial invariant</span>
+<span class="syn-cmd">&gt; user:</span> Book flight to <span class="syn-str">"SFO"</span> on Oct 12.
+<span class="syn-comment"># Turn 18: User updates their constraint</span>
+<span class="syn-cmd">&gt; user:</span> Actually change that to <span class="syn-str">"JFK"</span> instead.
+<span class="syn-comment"># Turn 28: LLM sees both turns, resurrects stale state</span>
+<span class="syn-err">! error:</span> Agent executed action with <span class="syn-bad">destination="SFO"</span></code></pre>
+              </div>
+              <div class="card-sticky-footer">
+                <span class="card-metric-label">Failure rate:</span>
+                <span class="card-metric-val">42% of multi-turn tool errors</span>
+              </div>
             </div>
+          </div>
 
-            <!-- Card 2: Irrelevance & Token Bleed -->
-            <div class="display-card display-card-2" tabindex="0" role="region" aria-label="2. Irrelevance &amp; Token Bleed">
-              <div class="display-card-header">
-                <div class="display-card-title-group">
-                  <span class="display-card-icon info">
-                    <svg class="display-card-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                      <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
-                      <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
-                      <line x1="12" y1="22.08" x2="12" y2="12"/>
+          <!-- Card 1: Tool Payload Bloat & Token Bleed -->
+          <div class="card-sticky" data-card-index="1" style="--card-index: 1;" tabindex="0" role="region" aria-label="02. Tool Payload Bloat &amp; Token Bleed">
+            <div class="card-sticky-inner">
+              <div class="card-sticky-header">
+                <div class="card-sticky-title-group">
+                  <span class="card-sticky-icon info" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <ellipse cx="12" cy="5" rx="9" ry="3"></ellipse>
+                      <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"></path>
+                      <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path>
                     </svg>
                   </span>
-                  <h3 class="display-card-title">2. Irrelevance &amp; Token Bleed</h3>
+                  <div>
+                    <span class="card-sticky-step">02 &bull; Token Inflation</span>
+                    <h3 class="card-sticky-title">Tool Payload Bloat &amp; Token Bleed</h3>
+                  </div>
                 </div>
                 <span class="tag decl">Token Inflation</span>
               </div>
-              <p class="display-card-desc">
-                Bash tool runs and SQL lookups dump hundreds of lines of raw tabular data that no turn will ever
-                read again. Token bills explode, latency spikes, and attention span evaporates.
+              <p class="card-sticky-desc">
+                Bash command runs, SQL tables, and vector lookups dump hundreds of lines of raw tabular noise that no future turn ever reads again. Token bills explode, latency spikes, and attention evaporates.
               </p>
+              <div class="stack-card-trace">
+                <div class="stack-trace-header">
+                  <span class="stack-trace-label">Payload Growth Trace</span>
+                  <span class="stack-trace-badge info">+340% Overhead</span>
+                </div>
+                <pre class="stack-trace-code"><code><span class="syn-comment"># Turn 8: Bash tool outputs verbose tabular trace</span>
+<span class="syn-cmd">&gt; tool_call:</span> bash_run(<span class="syn-str">"git status &amp;&amp; ls -la"</span>)
+<span class="syn-comment"># Payload: 8,420 tokens dumped into context window</span>
+<span class="syn-warn">&gt; tool_output:</span> [8,402 irrelevant bytes retained]
+<span class="syn-comment"># Turns 9-40: 99.8% of bytes never read again</span>
+<span class="syn-err">! cost:</span> $0.84 wasted per turn on dead payload</code></pre>
+              </div>
+              <div class="card-sticky-footer">
+                <span class="card-metric-label">Context waste:</span>
+                <span class="card-metric-val">Up to 66.5% tokens compacted</span>
+              </div>
             </div>
+          </div>
 
-            <!-- Card 3: Attention Position Decay -->
-            <div class="display-card display-card-3" tabindex="0" role="region" aria-label="3. Attention Position Decay">
-              <div class="display-card-header">
-                <div class="display-card-title-group">
-                  <span class="display-card-icon bad">
-                    <svg class="display-card-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                      <circle cx="12" cy="12" r="10"/>
-                      <polyline points="12 6 12 12 16 14"/>
+          <!-- Card 2: Lost-in-the-Middle Attention Decay -->
+          <div class="card-sticky" data-card-index="2" style="--card-index: 2;" tabindex="0" role="region" aria-label="03. Lost-in-the-Middle Attention Decay">
+            <div class="card-sticky-inner">
+              <div class="card-sticky-header">
+                <div class="card-sticky-title-group">
+                  <span class="card-sticky-icon bad" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <circle cx="12" cy="12" r="10"></circle>
+                      <polyline points="12 6 12 12 16 14"></polyline>
+                      <path d="M2 12h2"></path>
+                      <path d="M20 12h2"></path>
                     </svg>
                   </span>
-                  <h3 class="display-card-title">3. Attention Position Decay</h3>
+                  <div>
+                    <span class="card-sticky-step">03 &bull; Attention Loss</span>
+                    <h3 class="card-sticky-title">Lost-in-the-Middle Decay</h3>
+                  </div>
                 </div>
                 <span class="tag del">Attention Loss</span>
               </div>
-              <p class="display-card-desc">
-                Important user constraints placed in the middle of a 50-turn dialogue suffer from
-                lost-in-the-middle decay. Critical invariants are quietly ignored by the model.
+              <p class="card-sticky-desc">
+                Critical user constraints and business invariants placed in the middle of a 40+ turn transcript suffer from U-shaped attention degradation. The LLM quietly ignores constraints without throwing an error.
               </p>
+              <div class="stack-card-trace">
+                <div class="stack-trace-header">
+                  <span class="stack-trace-label">Invariant Attenuation Trace</span>
+                  <span class="stack-trace-badge bad">Constraint Lost</span>
+                </div>
+                <pre class="stack-trace-code"><code><span class="syn-comment"># Turn 12: Business safety invariant declared</span>
+<span class="syn-cmd">&gt; system:</span> <span class="syn-str">"Always require supervisor approval before charging."</span>
+<span class="syn-comment"># Turn 35: Invariant enters middle-context blind spot</span>
+<span class="syn-warn">&gt; attention:</span> Attention weight falls to <span class="syn-bad">0.12 (-78%)</span>
+<span class="syn-comment"># Turn 42: LLM bypasses invariant silently</span>
+<span class="syn-err">! violation:</span> Agent charged card directly without approval</code></pre>
+              </div>
+              <div class="card-sticky-footer">
+                <span class="card-metric-label">Recall drop:</span>
+                <span class="card-metric-val">68% degradation in middle turns</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Card 3: Prompt Cache Thrashing & Latency -->
+          <div class="card-sticky" data-card-index="3" style="--card-index: 3;" tabindex="0" role="region" aria-label="04. Prompt Cache Thrashing &amp; Latency">
+            <div class="card-sticky-inner">
+              <div class="card-sticky-header">
+                <div class="card-sticky-title-group">
+                  <span class="card-sticky-icon flag" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+                    </svg>
+                  </span>
+                  <div>
+                    <span class="card-sticky-step">04 &bull; KV Eviction</span>
+                    <h3 class="card-sticky-title">Prompt Cache Thrashing</h3>
+                  </div>
+                </div>
+                <span class="tag good">0% KV Hit Rate</span>
+              </div>
+              <p class="card-sticky-desc">
+                Naive pruning or sliding-window truncation mutates early message boundaries on every turn. This breaks byte-identical prefixes, invalidating provider KV caches and driving TTFT to multi-second delays.
+              </p>
+              <div class="stack-card-trace">
+                <div class="stack-trace-header">
+                  <span class="stack-trace-label">Prefix Mutation Trace</span>
+                  <span class="stack-trace-badge flag">Cache Eviction</span>
+                </div>
+                <pre class="stack-trace-code"><code><span class="syn-comment"># Turn 15: Sliding window prunes Turn 1-2 headers</span>
+<span class="syn-warn">&gt; prefix:</span> Byte-exact prefix stream <span class="syn-bad">mutated</span>
+<span class="syn-comment"># Provider prompt cache cannot match altered prefix</span>
+<span class="syn-err">&gt; kv_cache:</span> <span class="syn-bad">CACHE MISS</span> (Re-encoding 32k tokens)
+<span class="syn-cmd">&gt; latency:</span> TTFT spikes from <span class="syn-good">85ms</span> to <span class="syn-bad">2,420ms</span></code></pre>
+              </div>
+              <div class="card-sticky-footer">
+                <span class="card-metric-label">Cache impact:</span>
+                <span class="card-metric-val">100% KV prefix preservation with ContextGC</span>
+              </div>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- Right Column: Section Header & Narrative -->
+      <!-- Right Column: Sticky Narrative & Live Step Tracker -->
       <div class="failures-text-col">
-        <span class="band-eyebrow">The Problem</span>
-        <h2>Why autonomous agents break down after 30 turns</h2>
-        <p class="lede">
-          As multi-turn dialogues grow, language models struggle with state conflict,
-          payload bloat, and lost-in-the-middle context drift.
-        </p>
+        <div class="failures-sticky-pane">
+          <span class="band-eyebrow">The Problem</span>
+          <h2>Why autonomous agents break down after 30 turns</h2>
+          <p class="lede">
+            As multi-turn dialogues grow, language models struggle with state conflict,
+            payload bloat, attention loss, and provider cache eviction.
+          </p>
+          <div class="failures-progress-tracker" id="failuresTracker" aria-label="Problem phases">
+            <button type="button" class="failures-tracker-pill active" data-index="0" aria-label="Go to 01 Contradiction &amp; Ghost State">
+              <span class="tracker-num">01</span>
+              <span class="tracker-name">Ghost State</span>
+            </button>
+            <button type="button" class="failures-tracker-pill" data-index="1" aria-label="Go to 02 Payload Bloat">
+              <span class="tracker-num">02</span>
+              <span class="tracker-name">Payload Bloat</span>
+            </button>
+            <button type="button" class="failures-tracker-pill" data-index="2" aria-label="Go to 03 Attention Decay">
+              <span class="tracker-num">03</span>
+              <span class="tracker-name">Attention Decay</span>
+            </button>
+            <button type="button" class="failures-tracker-pill" data-index="3" aria-label="Go to 04 Cache Thrashing">
+              <span class="tracker-num">04</span>
+              <span class="tracker-name">Cache Thrashing</span>
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   </section>
@@ -2223,6 +2343,99 @@ syncThemeIcon();
         }
       });
     }
+  });
+})();
+
+// ── Cards Stack Scroll Animation Controller (youcefbnm/cards-stack) ──
+(function initCardsStack() {
+  const container = document.getElementById('cardsStackContainer');
+  if (!container) return;
+
+  const cards = Array.from(container.querySelectorAll('.card-sticky'));
+  const trackerPills = Array.from(document.querySelectorAll('.failures-tracker-pill'));
+  if (!cards.length) return;
+
+  let ticking = false;
+
+  function updateCardsOnScroll() {
+    const isMobile = window.innerWidth <= 680;
+    const baseTop = isMobile ? 70 : 88;
+    const stepTop = isMobile ? 16 : 28;
+
+    let activeIndex = 0;
+
+    cards.forEach((card, idx) => {
+      const rect = card.getBoundingClientRect();
+      const stickyTop = baseTop + idx * stepTop;
+      if (rect.top <= stickyTop + 8) {
+        activeIndex = idx;
+      }
+    });
+
+    // Apply scale and opacity depth to cards based on how many cards are stacked above them
+    cards.forEach((card, idx) => {
+      const cardsAbove = activeIndex - idx;
+      if (cardsAbove > 0) {
+        const scale = Math.max(0.88, 1 - cardsAbove * 0.032);
+        const translateY = -cardsAbove * (isMobile ? 3 : 5);
+        const opacity = Math.max(0.6, 1 - cardsAbove * 0.12);
+        card.style.transform = `scale(${scale}) translateY(${translateY}px)`;
+        card.style.opacity = String(opacity);
+      } else {
+        card.style.transform = 'scale(1) translateY(0px)';
+        card.style.opacity = '1';
+      }
+    });
+
+    // Update tracker pills
+    trackerPills.forEach((pill, idx) => {
+      if (idx === activeIndex) {
+        pill.classList.add('active');
+        pill.setAttribute('aria-current', 'true');
+      } else {
+        pill.classList.remove('active');
+        pill.removeAttribute('aria-current');
+      }
+    });
+
+    ticking = false;
+  }
+
+  function onScroll() {
+    if (!ticking) {
+      requestAnimationFrame(updateCardsOnScroll);
+      ticking = true;
+    }
+  }
+
+  window.addEventListener('scroll', onScroll, { passive: true });
+  window.addEventListener('resize', onScroll, { passive: true });
+
+  // Initial check
+  updateCardsOnScroll();
+
+  // Click on tracker pills scrolls to the card
+  trackerPills.forEach((pill, idx) => {
+    pill.addEventListener('click', () => {
+      const targetCard = cards[idx];
+      if (targetCard) {
+        const isMobile = window.innerWidth <= 680;
+        const stickyTop = (isMobile ? 70 : 88) + idx * (isMobile ? 16 : 28);
+        const targetScroll = targetCard.getBoundingClientRect().top + window.scrollY - stickyTop;
+        window.scrollTo({ top: targetScroll, behavior: 'smooth' });
+      }
+    });
+  });
+
+  // Clicking on any card scrolls it into focus
+  cards.forEach((card, idx) => {
+    card.addEventListener('click', (e) => {
+      if (e.target.closest('a') || e.target.closest('button')) return;
+      const isMobile = window.innerWidth <= 680;
+      const stickyTop = (isMobile ? 70 : 88) + idx * (isMobile ? 16 : 28);
+      const targetScroll = card.getBoundingClientRect().top + window.scrollY - stickyTop;
+      window.scrollTo({ top: targetScroll, behavior: 'smooth' });
+    });
   });
 })();
 </script>
