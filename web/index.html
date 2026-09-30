@@ -25,17 +25,77 @@
 
 <header>
   <div class="wrap">
-    <a class="logo" href="/"><span class="mark">cg</span> contextgc</a>
-    <nav>
-      <a href="/" aria-current="page">Overview</a>
-      <a href="#failures" class="desk-only">Failures</a>
-      <a href="#workflow" class="desk-only">Workflow</a>
-      <a href="#features" class="desk-only">Features</a>
-      <a href="#measured" class="desk-only">Benchmarks</a>
-      <a href="#techstack" class="desk-only">Stack</a>
-      <a href="/console">Console</a>
-      <a href="https://github.com/j4yop/context-hackdevengers" target="_blank" rel="noopener">GitHub</a>
-      <button id="theme-toggle" class="theme-btn" aria-label="toggle theme" onclick="toggleTheme(event)" title="Toggle theme"><span id="theme-icon"></span></button>
+    <a class="logo" href="/"><span class="mark">CG</span> contextgc</a>
+    <nav class="awwwards-nav" id="awwwardsNav" aria-label="Primary Navigation">
+      <div class="awwwards-bar" id="awwwardsBar">
+        <button type="button" class="awwwards-more-btn" id="awwwardsMoreBtn" aria-expanded="false" aria-controls="awwwardsMegaMenu" aria-label="Toggle navigation menu">
+          <span class="awwwards-more-icon" aria-hidden="true">
+            <svg class="icon-list" width="16" height="16" viewBox="0 0 256 256" fill="currentColor">
+              <path d="M224,128a8,8,0,0,1-8,8H40a8,8,0,0,1,0-16H216A8,8,0,0,1,224,128ZM40,72H216a8,8,0,0,0,0-16H40a8,8,0,0,0,0,16ZM216,184H40a8,8,0,0,0,0,16H216a8,8,0,0,0,0-16Z"/>
+            </svg>
+            <svg class="icon-close" width="16" height="16" viewBox="0 0 256 256" fill="currentColor">
+              <path d="M205.66,194.34a8,8,0,0,1-11.32,11.32L128,139.31,61.66,205.66a8,8,0,0,1-11.32-11.32L116.69,128,50.34,61.66A8,8,0,0,1,61.66,50.34L128,116.69l66.34-66.35a8,8,0,0,1,11.32,11.32L139.31,128Z"/>
+            </svg>
+          </span>
+          <span class="awwwards-more-text" id="awwwardsMoreText">More</span>
+        </button>
+
+        <div class="awwwards-items" id="awwwardsItems">
+          <div class="awwwards-item"><a href="/" aria-current="page">Overview</a></div>
+          <div class="awwwards-item"><a href="#workflow">Workflow</a></div>
+          <div class="awwwards-item"><a href="#features">Features</a></div>
+          <div class="awwwards-item"><a href="#techstack">Stack</a></div>
+        </div>
+
+        <button id="theme-toggle" class="theme-btn" aria-label="toggle theme" onclick="toggleTheme(event)" title="Toggle theme"><span id="theme-icon"></span></button>
+      </div>
+
+      <div class="awwwards-mega-menu" id="awwwardsMegaMenu" aria-hidden="true">
+        <div class="awwwards-mega-card">
+          <div class="awwwards-col">
+            <div class="awwwards-col-head">
+              <span class="awwwards-col-dot" aria-hidden="true"></span>
+              <span class="awwwards-col-title">Product</span>
+            </div>
+            <a href="/" class="awwwards-col-link">Overview</a>
+            <a href="#failures" class="awwwards-col-link">Failure Modes</a>
+            <a href="#workflow" class="awwwards-col-link">Workflow</a>
+            <a href="#features" class="awwwards-col-link">Features</a>
+          </div>
+
+          <div class="awwwards-col">
+            <div class="awwwards-col-head">
+              <span class="awwwards-col-dot" aria-hidden="true"></span>
+              <span class="awwwards-col-title">Evidence</span>
+            </div>
+            <a href="#measured" class="awwwards-col-link">Benchmarks</a>
+            <a href="#measured" class="awwwards-col-link">SWE-agent Corpora</a>
+            <a href="#measured" class="awwwards-col-link">APIGen MT-5k Shards</a>
+            <a href="#measured" class="awwwards-col-link">Precision Metrics</a>
+          </div>
+
+          <div class="awwwards-col">
+            <div class="awwwards-col-head">
+              <span class="awwwards-col-dot" aria-hidden="true"></span>
+              <span class="awwwards-col-title">Architecture</span>
+            </div>
+            <a href="#techstack" class="awwwards-col-link">Runtime Stack</a>
+            <a href="#workflow" class="awwwards-col-link">State Register Protocol</a>
+            <a href="https://github.com/j4yop/context-hackdevengers/blob/main/docs/architecture.md" target="_blank" rel="noopener" class="awwwards-col-link">Docs &amp; Spec</a>
+          </div>
+
+          <div class="awwwards-col">
+            <div class="awwwards-col-head">
+              <span class="awwwards-col-dot" aria-hidden="true"></span>
+              <span class="awwwards-col-title">Developer</span>
+            </div>
+            <a href="/console" class="awwwards-col-link awwwards-link-accent">Interactive Console &rarr;</a>
+            <a href="https://github.com/j4yop/context-hackdevengers" target="_blank" rel="noopener" class="awwwards-col-link">GitHub Repository</a>
+            <a href="https://github.com/j4yop/context-hackdevengers/blob/main/CHANGELOG.md" target="_blank" rel="noopener" class="awwwards-col-link">Changelog</a>
+            <a href="https://github.com/j4yop/context-hackdevengers/blob/main/LICENSE" target="_blank" rel="noopener" class="awwwards-col-link">MIT License</a>
+          </div>
+        </div>
+      </div>
     </nav>
   </div>
 </header>
@@ -1045,7 +1105,7 @@ response = client.chat.completions.create(
     <div class="footer-top-nav wrap">
       <div class="footer-brand">
         <div class="footer-logo-row">
-          <span class="logo-mark" aria-hidden="true">cg</span>
+          <span class="logo-mark" aria-hidden="true">CG</span>
           <span class="footer-brand-title">contextgc</span>
         </div>
         <p class="footer-tagline">
@@ -2720,6 +2780,57 @@ syncThemeIcon();
   }, { threshold: 0.15 });
 
   observer.observe(root);
+})();
+
+
+// ── Awwwards Navigation Controller (VengeanceUI AwwwardsNav) ──
+(function initAwwwardsNav() {
+  const nav = document.getElementById('awwwardsNav');
+  const btn = document.getElementById('awwwardsMoreBtn');
+  const menu = document.getElementById('awwwardsMegaMenu');
+  const text = document.getElementById('awwwardsMoreText');
+  if (!nav || !btn || !menu) return;
+
+  function setOpen(open) {
+    if (open) {
+      nav.classList.add('is-open');
+      btn.setAttribute('aria-expanded', 'true');
+      btn.setAttribute('aria-label', 'Close menu');
+      menu.setAttribute('aria-hidden', 'false');
+      if (text) text.textContent = 'Close';
+    } else {
+      nav.classList.remove('is-open');
+      btn.setAttribute('aria-expanded', 'false');
+      btn.setAttribute('aria-label', 'Open menu');
+      menu.setAttribute('aria-hidden', 'true');
+      if (text) text.textContent = 'More';
+    }
+  }
+
+  btn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const isOpen = nav.classList.contains('is-open');
+    setOpen(!isOpen);
+  });
+
+  document.addEventListener('click', (e) => {
+    if (nav.classList.contains('is-open') && !nav.contains(e.target)) {
+      setOpen(false);
+    }
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && nav.classList.contains('is-open')) {
+      setOpen(false);
+      btn.focus();
+    }
+  });
+
+  menu.querySelectorAll('a').forEach((link) => {
+    link.addEventListener('click', () => {
+      setOpen(false);
+    });
+  });
 })();
 
 </script>
