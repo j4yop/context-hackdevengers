@@ -649,106 +649,197 @@
       </p>
     </div>
 
-    <!-- Expandable Bento Grid Component (VengeanceUI) -->
+    <!-- Expandable Bento Grid Component (In-Place Drawer) -->
     <div class="expandable-bento-grid" id="expandableBentoGrid">
-      <div class="bento-card" role="button" tabindex="0" data-bento-id="python" aria-haspopup="dialog" aria-expanded="false" title="Click to inspect Python runtime architecture">
-        <div class="bento-card-inner">
-          <div class="bento-icon-box" aria-hidden="true">
-            <span class="bento-icon-symbol">&#x1F40D;</span>
+      <!-- 1. Python -->
+      <div class="bento-card" id="bento-python" aria-expanded="false">
+        <div class="bento-card-header" role="button" tabindex="0" aria-expanded="false" aria-controls="bento-drawer-python" title="Click to view Python architecture details">
+          <div class="bento-icon-box bento-box-python" aria-hidden="true">
+            <svg class="bento-svg-icon" width="28" height="28" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path d="M11.914 2c-5.064 0-4.75 2.195-4.75 2.195l.006 2.274h4.814v.682H5.2c-3.155 0-4.8 1.94-4.8 5.485 0 3.546 1.34 5.378 4.417 5.378h1.417v-2.025c0-2.348 2.002-4.225 4.35-4.225h4.747c.7 0 1.258-.567 1.258-1.266V5.88c0-.699-.575-1.226-1.258-1.226h-.667V2.63s.36-2.63-4.75-2.63zm-2.476 1.632a.91.91 0 0 1 .912.91.91.91 0 0 1-.912.911.91.91 0 0 1-.91-.911.91.91 0 0 1 .91-.91zm5.228 5.753v2.026c0 2.348-2.003 4.225-4.35 4.225H5.568c-.7 0-1.258.567-1.258 1.267v4.614c0 .699.575 1.225 1.258 1.225h.667v2.025s-.36 2.63 4.75 2.63c5.064 0 4.75-2.195 4.75-2.195l-.006-2.274h-4.814v-.682h6.784c3.155 0 4.8-1.94 4.8-5.485 0-3.546-1.34-5.379-4.417-5.379h-1.417zm-2.752 10.983a.91.91 0 0 1 .91.91.91.91 0 0 1-.91.912.91.91 0 0 1-.912-.912.91.91 0 0 1 .912-.91z"/>
+            </svg>
           </div>
           <div class="bento-card-info">
             <div class="bento-title-row">
               <h3 class="bento-title">Python 3.9 &ndash; 3.13</h3>
-              <span class="bento-expand-cue" aria-hidden="true">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6"></path><path d="M10 14L21 3"></path><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path></svg>
+              <span class="bento-toggle-btn" aria-hidden="true">
+                <svg class="bento-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"></polyline></svg>
               </span>
             </div>
             <p class="bento-subtitle">Pure standard library core. Zero third-party wheels, zero build tools, instantly installable.</p>
           </div>
         </div>
+        <div class="bento-card-drawer" id="bento-drawer-python" role="region" aria-label="Python architecture details">
+          <div class="bento-drawer-inner">
+            <p class="bento-drawer-desc">Zero-dependency transcript compilation running at native CPython speeds with zero stochastic drift.</p>
+            <div class="bento-drawer-highlights">
+              <div class="bento-highlight-pill"><span>Runtime Footprint</span><b>0 Dependencies</b></div>
+              <div class="bento-highlight-pill"><span>Compile Speed</span><b>2.14ms Latency</b></div>
+              <div class="bento-highlight-pill"><span>Reliability</span><b>100% Deterministic</b></div>
+            </div>
+            <p class="bento-drawer-detail">ContextGC runs natively on Python 3.9 through 3.13 standard libraries using pure functional state transitions. Zero C extensions, zero binary wheels, and instant cold starts on AWS Lambda, Cloud Run, or minimal Alpine containers.</p>
+            <div class="bento-drawer-code">
+              <pre><code><span class="syn-cmd">import</span> contextgc
+
+<span class="syn-comment"># Compiles multi-turn transcripts deterministically in &lt;3ms:</span>
+result = contextgc.<span class="syn-cmd">compile_transcript</span>(
+    transcript=history,
+    schema=<span class="syn-str">"travel"</span>,
+    mode=<span class="syn-str">"cache_friendly"</span>
+)
+<span class="syn-cmd">print</span>(<span class="syn-str">f"Saved {result.telemetry.compression_ratio_pct}% tokens in {result.telemetry.compile_time_ms}ms"</span>)</code></pre>
+            </div>
+            <div class="bento-drawer-footer">
+              <a class="bento-drawer-action" href="#quickstartTerminal">
+                <span>Quick Start</span>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg>
+              </a>
+            </div>
+          </div>
+        </div>
       </div>
 
-      <div class="bento-card" role="button" tabindex="0" data-bento-id="framework" aria-haspopup="dialog" aria-expanded="false" title="Click to inspect Framework integration architecture">
-        <div class="bento-card-inner">
-          <div class="bento-icon-box" aria-hidden="true">
-            <span class="bento-icon-symbol">&#x269B;</span>
+      <!-- 2. Framework Agnostic -->
+      <div class="bento-card" id="bento-framework" aria-expanded="false">
+        <div class="bento-card-header" role="button" tabindex="0" aria-expanded="false" aria-controls="bento-drawer-framework" title="Click to view Framework integration details">
+          <div class="bento-icon-box bento-box-framework" aria-hidden="true">
+            <svg class="bento-svg-icon" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="12" cy="12" r="3"></circle>
+              <circle cx="19" cy="5" r="2.5"></circle>
+              <circle cx="5" cy="5" r="2.5"></circle>
+              <circle cx="19" cy="19" r="2.5"></circle>
+              <circle cx="5" cy="19" r="2.5"></circle>
+              <line x1="7" y1="6.5" x2="10" y2="10.5"></line>
+              <line x1="17" y1="6.5" x2="14" y2="10.5"></line>
+              <line x1="7" y1="17.5" x2="10" y2="13.5"></line>
+              <line x1="17" y1="17.5" x2="14" y2="13.5"></line>
+            </svg>
           </div>
           <div class="bento-card-info">
             <div class="bento-title-row">
               <h3 class="bento-title">Framework Agnostic</h3>
-              <span class="bento-expand-cue" aria-hidden="true">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6"></path><path d="M10 14L21 3"></path><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path></svg>
+              <span class="bento-toggle-btn" aria-hidden="true">
+                <svg class="bento-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"></polyline></svg>
               </span>
             </div>
             <p class="bento-subtitle">Drop into LangChain, LangGraph, CrewAI, AutoGen, OpenAI Swarm, LlamaIndex, or raw API calls.</p>
           </div>
         </div>
+        <div class="bento-card-drawer" id="bento-drawer-framework" role="region" aria-label="Framework integration details">
+          <div class="bento-drawer-inner">
+            <p class="bento-drawer-desc">Seam-level context optimizer that fits seamlessly between any agent orchestrator and LLM provider.</p>
+            <div class="bento-drawer-highlights">
+              <div class="bento-highlight-pill"><span>Ecosystem</span><b>LangChain / LangGraph</b></div>
+              <div class="bento-highlight-pill"><span>Prompt Cache</span><b>Preserves KV Prefix</b></div>
+              <div class="bento-highlight-pill"><span>Wire Format</span><b>Standard OpenAI JSON</b></div>
+            </div>
+            <p class="bento-drawer-detail">Transparent message interceptor: accepts standard OpenAI-compatible message arrays, compacts obsolete tool payloads, and retires superseded entity facts without breaking provider KV cache hits.</p>
+            <div class="bento-drawer-code">
+              <pre><code><span class="syn-comment"># Drop into any LangGraph node or CrewAI tool loop:</span>
+<span class="syn-cmd">def</span> <span class="syn-var">context_cleaner_node</span>(state):
+    compiled = contextgc.<span class="syn-cmd">compile_transcript</span>(state[<span class="syn-str">"messages"</span>])
+    <span class="syn-cmd">return</span> {<span class="syn-str">"messages"</span>: compiled.compiled_messages}</code></pre>
+            </div>
+            <div class="bento-drawer-footer">
+              <a class="bento-drawer-action" href="#quickstartTerminal">
+                <span>Quick Start</span>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg>
+              </a>
+            </div>
+          </div>
+        </div>
       </div>
 
-      <div class="bento-card" role="button" tabindex="0" data-bento-id="fastapi" aria-haspopup="dialog" aria-expanded="false" title="Click to inspect FastAPI microservice architecture">
-        <div class="bento-card-inner">
-          <div class="bento-icon-box" aria-hidden="true">
-            <span class="bento-icon-symbol">&#x26A1;</span>
+      <!-- 3. FastAPI / Uvicorn Server -->
+      <div class="bento-card" id="bento-fastapi" aria-expanded="false">
+        <div class="bento-card-header" role="button" tabindex="0" aria-expanded="false" aria-controls="bento-drawer-fastapi" title="Click to view FastAPI microservice details">
+          <div class="bento-icon-box bento-box-fastapi" aria-hidden="true">
+            <svg class="bento-svg-icon" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+            </svg>
           </div>
           <div class="bento-card-info">
             <div class="bento-title-row">
               <h3 class="bento-title">FastAPI / Uvicorn Server</h3>
-              <span class="bento-expand-cue" aria-hidden="true">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6"></path><path d="M10 14L21 3"></path><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path></svg>
+              <span class="bento-toggle-btn" aria-hidden="true">
+                <svg class="bento-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"></polyline></svg>
               </span>
             </div>
             <p class="bento-subtitle">Optional lightweight microservice layer with sub-3ms compile endpoints and CORS support.</p>
           </div>
         </div>
+        <div class="bento-card-drawer" id="bento-drawer-fastapi" role="region" aria-label="FastAPI microservice details">
+          <div class="bento-drawer-inner">
+            <p class="bento-drawer-desc">High-throughput async REST API service for polyglot infrastructure, microservices, and distributed pipelines.</p>
+            <div class="bento-drawer-highlights">
+              <div class="bento-highlight-pill"><span>Throughput</span><b>Async Non-blocking ASGI</b></div>
+              <div class="bento-highlight-pill"><span>Polyglot</span><b>TypeScript, Go, Rust</b></div>
+              <div class="bento-highlight-pill"><span>Endpoints</span><b>/api/compile, /api/schemas</b></div>
+            </div>
+            <p class="bento-drawer-detail">Deploy as a standalone microservice or sidecar with CORS support. Perfect for polyglot production environments where TypeScript, Go, or Rust services need sub-3ms prompt garbage collection without embedding Python.</p>
+            <div class="bento-drawer-code">
+              <pre><code><span class="syn-comment"># Call ContextGC REST API from any language:</span>
+<span class="syn-cmd">curl</span> -X POST http://localhost:8914/api/compile \
+  -H <span class="syn-str">"Content-Type: application/json"</span> \
+  -d <span class="syn-str">'{"schema": "travel", "transcript": [...]}'</span></code></pre>
+            </div>
+            <div class="bento-drawer-footer">
+              <a class="bento-drawer-action" href="/console">
+                <span>Open Console</span>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg>
+              </a>
+            </div>
+          </div>
+        </div>
       </div>
 
-      <div class="bento-card" role="button" tabindex="0" data-bento-id="esm" aria-haspopup="dialog" aria-expanded="false" title="Click to inspect Vanilla ESM Client architecture">
-        <div class="bento-card-inner">
-          <div class="bento-icon-box" aria-hidden="true">
-            <span class="bento-icon-symbol">&#x1F3A8;</span>
+      <!-- 4. Vanilla ESM Client -->
+      <div class="bento-card" id="bento-esm" aria-expanded="false">
+        <div class="bento-card-header" role="button" tabindex="0" aria-expanded="false" aria-controls="bento-drawer-esm" title="Click to view Vanilla ESM Client details">
+          <div class="bento-icon-box bento-box-esm" aria-hidden="true">
+            <svg class="bento-svg-icon" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <rect x="2" y="3" width="20" height="18" rx="3"></rect>
+              <line x1="2" y1="9" x2="22" y2="9"></line>
+              <circle cx="6" cy="6" r="1" fill="currentColor"></circle>
+              <circle cx="9" cy="6" r="1" fill="currentColor"></circle>
+              <circle cx="12" cy="6" r="1" fill="currentColor"></circle>
+              <path d="M7 14l3 3-3 3"></path>
+              <line x1="13" y1="20" x2="17" y2="20"></line>
+            </svg>
           </div>
           <div class="bento-card-info">
             <div class="bento-title-row">
               <h3 class="bento-title">Vanilla ESM Client</h3>
-              <span class="bento-expand-cue" aria-hidden="true">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6"></path><path d="M10 14L21 3"></path><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path></svg>
+              <span class="bento-toggle-btn" aria-hidden="true">
+                <svg class="bento-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"></polyline></svg>
               </span>
             </div>
             <p class="bento-subtitle">Modern browser frontend with zero build step, native CSS custom properties, and WCAG AA compliance.</p>
           </div>
         </div>
-      </div>
-    </div>
-
-    <!-- Expandable Bento Modal Backdrop & Dialog -->
-    <div class="bento-modal-overlay" id="bentoModalOverlay" aria-hidden="true">
-      <div class="bento-modal-wrapper" id="bentoModalWrapper">
-        <div class="bento-modal" id="bentoModal" role="dialog" aria-modal="true" aria-labelledby="bentoModalTitle" aria-describedby="bentoModalDesc">
-          <!-- Close Button -->
-          <button type="button" class="bento-close-btn" id="bentoModalCloseBtn" aria-label="Close dialog">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg>
-          </button>
-
-          <!-- 3D Perspective Hero Header -->
-          <div class="bento-modal-hero" id="bentoModalHero">
-            <div class="bento-modal-hero-pattern" aria-hidden="true"></div>
-            <div class="bento-hero-icon-3d" id="bentoModalHeroIcon"></div>
-          </div>
-
-          <!-- Modal Body -->
-          <div class="bento-modal-body">
-            <div class="bento-modal-top-row">
-              <div class="bento-modal-text-block">
-                <h3 class="bento-modal-title" id="bentoModalTitle"></h3>
-                <p class="bento-modal-desc" id="bentoModalDesc"></p>
-              </div>
-              <a class="bento-modal-action-btn" id="bentoModalActionBtn" href="#quickstartTerminal">
-                <span id="bentoModalActionText">Quick Start</span>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg>
+        <div class="bento-card-drawer" id="bento-drawer-esm" role="region" aria-label="Vanilla ESM Client details">
+          <div class="bento-drawer-inner">
+            <p class="bento-drawer-desc">Zero-build browser interface leveraging native ECMAScript modules, CSS tokens, and accessible reactive components.</p>
+            <div class="bento-drawer-highlights">
+              <div class="bento-highlight-pill"><span>Zero Bundler</span><b>No Webpack or Vite</b></div>
+              <div class="bento-highlight-pill"><span>Accessibility</span><b>WCAG 2.1 AA Audited</b></div>
+              <div class="bento-highlight-pill"><span>Theming</span><b>Hardware Dark/Light</b></div>
+            </div>
+            <p class="bento-drawer-detail">Built entirely with vanilla ECMAScript modules and native CSS custom properties. Zero build step, zero client bundle weight, and direct DOM streaming with WCAG 2.1 AA audited contrast ratios across all viewports.</p>
+            <div class="bento-drawer-code">
+              <pre><code><span class="syn-comment">// Direct browser fetch &amp; streaming without bundler:</span>
+<span class="syn-cmd">const</span> res = <span class="syn-cmd">await</span> <span class="syn-cmd">fetch</span>(<span class="syn-str">"/api/compile"</span>, {
+  method: <span class="syn-str">"POST"</span>,
+  headers: { <span class="syn-str">"Content-Type"</span>: <span class="syn-str">"application/json"</span> },
+  body: JSON.stringify({ transcript, schema: <span class="syn-str">"travel"</span> })
+});</code></pre>
+            </div>
+            <div class="bento-drawer-footer">
+              <a class="bento-drawer-action" href="/console">
+                <span>Open Console</span>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg>
               </a>
             </div>
-
-            <div class="bento-modal-content" id="bentoModalContent"></div>
           </div>
         </div>
       </div>
@@ -2102,177 +2193,35 @@ syncThemeIcon();
   }, 900);
 })();
 
-// ── Expandable Bento Grid Controller (VengeanceUI) ───────────
+// ── Expandable Bento Grid Controller (In-Place Drawer) ───────
 (function initExpandableBentoGrid() {
-  const BENTO_DATA = {
-    python: {
-      id: 'python',
-      icon: '🐍',
-      title: 'Python 3.9 – 3.13',
-      subtitle: 'Pure standard library core. Zero third-party wheels, zero build tools, instantly installable.',
-      description: 'Zero-dependency transcript compilation running at native CPython speeds with zero stochastic drift.',
-      actionText: 'Quick Start',
-      actionHref: '#quickstartTerminal',
-      highlights: [
-        { label: 'Runtime Footprint', value: '0 Dependencies (std library)' },
-        { label: 'Compile Speed', value: '2.14ms Mean Latency' },
-        { label: 'Reliability', value: '100% Deterministic DAG' }
-      ],
-      details: 'ContextGC runs natively on Python 3.9 through 3.13 standard libraries using pure functional state transitions. There are zero C extensions, zero binary wheels to compile, and zero pip dependency conflicts, ensuring instant cold starts on AWS Lambda, Cloud Run, or minimal Alpine containers.',
-      code: '<span class="syn-cmd">import</span> contextgc\n\n<span class="syn-comment"># Compiles multi-turn transcripts deterministically in &lt;3ms:</span>\nresult = contextgc.<span class="syn-cmd">compile_transcript</span>(\n    transcript=history,\n    schema=<span class="syn-str">"travel"</span>,\n    mode=<span class="syn-str">"cache_friendly"</span>\n)\n<span class="syn-cmd">print</span>(<span class="syn-str">f"Saved {result.telemetry.compression_ratio_pct}% tokens in {result.telemetry.compile_time_ms}ms"</span>)'
-    },
-    framework: {
-      id: 'framework',
-      icon: '⚛️',
-      title: 'Framework Agnostic',
-      subtitle: 'Drop into LangChain, LangGraph, CrewAI, AutoGen, OpenAI Swarm, LlamaIndex, or raw API calls.',
-      description: 'Seam-level context optimizer that fits seamlessly between any agent orchestrator and LLM provider.',
-      actionText: 'Quick Start',
-      actionHref: '#quickstartTerminal',
-      highlights: [
-        { label: 'Ecosystem', value: 'LangChain, LangGraph, CrewAI' },
-        { label: 'Prompt Cache', value: 'Preserves Byte-Identical Prefix' },
-        { label: 'Wire Format', value: 'Standard OpenAI JSON Messages' }
-      ],
-      details: 'Transparent message interceptor: accepts standard OpenAI-compatible message arrays, compacts obsolete tool payloads, and retires superseded entity facts. Because it strictly preserves common conversational prefixes, provider-level KV caching hits stay near 100%.',
-      code: '<span class="syn-comment"># Drop into any LangGraph node or CrewAI tool loop:</span>\n<span class="syn-cmd">def</span> <span class="syn-var">context_cleaner_node</span>(state):\n    compiled = contextgc.<span class="syn-cmd">compile_transcript</span>(state[<span class="syn-str">"messages"</span>])\n    <span class="syn-cmd">return</span> {<span class="syn-str">"messages"</span>: compiled.compiled_messages}'
-    },
-    fastapi: {
-      id: 'fastapi',
-      icon: '⚡',
-      title: 'FastAPI / Uvicorn Server',
-      subtitle: 'Optional lightweight microservice layer with sub-3ms compile endpoints and CORS support.',
-      description: 'High-throughput async REST API service for polyglot infrastructure, microservices, and distributed pipelines.',
-      actionText: 'Open Console',
-      actionHref: '/console',
-      highlights: [
-        { label: 'Throughput', value: 'Asynchronous Non-blocking ASGI' },
-        { label: 'Polyglot', value: 'TypeScript, Go, Rust, Python' },
-        { label: 'Endpoints', value: '/api/compile, /api/schemas' }
-      ],
-      details: 'Easily deployed as a standalone microservice or sidecar with CORS support. Perfect for polyglot production environments where TypeScript, Go, or Rust services need to execute sub-3ms prompt garbage collection without hosting a Python runtime inside their main process.',
-      code: '<span class="syn-comment"># Call ContextGC REST API from any language:</span>\n<span class="syn-cmd">curl</span> -X POST http://localhost:8914/api/compile \\\n  -H <span class="syn-str">"Content-Type: application/json"</span> \\\n  -d <span class="syn-str">\'{"schema": "travel", "transcript": [...]}\'</span>'
-    },
-    esm: {
-      id: 'esm',
-      icon: '🎨',
-      title: 'Vanilla ESM Client',
-      subtitle: 'Modern browser frontend with zero build step, native CSS custom properties, and WCAG AA compliance.',
-      description: 'Zero-build browser interface leveraging native ECMAScript modules, CSS tokens, and accessible reactive components.',
-      actionText: 'Open Console',
-      actionHref: '/console',
-      highlights: [
-        { label: 'Zero Bundler', value: 'No Webpack, Vite, or npm build' },
-        { label: 'Accessibility', value: 'WCAG 2.1 AA Contrast Audited' },
-        { label: 'Theming', value: 'Hardware-Accelerated Dark/Light' }
-      ],
-      details: 'Built entirely with vanilla ECMAScript modules and native CSS custom properties. Zero build step, zero client bundle weight, and direct DOM streaming. Complete with WCAG 2.1 AA audited contrast ratios and fluid responsive layouts across all mobile screen sizes.',
-      code: '<span class="syn-comment">// Direct browser fetch & streaming without bundler:</span>\n<span class="syn-cmd">const</span> res = <span class="syn-cmd">await</span> <span class="syn-cmd">fetch</span>(<span class="syn-str">"/api/compile"</span>, {\n  method: <span class="syn-str">"POST"</span>,\n  headers: { <span class="syn-str">"Content-Type"</span>: <span class="syn-str">"application/json"</span> },\n  body: JSON.stringify({ transcript, schema: <span class="syn-str">"travel"</span> })\n});'
-    }
-  };
-
-  const overlay = document.getElementById('bentoModalOverlay');
-  const modal = document.getElementById('bentoModal');
-  const closeBtn = document.getElementById('bentoModalCloseBtn');
-  const heroIcon = document.getElementById('bentoModalHeroIcon');
-  const titleEl = document.getElementById('bentoModalTitle');
-  const descEl = document.getElementById('bentoModalDesc');
-  const actionBtn = document.getElementById('bentoModalActionBtn');
-  const actionText = document.getElementById('bentoModalActionText');
-  const contentEl = document.getElementById('bentoModalContent');
   const cards = document.querySelectorAll('.bento-card');
+  if (!cards.length) return;
 
-  if (!overlay || !modal || !cards.length) return;
-
-  let activeCard = null;
-
-  function openModal(id, triggerEl) {
-    const data = BENTO_DATA[id];
-    if (!data) return;
-
-    activeCard = triggerEl;
-    if (triggerEl) {
-      triggerEl.setAttribute('aria-expanded', 'true');
-    }
-
-    // Populate modal
-    heroIcon.innerHTML = `<span class="bento-hero-symbol" aria-hidden="true">${data.icon}</span>`;
-    titleEl.textContent = data.title;
-    descEl.textContent = data.description;
-    actionBtn.setAttribute('href', data.actionHref);
-    actionText.textContent = data.actionText;
-
-    // Render highlights, details, and code
-    let highlightsHtml = '<div class="bento-modal-highlights">';
-    data.highlights.forEach(h => {
-      highlightsHtml += `<div class="bento-highlight-pill"><span>${h.label}</span><b>${h.value}</b></div>`;
-    });
-    highlightsHtml += '</div>';
-
-    let detailsHtml = `<p class="bento-modal-detail-text">${data.details}</p>`;
-    let codeHtml = `<div class="bento-modal-code-snippet"><pre><code>${data.code}</code></pre></div>`;
-
-    contentEl.innerHTML = highlightsHtml + detailsHtml + codeHtml;
-
-    // Show modal & overlay
-    overlay.classList.add('active');
-    overlay.setAttribute('aria-hidden', 'false');
-    document.body.style.overflow = 'hidden';
-
-    // Focus close button for accessibility
-    setTimeout(() => {
-      if (closeBtn) closeBtn.focus();
-    }, 50);
-  }
-
-  function closeModal() {
-    overlay.classList.remove('active');
-    overlay.setAttribute('aria-hidden', 'true');
-    document.body.style.overflow = '';
-
-    if (activeCard) {
-      activeCard.setAttribute('aria-expanded', 'false');
-      activeCard.focus();
-      activeCard = null;
+  function toggleCard(card) {
+    const isExpanded = card.getAttribute('aria-expanded') === 'true';
+    const nextState = !isExpanded;
+    card.setAttribute('aria-expanded', String(nextState));
+    const header = card.querySelector('.bento-card-header');
+    if (header) {
+      header.setAttribute('aria-expanded', String(nextState));
     }
   }
 
   cards.forEach(card => {
-    const id = card.getAttribute('data-bento-id');
-    card.addEventListener('click', () => openModal(id, card));
-    card.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' || e.key === ' ') {
-        e.preventDefault();
-        openModal(id, card);
-      }
-    });
-  });
+    const header = card.querySelector('.bento-card-header');
+    if (header) {
+      header.addEventListener('click', (e) => {
+        if (e.target.closest('a')) return;
+        toggleCard(card);
+      });
 
-  if (closeBtn) {
-    closeBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      closeModal();
-    });
-  }
-
-  // Click outside to close (backdrop click)
-  overlay.addEventListener('click', (e) => {
-    if (e.target === overlay || e.target.classList.contains('bento-modal-wrapper')) {
-      closeModal();
-    }
-  });
-
-  // Action button click: smooth close
-  if (actionBtn) {
-    actionBtn.addEventListener('click', () => {
-      closeModal();
-    });
-  }
-
-  // Escape key closes modal
-  window.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && overlay.classList.contains('active')) {
-      closeModal();
+      header.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          toggleCard(card);
+        }
+      });
     }
   });
 })();
