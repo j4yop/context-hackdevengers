@@ -434,45 +434,201 @@
       </p>
     </div>
 
-    <div class="results">
-      <table>
-        <thead>
-          <tr>
-            <th>Corpus</th>
-            <th>Sample</th>
-            <th class="n">Token reduction</th>
-            <th class="n">Turns retired</th>
-            <th class="n">Payloads compacted</th>
-            <th class="n">Precision</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td data-label="Corpus"><b>Coding</b><br><span class="src">SWE-agent bug-fixing, 20 repos</span></td>
-            <td class="n" data-label="Sample">40 transcripts</td>
-            <td class="n" data-label="Token reduction">66.5%</td>
-            <td class="n" data-label="Turns retired">161</td>
-            <td class="n" data-label="Payloads compacted">668</td>
-            <td class="n" data-label="Precision">100% <span class="src">n=36, CI 90&ndash;100%</span></td>
-          </tr>
-          <tr>
-            <td data-label="Corpus"><b>Airline support</b><br><span class="src">APIGen-MT-5k, reservation tool use</span></td>
-            <td class="n" data-label="Sample">60 conversations</td>
-            <td class="n" data-label="Token reduction">59.0%</td>
-            <td class="n" data-label="Turns retired">9</td>
-            <td class="n" data-label="Payloads compacted">138</td>
-            <td class="n" data-label="Precision">100% <span class="src">n=72, CI 95&ndash;100%</span></td>
-          </tr>
-          <tr>
-            <td data-label="Corpus"><b>Retail support</b><br><span class="src">APIGen-MT-5k, order and exchange tool use</span></td>
-            <td class="n" data-label="Sample">80 conversations</td>
-            <td class="n" data-label="Token reduction">62.5%</td>
-            <td class="n" data-label="Turns retired">2</td>
-            <td class="n" data-label="Payloads compacted">275</td>
-            <td class="n" data-label="Precision">100% <span class="src">n=47, CI 92&ndash;100%</span></td>
-          </tr>
-        </tbody>
-      </table>
+    <div class="results paired-bars-card">
+      <div class="paired-bars-header">
+        <div class="paired-bars-title-box">
+          <div class="paired-bars-tag">
+            <span class="paired-tag-dot"></span>
+            <span>Empirical Evidence · Paired Measures</span>
+          </div>
+          <h3 class="paired-bars-heading">Token Reduction vs. Compiler Precision</h3>
+          <p class="paired-bars-subhead">
+            Grouped horizontal comparison across 3 distinct production agent domains on a unified 0&ndash;100% scale.
+          </p>
+        </div>
+
+        <div class="paired-bars-legend">
+          <div class="paired-legend-item">
+            <span class="paired-legend-chip"></span>
+            <span>Token reduction</span>
+          </div>
+          <div class="paired-legend-item">
+            <span class="paired-legend-chip secondary"></span>
+            <span>Compiler precision</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="paired-bars-viewport">
+        <div class="paired-bars-inner">
+          <div class="paired-rail-header">
+            <span>MEASUREMENT</span>
+            <span>BENCHMARK RATE (0 &mdash; 100%)</span>
+            <span style="text-align:right">VALUE</span>
+          </div>
+
+          <div class="paired-groups-list">
+            <!-- Group 1: Coding -->
+            <section class="paired-group paired-group-coding">
+              <div class="paired-group-top">
+                <div class="paired-group-title">
+                  <span class="paired-swatch"></span>
+                  <span class="paired-group-name">Coding</span>
+                  <span class="paired-sample-pill">40 transcripts</span>
+                </div>
+                <div class="paired-group-meta">
+                  <span class="src">SWE-agent bug-fixing, 20 repos</span>
+                  <span class="paired-meta-divider">&middot;</span>
+                  <span class="paired-meta-stat"><b>161</b> turns retired</span>
+                  <span class="paired-meta-divider">&middot;</span>
+                  <span class="paired-meta-stat"><b>668</b> payloads compacted</span>
+                </div>
+              </div>
+
+              <div class="paired-measures">
+                <div class="paired-measure-row">
+                  <p class="paired-measure-label">Token reduction</p>
+                  <div class="paired-track-container" title="Coding · Token reduction · 66.5%">
+                    <div class="paired-gridlines" aria-hidden="true">
+                      <span class="gridline" style="left: 25%;"></span>
+                      <span class="gridline" style="left: 50%;"></span>
+                      <span class="gridline" style="left: 75%;"></span>
+                    </div>
+                    <div class="paired-bar primary" style="width: 66.5%;"></div>
+                  </div>
+                  <p class="paired-measure-value">66.5%</p>
+                </div>
+
+                <div class="paired-measure-row">
+                  <p class="paired-measure-label">Precision</p>
+                  <div class="paired-track-container" title="Coding · Precision · 100% n=36, CI 90-100%">
+                    <div class="paired-gridlines" aria-hidden="true">
+                      <span class="gridline" style="left: 25%;"></span>
+                      <span class="gridline" style="left: 50%;"></span>
+                      <span class="gridline" style="left: 75%;"></span>
+                    </div>
+                    <div class="paired-bar secondary" style="width: 100%;"></div>
+                  </div>
+                  <p class="paired-measure-value">100% <span class="ci-note">n=36, CI 90&ndash;100%</span></p>
+                </div>
+              </div>
+            </section>
+
+            <!-- Group 2: Airline support -->
+            <section class="paired-group paired-group-airline">
+              <div class="paired-group-top">
+                <div class="paired-group-title">
+                  <span class="paired-swatch"></span>
+                  <span class="paired-group-name">Airline support</span>
+                  <span class="paired-sample-pill">60 conversations</span>
+                </div>
+                <div class="paired-group-meta">
+                  <span class="src">APIGen-MT-5k, reservation tool use</span>
+                  <span class="paired-meta-divider">&middot;</span>
+                  <span class="paired-meta-stat"><b>9</b> turns retired</span>
+                  <span class="paired-meta-divider">&middot;</span>
+                  <span class="paired-meta-stat"><b>138</b> payloads compacted</span>
+                </div>
+              </div>
+
+              <div class="paired-measures">
+                <div class="paired-measure-row">
+                  <p class="paired-measure-label">Token reduction</p>
+                  <div class="paired-track-container" title="Airline support · Token reduction · 59.0%">
+                    <div class="paired-gridlines" aria-hidden="true">
+                      <span class="gridline" style="left: 25%;"></span>
+                      <span class="gridline" style="left: 50%;"></span>
+                      <span class="gridline" style="left: 75%;"></span>
+                    </div>
+                    <div class="paired-bar primary" style="width: 59.0%;"></div>
+                  </div>
+                  <p class="paired-measure-value">59.0%</p>
+                </div>
+
+                <div class="paired-measure-row">
+                  <p class="paired-measure-label">Precision</p>
+                  <div class="paired-track-container" title="Airline support · Precision · 100% n=72, CI 95-100%">
+                    <div class="paired-gridlines" aria-hidden="true">
+                      <span class="gridline" style="left: 25%;"></span>
+                      <span class="gridline" style="left: 50%;"></span>
+                      <span class="gridline" style="left: 75%;"></span>
+                    </div>
+                    <div class="paired-bar secondary" style="width: 100%;"></div>
+                  </div>
+                  <p class="paired-measure-value">100% <span class="ci-note">n=72, CI 95&ndash;100%</span></p>
+                </div>
+              </div>
+            </section>
+
+            <!-- Group 3: Retail support -->
+            <section class="paired-group paired-group-retail">
+              <div class="paired-group-top">
+                <div class="paired-group-title">
+                  <span class="paired-swatch"></span>
+                  <span class="paired-group-name">Retail support</span>
+                  <span class="paired-sample-pill">80 conversations</span>
+                </div>
+                <div class="paired-group-meta">
+                  <span class="src">APIGen-MT-5k, order and exchange tool use</span>
+                  <span class="paired-meta-divider">&middot;</span>
+                  <span class="paired-meta-stat"><b>2</b> turns retired</span>
+                  <span class="paired-meta-divider">&middot;</span>
+                  <span class="paired-meta-stat"><b>275</b> payloads compacted</span>
+                </div>
+              </div>
+
+              <div class="paired-measures">
+                <div class="paired-measure-row">
+                  <p class="paired-measure-label">Token reduction</p>
+                  <div class="paired-track-container" title="Retail support · Token reduction · 62.5%">
+                    <div class="paired-gridlines" aria-hidden="true">
+                      <span class="gridline" style="left: 25%;"></span>
+                      <span class="gridline" style="left: 50%;"></span>
+                      <span class="gridline" style="left: 75%;"></span>
+                    </div>
+                    <div class="paired-bar primary" style="width: 62.5%;"></div>
+                  </div>
+                  <p class="paired-measure-value">62.5%</p>
+                </div>
+
+                <div class="paired-measure-row">
+                  <p class="paired-measure-label">Precision</p>
+                  <div class="paired-track-container" title="Retail support · Precision · 100% n=47, CI 92-100%">
+                    <div class="paired-gridlines" aria-hidden="true">
+                      <span class="gridline" style="left: 25%;"></span>
+                      <span class="gridline" style="left: 50%;"></span>
+                      <span class="gridline" style="left: 75%;"></span>
+                    </div>
+                    <div class="paired-bar secondary" style="width: 100%;"></div>
+                  </div>
+                  <p class="paired-measure-value">100% <span class="ci-note">n=47, CI 92&ndash;100%</span></p>
+                </div>
+              </div>
+            </section>
+          </div>
+
+          <div class="paired-axis-rail">
+            <span></span>
+            <div class="paired-ticks">
+              <span>0%</span>
+              <span>25%</span>
+              <span>50%</span>
+              <span>75%</span>
+              <span>100%</span>
+            </div>
+            <span></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="paired-bars-footer">
+        <div class="paired-footer-stats">
+          <span class="paired-footer-badge">Sample: <b>180 trajectories</b></span>
+          <span class="paired-footer-badge">Turns retired: <b>172 total</b></span>
+          <span class="paired-footer-badge">Payloads compacted: <b>1,081 total</b></span>
+        </div>
+        <span style="font-family: var(--mono); font-size: 11px; color: var(--ink-3);">Zero synthetic or model-graded data</span>
+      </div>
     </div>
 
     <p style="font-size:13.5px;color:var(--ink-2);margin:14px 0 0;max-width:76ch;line-height:1.6">
