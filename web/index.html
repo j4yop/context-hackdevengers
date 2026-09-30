@@ -49,7 +49,7 @@
       Deterministic Context Garbage Collection
     </div>
 
-    <h1>Why pay for 50,000 tokens of agent history when only 3 facts are still true?</h1>
+    <h1 class="ascii-glitch-ripple" id="heroTitle" data-dur="1000" data-spread="1.1" title="Hover to trigger ASCII glitch ripple">Why pay for 50,000 tokens of agent history when only 3 facts are still true?</h1>
 
     <p class="lead">
       Because transcripts pile up obsolete tool outputs, superseded decisions, and dead turns.
@@ -1637,6 +1637,193 @@ syncThemeIcon();
   }
 
   renderNodes();
+})();
+
+// ── ASCII Glitch Ripple for Hero Heading ─────────────────────
+(function initAsciiGlitchRipple() {
+  const el = document.getElementById('heroTitle');
+  if (!el) return;
+
+  const WAVE_THRESH = 3;
+  const CHAR_MULT = 3;
+  const ANIM_STEP = 40;
+  const WAVE_BUF = 5;
+
+  const origTxt = (el.textContent || '').trim();
+  const origChars = origTxt.split('');
+  const dur = Number(el.getAttribute('data-dur')) || 1000;
+  const spread = Number(el.getAttribute('data-spread')) || 1.1;
+  const chars = el.getAttribute('data-chars') || '.,·-─~+:;=*π""┐┌┘┴┬╗╔╝╚╬╠╣╩╦║░▒▓█▄▀▌▐■!?&#$@0123456789*';
+  const preserveSpaces = true;
+
+  const state = {
+    origTxt,
+    origChars,
+    isAnim: false,
+    cursorPos: 0,
+    waves: [],
+    animId: null,
+    isHover: false,
+    dur,
+    chars,
+    preserveSpaces,
+    spread
+  };
+
+  function updateCursorPos(e) {
+    const rect = el.getBoundingClientRect();
+    if (rect.width <= 0) return;
+
+    let charPos = -1;
+    if (document.caretRangeFromPoint && e.clientX && e.clientY) {
+      try {
+        const range = document.caretRangeFromPoint(e.clientX, e.clientY);
+        if (range && (range.startContainer === el || el.contains(range.startContainer))) {
+          charPos = range.startOffset;
+        }
+      } catch (_) {}
+    } else if (document.caretPositionFromPoint && e.clientX && e.clientY) {
+      try {
+        const pos = document.caretPositionFromPoint(e.clientX, e.clientY);
+        if (pos && (pos.offsetNode === el || el.contains(pos.offsetNode))) {
+          charPos = pos.offset;
+        }
+      } catch (_) {}
+    }
+
+    if (charPos >= 0 && charPos < state.origTxt.length) {
+      state.cursorPos = charPos;
+    } else {
+      const clientX = e.clientX || (e.touches && e.touches[0] ? e.touches[0].clientX : 0);
+      const x = Math.max(0, Math.min(clientX - rect.left, rect.width));
+      const pos = Math.round((x / rect.width) * state.origTxt.length);
+      state.cursorPos = Math.max(0, Math.min(pos, state.origTxt.length - 1));
+    }
+  }
+
+  function stop() {
+    el.textContent = state.origTxt;
+    el.classList.remove('as');
+    state.isAnim = false;
+    if (state.animId) {
+      cancelAnimationFrame(state.animId);
+      state.animId = null;
+    }
+  }
+
+  function calcWaveEffect(charIdx, t) {
+    let shouldAnim = false;
+    let resultChar = state.origChars[charIdx];
+
+    for (let i = 0; i < state.waves.length; i++) {
+      const w = state.waves[i];
+      const age = t - w.startTime;
+      const prog = Math.min(age / state.dur, 1);
+      const dist = Math.abs(charIdx - w.startPos);
+      const maxDist = Math.max(w.startPos, state.origChars.length - w.startPos - 1);
+      const rad = (prog * (maxDist + WAVE_BUF)) / state.spread;
+
+      if (dist <= rad) {
+        shouldAnim = true;
+        const intens = Math.max(0, rad - dist);
+
+        if (intens <= WAVE_THRESH && intens > 0) {
+          const index = (dist * CHAR_MULT + Math.floor(age / ANIM_STEP)) % state.chars.length;
+          resultChar = state.chars[index];
+        }
+      }
+    }
+
+    return { shouldAnim, char: resultChar };
+  }
+
+  function genScrambledTxt(t) {
+    return state.origChars.map((char, i) => {
+      if (state.preserveSpaces && char === ' ') return ' ';
+      const res = calcWaveEffect(i, t);
+      return res.shouldAnim ? res.char : char;
+    }).join('');
+  }
+
+  function start() {
+    if (state.isAnim) return;
+    state.isAnim = true;
+    el.classList.add('as');
+
+    function animate() {
+      const t = performance.now();
+      state.waves = state.waves.filter(w => t - w.startTime < state.dur);
+
+      if (state.waves.length === 0) {
+        stop();
+        return;
+      }
+
+      el.textContent = genScrambledTxt(t);
+      state.animId = requestAnimationFrame(animate);
+    }
+
+    state.animId = requestAnimationFrame(animate);
+  }
+
+  function startWave(customPos) {
+    const pos = typeof customPos === 'number' ? customPos : state.cursorPos;
+    state.waves.push({
+      startPos: Math.max(0, Math.min(pos, state.origChars.length - 1)),
+      startTime: performance.now(),
+      id: Math.random()
+    });
+    if (!state.isAnim) start();
+  }
+
+  el.addEventListener('mouseenter', (e) => {
+    state.isHover = true;
+    updateCursorPos(e);
+    startWave();
+  });
+
+  el.addEventListener('mousemove', (e) => {
+    if (!state.isHover) return;
+    const old = state.cursorPos;
+    updateCursorPos(e);
+    if (state.cursorPos !== old) {
+      startWave();
+    }
+  });
+
+  el.addEventListener('mouseleave', () => {
+    state.isHover = false;
+  });
+
+  // Touch support for mobile / tablets
+  el.addEventListener('touchstart', (e) => {
+    if (e.touches && e.touches[0]) {
+      state.isHover = true;
+      updateCursorPos(e.touches[0]);
+      startWave();
+    }
+  }, { passive: true });
+
+  el.addEventListener('touchmove', (e) => {
+    if (e.touches && e.touches[0]) {
+      const old = state.cursorPos;
+      updateCursorPos(e.touches[0]);
+      if (state.cursorPos !== old) {
+        startWave();
+      }
+    }
+  }, { passive: true });
+
+  el.addEventListener('touchend', () => {
+    state.isHover = false;
+  });
+
+  // Initial welcome ripple after page load (starts from middle character)
+  setTimeout(() => {
+    if (!state.isAnim && !state.isHover) {
+      startWave(Math.floor(state.origChars.length / 2));
+    }
+  }, 900);
 })();
 </script>
 </body>
