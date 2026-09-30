@@ -1639,7 +1639,7 @@ syncThemeIcon();
   renderNodes();
 })();
 
-// ── ASCII Glitch Ripple for Hero Heading ─────────────────────
+// ── ASCII Glitch Ripple for Hero Heading (Rock-Solid Layout) ─
 (function initAsciiGlitchRipple() {
   const el = document.getElementById('heroTitle');
   if (!el) return;
@@ -1649,60 +1649,112 @@ syncThemeIcon();
   const ANIM_STEP = 40;
   const WAVE_BUF = 5;
 
-  const origTxt = (el.textContent || '').trim();
-  const origChars = origTxt.split('');
+  const origTxt = (el.textContent || '').trim().replace(/\s+/g, ' ');
   const dur = Number(el.getAttribute('data-dur')) || 1000;
   const spread = Number(el.getAttribute('data-spread')) || 1.1;
   const chars = el.getAttribute('data-chars') || '.,·-─~+:;=*π""┐┌┘┴┬╗╔╝╚╬╠╣╩╦║░▒▓█▄▀▌▐■!?&#$@0123456789*';
-  const preserveSpaces = true;
+
+  // Build word and character spans to prevent any layout vibration
+  const words = origTxt.split(' ');
+  el.innerHTML = '';
+  const charSpans = [];
+
+  words.forEach((word, wIdx) => {
+    const wSpan = document.createElement('span');
+    wSpan.className = 'agr-word';
+
+    for (let i = 0; i < word.length; i++) {
+      const cSpan = document.createElement('span');
+      cSpan.className = 'agr-char';
+      cSpan.setAttribute('data-orig', word[i]);
+      cSpan.textContent = word[i];
+      wSpan.appendChild(cSpan);
+      charSpans.push(cSpan);
+    }
+    el.appendChild(wSpan);
+    if (wIdx < words.length - 1) {
+      const spaceNode = document.createTextNode(' ');
+      el.appendChild(spaceNode);
+    }
+  });
+
+  const totalChars = charSpans.length;
+
+  // Lock character widths and element min-height
+  function lockMetrics() {
+    charSpans.forEach(s => { s.style.width = ''; });
+    el.style.minHeight = '';
+    requestAnimationFrame(() => {
+      charSpans.forEach(s => {
+        const r = s.getBoundingClientRect();
+        s.style.width = (Math.round(r.width * 100) / 100) + 'px';
+      });
+      const elRect = el.getBoundingClientRect();
+      el.style.minHeight = Math.round(elRect.height) + 'px';
+    });
+  }
+
+  // Ensure fonts are loaded before locking metrics
+  if (document.fonts && document.fonts.ready) {
+    document.fonts.ready.then(lockMetrics);
+  } else {
+    lockMetrics();
+  }
+
+  // Handle window resizing cleanly
+  let resizeTimer = null;
+  window.addEventListener('resize', () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(lockMetrics, 80);
+  });
 
   const state = {
-    origTxt,
-    origChars,
     isAnim: false,
-    cursorPos: 0,
+    cursorPos: Math.floor(totalChars / 2),
     waves: [],
     animId: null,
     isHover: false,
+    lastWaveTime: 0,
     dur,
     chars,
-    preserveSpaces,
     spread
   };
 
   function updateCursorPos(e) {
-    const rect = el.getBoundingClientRect();
-    if (rect.width <= 0) return;
-
-    let charPos = -1;
-    if (document.caretRangeFromPoint && e.clientX && e.clientY) {
-      try {
-        const range = document.caretRangeFromPoint(e.clientX, e.clientY);
-        if (range && (range.startContainer === el || el.contains(range.startContainer))) {
-          charPos = range.startOffset;
-        }
-      } catch (_) {}
-    } else if (document.caretPositionFromPoint && e.clientX && e.clientY) {
-      try {
-        const pos = document.caretPositionFromPoint(e.clientX, e.clientY);
-        if (pos && (pos.offsetNode === el || el.contains(pos.offsetNode))) {
-          charPos = pos.offset;
-        }
-      } catch (_) {}
+    // If hovering directly over a char span, get exact index
+    const targetChar = e.target && e.target.closest ? e.target.closest('.agr-char') : null;
+    if (targetChar) {
+      const idx = charSpans.indexOf(targetChar);
+      if (idx >= 0) {
+        state.cursorPos = idx;
+        return;
+      }
     }
 
-    if (charPos >= 0 && charPos < state.origTxt.length) {
-      state.cursorPos = charPos;
-    } else {
-      const clientX = e.clientX || (e.touches && e.touches[0] ? e.touches[0].clientX : 0);
-      const x = Math.max(0, Math.min(clientX - rect.left, rect.width));
-      const pos = Math.round((x / rect.width) * state.origTxt.length);
-      state.cursorPos = Math.max(0, Math.min(pos, state.origTxt.length - 1));
+    // Fallback: calculate nearest char span by coordinate
+    const clientX = e.clientX || (e.touches && e.touches[0] ? e.touches[0].clientX : null);
+    const clientY = e.clientY || (e.touches && e.touches[0] ? e.touches[0].clientY : null);
+    if (clientX === null || clientY === null) return;
+
+    let nearestIdx = 0;
+    let nearestDist = Infinity;
+    for (let i = 0; i < charSpans.length; i++) {
+      const r = charSpans[i].getBoundingClientRect();
+      const cx = r.left + r.width / 2;
+      const cy = r.top + r.height / 2;
+      const d = (clientX - cx) ** 2 + (clientY - cy) ** 2;
+      if (d < nearestDist) {
+        nearestDist = d;
+        nearestIdx = i;
+      }
     }
+    state.cursorPos = nearestIdx;
   }
 
   function stop() {
-    el.textContent = state.origTxt;
+    charSpans.forEach(s => {
+      s.textContent = s.getAttribute('data-orig') || '';
+    });
     el.classList.remove('as');
     state.isAnim = false;
     if (state.animId) {
@@ -1713,14 +1765,14 @@ syncThemeIcon();
 
   function calcWaveEffect(charIdx, t) {
     let shouldAnim = false;
-    let resultChar = state.origChars[charIdx];
+    let resultChar = charSpans[charIdx].getAttribute('data-orig') || '';
 
     for (let i = 0; i < state.waves.length; i++) {
       const w = state.waves[i];
       const age = t - w.startTime;
       const prog = Math.min(age / state.dur, 1);
       const dist = Math.abs(charIdx - w.startPos);
-      const maxDist = Math.max(w.startPos, state.origChars.length - w.startPos - 1);
+      const maxDist = Math.max(w.startPos, totalChars - w.startPos - 1);
       const rad = (prog * (maxDist + WAVE_BUF)) / state.spread;
 
       if (dist <= rad) {
@@ -1737,12 +1789,16 @@ syncThemeIcon();
     return { shouldAnim, char: resultChar };
   }
 
-  function genScrambledTxt(t) {
-    return state.origChars.map((char, i) => {
-      if (state.preserveSpaces && char === ' ') return ' ';
+  function renderFrame(t) {
+    for (let i = 0; i < totalChars; i++) {
+      const span = charSpans[i];
+      const orig = span.getAttribute('data-orig') || '';
       const res = calcWaveEffect(i, t);
-      return res.shouldAnim ? res.char : char;
-    }).join('');
+      const nextChar = res.shouldAnim ? res.char : orig;
+      if (span.textContent !== nextChar) {
+        span.textContent = nextChar;
+      }
+    }
   }
 
   function start() {
@@ -1759,7 +1815,7 @@ syncThemeIcon();
         return;
       }
 
-      el.textContent = genScrambledTxt(t);
+      renderFrame(t);
       state.animId = requestAnimationFrame(animate);
     }
 
@@ -1767,10 +1823,22 @@ syncThemeIcon();
   }
 
   function startWave(customPos) {
+    const now = performance.now();
+    // Throttle new waves so rapid hovering doesn't overwhelm layout
+    if (typeof customPos !== 'number' && now - state.lastWaveTime < 75) {
+      return;
+    }
+    state.lastWaveTime = now;
+
+    // Cap concurrent active waves to 3
+    if (state.waves.length >= 3) {
+      state.waves.shift();
+    }
+
     const pos = typeof customPos === 'number' ? customPos : state.cursorPos;
     state.waves.push({
-      startPos: Math.max(0, Math.min(pos, state.origChars.length - 1)),
-      startTime: performance.now(),
+      startPos: Math.max(0, Math.min(pos, totalChars - 1)),
+      startTime: now,
       id: Math.random()
     });
     if (!state.isAnim) start();
@@ -1818,10 +1886,10 @@ syncThemeIcon();
     state.isHover = false;
   });
 
-  // Initial welcome ripple after page load (starts from middle character)
+  // Initial welcome ripple after page load
   setTimeout(() => {
     if (!state.isAnim && !state.isHover) {
-      startWave(Math.floor(state.origChars.length / 2));
+      startWave(Math.floor(totalChars / 2));
     }
   }, 900);
 })();

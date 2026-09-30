@@ -83,42 +83,108 @@ export function AsciiGlitchRipple({
     stateRef.current.chars = chars;
     stateRef.current.preserveSpaces = preserveSpaces;
     stateRef.current.spread = spread;
-
-    // Reset layout widths if text changes dynamically
-    if (stateRef.current.origW !== null && elRef.current) {
-      elRef.current.style.width = "";
-      stateRef.current.origW = null;
-    }
-
-    if (!stateRef.current.isAnim && elRef.current) {
-      elRef.current.textContent = children;
-    }
   }, [children, dur, chars, preserveSpaces, spread]);
 
   useEffect(() => {
     const el = elRef.current;
     if (!el) return;
 
-    // Initialize content
-    el.textContent = children;
+    // Build word and character spans to prevent any layout vibration
+    const origTxt = stateRef.current.origTxt;
+    const words = origTxt.split(" ");
+    el.innerHTML = "";
+    const charSpans: HTMLSpanElement[] = [];
 
-    const updateCursorPos = (e: MouseEvent) => {
-      const rect = el.getBoundingClientRect();
-      const x = e.clientX - rect.left;
-      const len = stateRef.current.origTxt.length;
-      const pos = Math.round((x / rect.width) * len);
-      stateRef.current.cursorPos = Math.max(0, Math.min(pos, len - 1));
+    words.forEach((word, wIdx) => {
+      const wSpan = document.createElement("span");
+      wSpan.className = "agr-word";
+      wSpan.style.display = "inline-block";
+      wSpan.style.whiteSpace = "nowrap";
+
+      for (let i = 0; i < word.length; i++) {
+        const cSpan = document.createElement("span");
+        cSpan.className = "agr-char";
+        cSpan.setAttribute("data-orig", word[i]);
+        cSpan.textContent = word[i];
+        cSpan.style.display = "inline-block";
+        cSpan.style.textAlign = "center";
+        cSpan.style.overflow = "visible";
+        wSpan.appendChild(cSpan);
+        charSpans.push(cSpan);
+      }
+      el.appendChild(wSpan);
+      if (wIdx < words.length - 1) {
+        const spaceNode = document.createTextNode(" ");
+        el.appendChild(spaceNode);
+      }
+    });
+
+    const totalChars = charSpans.length;
+
+    // Lock character widths and element min-height
+    const lockMetrics = () => {
+      charSpans.forEach((s) => {
+        s.style.width = "";
+      });
+      el.style.minHeight = "";
+      requestAnimationFrame(() => {
+        charSpans.forEach((s) => {
+          const r = s.getBoundingClientRect();
+          s.style.width = `${Math.round(r.width * 100) / 100}px`;
+        });
+        const elRect = el.getBoundingClientRect();
+        el.style.minHeight = `${Math.round(elRect.height)}px`;
+      });
+    };
+
+    if (document.fonts && document.fonts.ready) {
+      document.fonts.ready.then(lockMetrics);
+    } else {
+      lockMetrics();
+    }
+
+    let resizeTimer: any = null;
+    const onResize = () => {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(lockMetrics, 80);
+    };
+    window.addEventListener("resize", onResize);
+
+    const updateCursorPos = (e: MouseEvent | Touch) => {
+      const target = (e as any).target;
+      const targetChar = target && target.closest ? target.closest(".agr-char") : null;
+      if (targetChar) {
+        const idx = charSpans.indexOf(targetChar);
+        if (idx >= 0) {
+          stateRef.current.cursorPos = idx;
+          return;
+        }
+      }
+
+      const clientX = (e as MouseEvent).clientX;
+      const clientY = (e as MouseEvent).clientY;
+      if (clientX === undefined || clientY === undefined) return;
+
+      let nearestIdx = 0;
+      let nearestDist = Infinity;
+      for (let i = 0; i < charSpans.length; i++) {
+        const r = charSpans[i].getBoundingClientRect();
+        const cx = r.left + r.width / 2;
+        const cy = r.top + r.height / 2;
+        const d = (clientX - cx) ** 2 + (clientY - cy) ** 2;
+        if (d < nearestDist) {
+          nearestDist = d;
+          nearestIdx = i;
+        }
+      }
+      stateRef.current.cursorPos = nearestIdx;
     };
 
     const stop = () => {
-      el.textContent = stateRef.current.origTxt;
+      charSpans.forEach((s) => {
+        s.textContent = s.getAttribute("data-orig") || "";
+      });
       el.classList.remove("as");
-
-      // Restore natural width layout
-      if (stateRef.current.origW !== null) {
-        el.style.width = "";
-        stateRef.current.origW = null;
-      }
       stateRef.current.isAnim = false;
       if (stateRef.current.animId) {
         cancelAnimationFrame(stateRef.current.animId);
@@ -126,65 +192,21 @@ export function AsciiGlitchRipple({
       }
     };
 
-    const start = () => {
-      if (stateRef.current.isAnim) return;
-
-      // Lock current width to prevent layout shifts during ASCII scrambling
-      if (stateRef.current.origW === null) {
-        stateRef.current.origW = el.getBoundingClientRect().width;
-        el.style.width = `${stateRef.current.origW}px`;
-      }
-
-      stateRef.current.isAnim = true;
-      el.classList.add("as");
-
-      const animate = () => {
-        const t = Date.now();
-
-        // Evict finished waves
-        stateRef.current.waves = stateRef.current.waves.filter(
-          (w) => t - w.startTime < stateRef.current.dur
-        );
-
-        if (stateRef.current.waves.length === 0) {
-          stop();
-          return;
-        }
-
-        // Apply visual scramble
-        el.textContent = genScrambledTxt(t);
-        stateRef.current.animId = requestAnimationFrame(animate);
-      };
-
-      stateRef.current.animId = requestAnimationFrame(animate);
-    };
-
-    const startWave = () => {
-      stateRef.current.waves.push({
-        startPos: stateRef.current.cursorPos,
-        startTime: Date.now(),
-        id: Math.random(),
-      });
-
-      if (!stateRef.current.isAnim) start();
-    };
-
     const calcWaveEffect = (charIdx: number, t: number) => {
       let shouldAnim = false;
-      let resultChar = stateRef.current.origChars[charIdx];
+      let resultChar = charSpans[charIdx].getAttribute("data-orig") || "";
 
       for (const w of stateRef.current.waves) {
         const age = t - w.startTime;
         const prog = Math.min(age / stateRef.current.dur, 1);
         const dist = Math.abs(charIdx - w.startPos);
-        const maxDist = Math.max(w.startPos, stateRef.current.origChars.length - w.startPos - 1);
+        const maxDist = Math.max(w.startPos, totalChars - w.startPos - 1);
         const rad = (prog * (maxDist + WAVE_BUF)) / stateRef.current.spread;
 
         if (dist <= rad) {
           shouldAnim = true;
           const intens = Math.max(0, rad - dist);
 
-          // Wave distortion characters
           if (intens <= WAVE_THRESH && intens > 0) {
             const index =
               (dist * CHAR_MULT + Math.floor(age / ANIM_STEP)) % stateRef.current.chars.length;
@@ -196,14 +218,62 @@ export function AsciiGlitchRipple({
       return { shouldAnim, char: resultChar };
     };
 
-    const genScrambledTxt = (t: number) =>
-      stateRef.current.origChars
-        .map((char, i) => {
-          if (stateRef.current.preserveSpaces && char === " ") return " ";
-          const res = calcWaveEffect(i, t);
-          return res.shouldAnim ? res.char : char;
-        })
-        .join("");
+    const renderFrame = (t: number) => {
+      for (let i = 0; i < totalChars; i++) {
+        const span = charSpans[i];
+        const orig = span.getAttribute("data-orig") || "";
+        const res = calcWaveEffect(i, t);
+        const nextChar = res.shouldAnim ? res.char : orig;
+        if (span.textContent !== nextChar) {
+          span.textContent = nextChar;
+        }
+      }
+    };
+
+    const start = () => {
+      if (stateRef.current.isAnim) return;
+      stateRef.current.isAnim = true;
+      el.classList.add("as");
+
+      const animate = () => {
+        const t = performance.now();
+        stateRef.current.waves = stateRef.current.waves.filter(
+          (w) => t - w.startTime < stateRef.current.dur
+        );
+
+        if (stateRef.current.waves.length === 0) {
+          stop();
+          return;
+        }
+
+        renderFrame(t);
+        stateRef.current.animId = requestAnimationFrame(animate);
+      };
+
+      stateRef.current.animId = requestAnimationFrame(animate);
+    };
+
+    let lastWaveTime = 0;
+    const startWave = (customPos?: number) => {
+      const now = performance.now();
+      if (typeof customPos !== "number" && now - lastWaveTime < 75) {
+        return;
+      }
+      lastWaveTime = now;
+
+      if (stateRef.current.waves.length >= 3) {
+        stateRef.current.waves.shift();
+      }
+
+      const pos = typeof customPos === "number" ? customPos : stateRef.current.cursorPos;
+      stateRef.current.waves.push({
+        startPos: Math.max(0, Math.min(pos, totalChars - 1)),
+        startTime: now,
+        id: Math.random(),
+      });
+
+      if (!stateRef.current.isAnim) start();
+    };
 
     const handleEnter = (e: MouseEvent) => {
       stateRef.current.isHover = true;
@@ -227,6 +297,7 @@ export function AsciiGlitchRipple({
     el.addEventListener("mouseleave", handleLeave);
 
     return () => {
+      window.removeEventListener("resize", onResize);
       el.removeEventListener("mouseenter", handleEnter);
       el.removeEventListener("mousemove", handleMove);
       el.removeEventListener("mouseleave", handleLeave);
@@ -240,7 +311,7 @@ export function AsciiGlitchRipple({
     <Component
       ref={elRef}
       className={cn(
-        "cursor-pointer select-none relative inline-block transition-colors duration-200",
+        "cursor-pointer relative inline-block transition-colors duration-200",
         className
       )}
       {...props}
