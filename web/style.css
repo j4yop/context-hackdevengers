@@ -1104,6 +1104,193 @@ button.primary:hover:not(:disabled), a.btn.primary:hover:not(:disabled), .btn.pr
   filter: brightness(1.05);
 }
 
+/* ── VengeanceUI Corner Button ───────────────────────────────── */
+.corner-btn-wrapper {
+  --dot-size: 6px;
+  --line-weight: 1px;
+  --padding: 0.85rem 1.1rem;
+  --speed: 0.35s;
+  --dot-color: var(--ink-3);
+  --line-color: var(--line-2);
+
+  position: relative;
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  padding: var(--padding);
+  background-color: transparent;
+  transition: background-color 0.3s ease-in-out;
+  user-select: none;
+}
+
+.corner-btn-wrapper:has(.corner-btn:hover) {
+  animation: corner-bg-change calc(var(--speed) * 4) ease-in-out forwards;
+}
+@keyframes corner-bg-change {
+  80%  { background-color: transparent; }
+  100% { background-color: var(--accent-glow); }
+}
+
+/* ── Button ───────────────────────── */
+a.btn.primary.corner-btn,
+.corner-btn {
+  position: relative;
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.82rem 1.4rem;
+  background-color: var(--accent);
+  background-image: linear-gradient(rgba(255, 255, 255, 0.12), rgba(0, 0, 0, 0.12));
+  border: 1px solid var(--accent-line, var(--accent));
+  color: var(--on-accent);
+  font-family: var(--sans);
+  font-size: 15px;
+  font-weight: 600;
+  border-radius: 30% / 200%;
+  cursor: pointer;
+  box-shadow:
+    0 0 0px 1px rgba(0, 0, 0, 0.15),
+    0 4px 14px var(--accent-glow),
+    0 1px 2px rgba(0, 0, 0, 0.08);
+  transition:
+    background-color 0.2s ease-in-out,
+    transform 0.2s ease-in-out,
+    box-shadow 0.2s ease-in-out,
+    border-radius 0.3s ease-in-out;
+}
+a.btn.primary.corner-btn:hover,
+.corner-btn:hover {
+  background-color: var(--accent-hover);
+  color: var(--on-accent);
+  transform: scale(1.05);
+  border-radius: 10% / 200%;
+  box-shadow:
+    0 0 0px 1px var(--accent),
+    0 8px 24px var(--accent-glow),
+    0 2px 6px rgba(0, 0, 0, 0.12);
+  text-decoration: none;
+}
+a.btn.primary.corner-btn:active,
+.corner-btn:active {
+  background-color: var(--accent);
+  transform: scale(0.98);
+  border-radius: 20% / 200%;
+}
+
+/* ── Icon ────────────────────────── */
+.corner-btn-svg {
+  height: 18px;
+  width: 18px;
+  flex-shrink: 0;
+  stroke: currentColor;
+  transition: transform 0.25s ease-in-out;
+}
+a.btn.primary.corner-btn:hover .corner-btn-svg,
+.corner-btn:hover .corner-btn-svg {
+  transform: translateX(4px);
+}
+
+/* ── Dots ─────────────────────────── */
+.corner-dot {
+  position: absolute;
+  width: var(--dot-size);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background-color: var(--dot-color);
+  opacity: 0;
+  transition: all 0.3s ease-in-out;
+  pointer-events: none;
+}
+.corner-btn-wrapper:has(.corner-btn:hover) .corner-dot.top.left {
+  top: 50%; left: 20%;
+  animation: corner-dot-tl var(--speed) ease-in-out forwards;
+}
+@keyframes corner-dot-tl {
+  90%  { opacity: 0.6; }
+  100% { top: calc(var(--dot-size) * -0.5); left: calc(var(--dot-size) * -0.5); opacity: 1; }
+}
+.corner-btn-wrapper:has(.corner-btn:hover) .corner-dot.top.right {
+  top: 50%; right: 20%;
+  animation: corner-dot-tr var(--speed) ease-in-out forwards;
+  animation-delay: calc(var(--speed) * 0.6);
+}
+@keyframes corner-dot-tr {
+  80%  { opacity: 0.6; }
+  100% { top: calc(var(--dot-size) * -0.5); right: calc(var(--dot-size) * -0.5); opacity: 1; }
+}
+.corner-btn-wrapper:has(.corner-btn:hover) .corner-dot.bottom.right {
+  bottom: 50%; right: 20%;
+  animation: corner-dot-br var(--speed) ease-in-out forwards;
+  animation-delay: calc(var(--speed) * 1.2);
+}
+@keyframes corner-dot-br {
+  80%  { opacity: 0.6; }
+  100% { bottom: calc(var(--dot-size) * -0.5); right: calc(var(--dot-size) * -0.5); opacity: 1; }
+}
+.corner-btn-wrapper:has(.corner-btn:hover) .corner-dot.bottom.left {
+  bottom: 50%; left: 20%;
+  animation: corner-dot-bl var(--speed) ease-in-out forwards;
+  animation-delay: calc(var(--speed) * 1.8);
+}
+@keyframes corner-dot-bl {
+  80%  { opacity: 0.6; }
+  100% { bottom: calc(var(--dot-size) * -0.5); left: calc(var(--dot-size) * -0.5); opacity: 1; }
+}
+
+/* ── Lines ────────────────────────── */
+.corner-line {
+  position: absolute;
+  transition: all 0.3s ease-in-out;
+  pointer-events: none;
+}
+.corner-line.horizontal {
+  height: var(--line-weight);
+  width: 100%;
+  background-image: repeating-linear-gradient(
+    90deg,
+    transparent 0 calc(var(--line-weight) * 2),
+    var(--line-color) calc(var(--line-weight) * 2) calc(var(--line-weight) * 4)
+  );
+}
+.corner-line.vertical {
+  width: var(--line-weight);
+  height: 100%;
+  background-image: repeating-linear-gradient(
+    0deg,
+    transparent 0 calc(var(--line-weight) * 2),
+    var(--line-color) calc(var(--line-weight) * 2) calc(var(--line-weight) * 4)
+  );
+}
+.corner-line.top    { top:    calc(var(--line-weight) * -0.5); transform-origin: top left;    transform: rotate(5deg) scaleX(0); }
+.corner-line.bottom { bottom: calc(var(--line-weight) * -0.5); transform-origin: bottom right; transform: rotate(5deg) scaleX(0); }
+.corner-line.left   { left:   calc(var(--line-weight) * -0.5); transform-origin: bottom left;  transform: scaleY(0); }
+.corner-line.right  { right:  calc(var(--line-weight) * -0.5); transform-origin: top right;    transform: rotate(5deg) scaleY(0); }
+
+.corner-btn-wrapper:has(.corner-btn:hover) .corner-line.top {
+  animation: corner-line-top var(--speed) ease-in-out forwards;
+  animation-delay: calc(var(--speed) * 0.8);
+}
+@keyframes corner-line-top    { 100% { transform: rotate(0deg) scaleX(1); } }
+
+.corner-btn-wrapper:has(.corner-btn:hover) .corner-line.bottom {
+  animation: corner-line-bottom var(--speed) ease-in-out forwards;
+  animation-delay: calc(var(--speed) * 2);
+}
+@keyframes corner-line-bottom { 100% { transform: rotate(0deg) scaleX(1); } }
+
+.corner-btn-wrapper:has(.corner-btn:hover) .corner-line.left {
+  animation: corner-line-left var(--speed) ease-in-out forwards;
+  animation-delay: calc(var(--speed) * 2.4);
+}
+@keyframes corner-line-left   { 100% { transform: scaleY(1); } }
+
+.corner-btn-wrapper:has(.corner-btn:hover) .corner-line.right {
+  animation: corner-line-right var(--speed) ease-in-out forwards;
+  animation-delay: calc(var(--speed) * 1.4);
+}
+@keyframes corner-line-right  { 100% { transform: rotate(0deg) scaleY(1); } }
+
 button.link {
   background: none;
   border: none;
@@ -3874,12 +4061,12 @@ footer,
   z-index: 10;
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
-  gap: 48px;
+  align-items: center;
+  gap: 36px;
   flex-wrap: wrap;
   width: 100%;
   box-sizing: border-box;
-  padding: 32px 38px;
+  padding: 30px 38px;
   background: var(--panel-glass);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
@@ -3889,7 +4076,7 @@ footer,
 }
 
 .footer-brand {
-  max-width: 420px;
+  max-width: 440px;
 }
 
 .footer-logo-row {
@@ -3930,40 +4117,191 @@ footer,
   color: var(--ink-2);
 }
 
-.footer-nav-grid {
+/* ── VengeanceUI Social Flip Button ──────────────────────────── */
+.footer-social-wrap {
   display: flex;
-  gap: 60px;
-  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  flex-shrink: 0;
 }
 
-.footer-col {
+.social-flip-card {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--panel-2);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 14px 18px;
+  box-shadow: var(--shadow-sm);
+  overflow: visible;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.social-flip-card:hover {
+  border-color: var(--line-highlight, var(--line-2));
+  box-shadow: var(--shadow-md);
+}
+
+/* Animated Border Running Lines Container */
+.social-border-lines {
+  position: absolute;
+  inset: -1px;
+  border-radius: 18px;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.social-border-line {
+  position: absolute;
+  height: 1px;
+  width: 100%;
+  pointer-events: none;
+}
+
+.social-border-line.top {
+  top: 0;
+  left: 0;
+  background: linear-gradient(90deg, transparent, var(--accent), transparent);
+  animation: social-line-top 2.5s linear infinite;
+}
+
+.social-border-line.bottom {
+  bottom: 0;
+  left: 0;
+  background: linear-gradient(90deg, transparent, var(--accent), transparent);
+  animation: social-line-bottom 2.5s linear infinite;
+}
+
+@keyframes social-line-top {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+@keyframes social-line-bottom {
+  0% { transform: translateX(100%); }
+  100% { transform: translateX(-100%); }
+}
+
+.social-flip-items {
   display: flex;
-  flex-direction: column;
-  gap: 12px;
+  align-items: center;
+  gap: 8px;
+  position: relative;
+  z-index: 5;
 }
 
-.footer-col-header {
-  font-family: var(--mono);
-  font-size: 11.5px;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--accent);
-  margin-bottom: 4px;
-}
-
-.footer-col a {
-  color: var(--ink);
-  font-weight: 600;
+.social-flip-node {
+  position: relative;
+  width: 38px;
+  height: 38px;
+  perspective: 1000px;
+  cursor: pointer;
   text-decoration: none;
-  font-size: 14px;
-  transition: color 0.15s ease, transform 0.15s ease;
-  width: fit-content;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.footer-col a:hover {
-  color: var(--accent);
-  transform: translateX(4px);
+.social-flip-inner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transform-style: preserve-3d;
+  transition: transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Staggered 3D Flip on Card Hover */
+.social-flip-card:hover .social-flip-node:nth-child(1) .social-flip-inner { transform: rotateY(180deg); transition-delay: 0.00s; }
+.social-flip-card:hover .social-flip-node:nth-child(2) .social-flip-inner { transform: rotateY(180deg); transition-delay: 0.06s; }
+.social-flip-card:hover .social-flip-node:nth-child(3) .social-flip-inner { transform: rotateY(180deg); transition-delay: 0.12s; }
+.social-flip-card:hover .social-flip-node:nth-child(4) .social-flip-inner { transform: rotateY(180deg); transition-delay: 0.18s; }
+.social-flip-card:hover .social-flip-node:nth-child(5) .social-flip-inner { transform: rotateY(180deg); transition-delay: 0.24s; }
+.social-flip-card:hover .social-flip-node:nth-child(6) .social-flip-inner { transform: rotateY(180deg); transition-delay: 0.30s; }
+.social-flip-card:hover .social-flip-node:nth-child(7) .social-flip-inner { transform: rotateY(180deg); transition-delay: 0.36s; }
+
+/* Front Face: Letter */
+.social-flip-front,
+.social-flip-back {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9px;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  font-family: var(--font-display, var(--sans));
+  font-weight: 700;
+  font-size: 15px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+.social-flip-front {
+  background: var(--panel);
+  color: var(--ink);
+  border: 1px solid var(--line);
+}
+
+/* Back Face: Icon */
+.social-flip-back {
+  transform: rotateY(180deg);
+  background: var(--ink);
+  color: var(--panel);
+  border: 1px solid transparent;
+  transition: background 0.18s ease, color 0.18s ease;
+}
+
+.social-flip-node:hover .social-flip-back {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+.social-flip-back svg {
+  display: block;
+}
+
+/* Tooltip on individual node hover */
+.social-tooltip {
+  position: absolute;
+  top: -38px;
+  left: 50%;
+  transform: translateX(-50%) translateY(6px) scale(0.9);
+  padding: 4px 9px;
+  background: var(--ink);
+  color: var(--panel);
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 6px;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+  transition: opacity 0.18s ease, transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.18s ease;
+  z-index: 50;
+}
+
+.social-tooltip::after {
+  content: "";
+  position: absolute;
+  bottom: -4px;
+  left: 50%;
+  transform: translateX(-50%) rotate(45deg);
+  width: 7px;
+  height: 7px;
+  background: inherit;
+}
+
+.social-flip-node:hover .social-tooltip {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(-50%) translateY(0) scale(1);
 }
 
 /* ASCII Canvas Stage - Spans entirely edge-to-edge across the screen */
@@ -4083,8 +4421,12 @@ footer,
   }
   .footer-top-nav {
     flex-direction: column;
-    gap: 32px;
+    align-items: stretch;
+    gap: 28px;
     padding: 24px 28px;
+  }
+  .footer-social-wrap {
+    justify-content: flex-start;
   }
   .footer-hand-wrap {
     width: 52%;
@@ -4099,11 +4441,11 @@ footer,
     margin-top: 56px;
   }
   .footer-top-nav {
-    padding: 20px 20px;
+    padding: 20px 18px;
     border-radius: 16px;
   }
-  .footer-nav-grid {
-    gap: 32px;
+  .footer-social-wrap {
+    justify-content: center;
   }
   .footer-display-heading {
     font-size: clamp(2.2rem, 13vw, 4rem);
@@ -4119,6 +4461,32 @@ footer,
     flex-direction: column;
     align-items: flex-start;
     gap: 10px;
+  }
+}
+
+@media (max-width: 440px) {
+  .footer-top-nav {
+    padding: 16px 12px;
+  }
+  .social-flip-card {
+    padding: 10px 10px;
+    gap: 4px;
+  }
+  .social-flip-items {
+    gap: 4px;
+  }
+  .social-flip-node {
+    width: 32px;
+    height: 32px;
+  }
+  .social-flip-front,
+  .social-flip-back {
+    font-size: 13px;
+    border-radius: 7px;
+  }
+  .social-flip-back svg {
+    width: 14px;
+    height: 14px;
   }
 }
 
