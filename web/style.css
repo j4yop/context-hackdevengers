@@ -1145,19 +1145,32 @@ details > div { padding: 16px; }
 .ascii-glitch-ripple {
   position: relative;
   cursor: pointer;
-  user-select: none;
-  transition: color 0.2s ease, text-shadow 0.25s ease;
   max-width: 100%;
+  display: block;
+}
+
+.ascii-glitch-ripple .agr-word {
+  display: inline-block;
+  white-space: nowrap;
+}
+
+.ascii-glitch-ripple .agr-char {
+  display: inline-block;
+  text-align: center;
+  overflow: visible;
+  transition: text-shadow 0.2s ease;
 }
 
 .ascii-glitch-ripple.as {
   color: var(--ink);
+}
+
+.ascii-glitch-ripple.as .agr-char {
   text-shadow: 0 0 22px var(--accent-glow), 0 0 10px rgba(37, 99, 235, 0.4);
 }
 
-[data-theme="dark"] .ascii-glitch-ripple.as,
-:root:not([data-theme="light"]) .ascii-glitch-ripple.as {
-  color: var(--ink);
+[data-theme="dark"] .ascii-glitch-ripple.as .agr-char,
+:root:not([data-theme="light"]) .ascii-glitch-ripple.as .agr-char {
   text-shadow: 0 0 28px rgba(96, 165, 250, 0.45), 0 0 12px rgba(59, 130, 246, 0.6);
 }
 
