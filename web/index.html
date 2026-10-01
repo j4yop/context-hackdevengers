@@ -510,6 +510,22 @@
         </div>
       </div>
 
+      <!-- Mobile-only Stage Stepper Navigation -->
+      <div class="n8n-mobile-stepper" id="n8n-mobile-stepper" aria-label="Pipeline Stages Stepper">
+        <button type="button" class="n8n-stepper-btn active" data-stage="0">
+          <span class="stepper-idx">01</span> Ingest
+        </button>
+        <button type="button" class="n8n-stepper-btn" data-stage="1">
+          <span class="stepper-idx">02</span> State DAG
+        </button>
+        <button type="button" class="n8n-stepper-btn" data-stage="2">
+          <span class="stepper-idx">03</span> Compactor
+        </button>
+        <button type="button" class="n8n-stepper-btn" data-stage="3">
+          <span class="stepper-idx">04</span> Cache Align
+        </button>
+      </div>
+
       <div class="n8n-canvas-viewport" id="n8n-viewport" tabindex="0" role="region" aria-label="Interactive Context Pipeline Canvas">
         <div class="n8n-canvas-world" id="n8n-canvas-world">
           <svg class="n8n-svg-layer" id="n8n-svg-layer" aria-hidden="true"></svg>
@@ -2216,6 +2232,10 @@ syncThemeIcon();
       // Pointer drag handlers
       el.addEventListener('pointerdown', (e) => {
         if (e.button !== 0) return;
+        // On mobile touch screens, allow natural swipe and page scroll
+        if (window.innerWidth <= 768 && e.pointerType === 'touch') {
+          return;
+        }
         el.setPointerCapture(e.pointerId);
         el.classList.add('is-dragging');
         const startX = e.clientX;
@@ -2298,6 +2318,45 @@ syncThemeIcon();
     if (connCountEl) connCountEl.textContent = String(connections.length);
   }
 
+  // Mobile Stepper Navigation & Sync
+  const stepperBtns = document.querySelectorAll('.n8n-stepper-btn');
+  const stagePositions = [0, 270, 540, 810];
+
+  function setActiveStepper(idx) {
+    stepperBtns.forEach((btn, i) => {
+      btn.classList.toggle('active', i === idx);
+    });
+  }
+
+  stepperBtns.forEach((btn, idx) => {
+    btn.addEventListener('click', () => {
+      setActiveStepper(idx);
+      if (viewport) {
+        viewport.scrollTo({ left: stagePositions[idx] || 0, behavior: 'smooth' });
+      }
+    });
+  });
+
+  if (viewport) {
+    let scrollTimeout;
+    viewport.addEventListener('scroll', () => {
+      clearTimeout(scrollTimeout);
+      scrollTimeout = setTimeout(() => {
+        const cur = viewport.scrollLeft;
+        let closest = 0;
+        let minD = Infinity;
+        stagePositions.forEach((pos, idx) => {
+          const d = Math.abs(cur - pos);
+          if (d < minD) {
+            minD = d;
+            closest = idx;
+          }
+        });
+        setActiveStepper(closest);
+      }, 60);
+    }, { passive: true });
+  }
+
   if (resetBtn) {
     resetBtn.addEventListener('click', () => {
       nodes = JSON.parse(JSON.stringify(initialNodes));
@@ -2310,6 +2369,7 @@ syncThemeIcon();
       if (viewport) {
         viewport.scrollTo({ left: 0, behavior: 'smooth' });
       }
+      setActiveStepper(0);
     });
   }
 
