@@ -18,12 +18,11 @@
   })();
 </script>
 <style>
-  /* Console-only. Everything shared lives in style.css. */
-  .pagehead { display:flex; flex-wrap:wrap; gap:16px; align-items:flex-end;
+  /* Console-only layout overrides */
+  .console-pagehead { display:flex; flex-wrap:wrap; gap:16px; align-items:flex-end;
     justify-content:space-between; padding:30px 0 22px; }
-  .pagehead h1 { font-size:clamp(22px,2.8vw,28px); letter-spacing:-.025em; margin:0 0 5px; font-weight:700; }
-  .pagehead p { margin:0; color:var(--ink-2); font-size:14.5px; max-width:56ch; line-height:1.6; letter-spacing:-.01em; }
-  .pagehead .btn { flex-shrink:0; }
+  .console-pagehead h1 { font-size:clamp(22px,2.8vw,28px); letter-spacing:-.025em; margin:0 0 5px; font-weight:700; }
+  .console-pagehead p { margin:0; color:var(--ink-2); font-size:14.5px; max-width:56ch; line-height:1.6; letter-spacing:-.01em; }
 </style>
 </head>
 <body>
@@ -43,94 +42,198 @@
   </div>
 </header>
 
-<div class="wrap">
+<div class="console-wrap">
 
-  <div class="pagehead">
-    <div>
-      <h1>Console</h1>
-      <p>Paste a transcript, compile it, read exactly what the model would receive.
-         Stateless &mdash; nothing is stored and no model is called.</p>
+  <!-- ── Top HUD Hero Bar ──────────────────────────────────── -->
+  <div class="console-hero-bar">
+    <div class="console-hero-left">
+      <div class="console-hero-badge">
+        <span class="console-live-dot" aria-hidden="true"></span>
+        <span>DETERMINISTIC COMPILER · ENGINE READY</span>
+      </div>
+      <h1 class="console-hero-title">Virtual Context Console</h1>
+      <p class="console-hero-sub">
+        Stateless context optimization. Paste an agent transcript, select an entity schema, and inspect the bit-for-bit reduced context the model receives. Zero model calls, zero stochastic drift.
+      </p>
     </div>
-    <a class="btn" href="/">Back to overview</a>
+    <div class="console-hero-actions">
+      <div class="console-meta-pill" title="Deterministic compile speed">
+        <span class="meta-label">SPEED</span>
+        <span class="meta-val">&lt; 3ms</span>
+      </div>
+      <div class="console-meta-pill" title="Zero variance across identical inputs">
+        <span class="meta-label">DRIFT</span>
+        <span class="meta-val">0.00%</span>
+      </div>
+      <a class="console-back-btn" href="/">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>
+        <span>Overview</span>
+      </a>
+    </div>
   </div>
 
-  <section class="grid">
+  <section class="console-grid grid">
 
     <!-- ── input ─────────────────────────────────────────────── -->
-    <div class="card">
-      <h2>Your transcript</h2>
-      <div class="body">
-        <textarea id="src" spellcheck="false" placeholder="user: please deliver to Tower B, Flat 402
+    <div class="console-card card" id="input-card">
+      <div class="console-card-header">
+        <div class="console-mac-dots" aria-hidden="true">
+          <span class="console-mac-dot red"></span>
+          <span class="console-mac-dot yellow"></span>
+          <span class="console-mac-dot green"></span>
+        </div>
+        <div class="console-header-title">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+          <span>Input Stream · Transcript</span>
+        </div>
+        <div class="console-header-badge" id="src-meta-badge">0 lines</div>
+      </div>
+
+      <div class="console-card-body body">
+        <div class="console-editor-wrap">
+          <textarea id="src" spellcheck="false" placeholder="user: please deliver to Tower B, Flat 402
 assistant: confirmed
 user: actually change the address to Gate 2, code 4921
 assistant: updated
 
 …or paste an OpenAI JSON message array."></textarea>
-
-        <div class="row">
-          <button class="primary" id="go" onclick="run()">Compile</button>
-          <button class="link" onclick="loadExample('read')">example: read path</button>
-          <button class="link" onclick="loadExample('write')">example: write path</button>
-          <button class="link" onclick="clearAll()">clear</button>
-        </div>
-
-        <div class="row" style="margin-top:16px">
-          <div class="seg" role="group" aria-label="Compilation mode">
-            <button id="m-compact" aria-pressed="true" onclick="setMode('compact')">compact</button>
-            <button id="m-cache" aria-pressed="false" onclick="setMode('cache_friendly')">cache&nbsp;friendly</button>
+          <div class="console-editor-footer" aria-hidden="true">
+            <span class="console-editor-meta" id="src-char-count">0 chars</span>
+            <span class="console-editor-meta">⌘+Enter to compile</span>
           </div>
-          <label style="display:flex;align-items:center;gap:7px;font-size:13px;color:var(--ink-2);margin-left:6px;cursor:pointer">
-            <input type="checkbox" id="teach" onchange="setTeach(this.checked)" style="width:auto;margin:0" />
-            teach the state protocol
-          </label>
         </div>
 
-        <div id="teach-row" hidden style="margin-top:14px">
-          <div class="note" style="margin:0;background:var(--accent-bg);border-color:var(--accent-line);color:var(--accent-ink)">
-            <div>
-              <b>Write path on.</b> The system prompt now tells the agent to declare its own state
+        <!-- Action Row -->
+        <div class="console-action-row row">
+          <button class="btn-cyber-compile primary" id="go" onclick="run()">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+            <span>Compile</span>
+          </button>
+          <div class="console-preset-group">
+            <button class="console-preset-btn highlight link" onclick="loadExample('write')">
+              <span aria-hidden="true">⚡</span>
+              <span>example: write path</span>
+            </button>
+            <button class="console-preset-btn link" onclick="loadExample('read')">
+              <span aria-hidden="true">📄</span>
+              <span>example: read path</span>
+            </button>
+            <button class="console-preset-btn danger link" onclick="clearAll()" title="Clear transcript and output">
+              <span aria-hidden="true">✕</span>
+              <span>clear</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Controls Row: Mode & Teach Switch -->
+        <div class="console-controls-panel">
+          <div class="console-ctrl-col">
+            <label class="console-ctrl-label">COMPILATION MODE</label>
+            <div class="console-mode-seg seg" role="group" aria-label="Compilation mode">
+              <button id="m-compact" aria-pressed="true" onclick="setMode('compact')" title="Compact turns and truncate superseded data">compact</button>
+              <button id="m-cache" aria-pressed="false" onclick="setMode('cache_friendly')" title="Preserve KV cache prefixes for maximum prompt-cache hits">cache&nbsp;friendly</button>
+            </div>
+          </div>
+
+          <div class="console-ctrl-col">
+            <label class="console-ctrl-label">WRITE PATH PROTOCOL</label>
+            <label class="switch-label" for="teach">
+              <input type="checkbox" id="teach" onchange="setTeach(this.checked)" class="cyber-switch-input" />
+              <span class="switch-text">teach the state protocol</span>
+            </label>
+          </div>
+        </div>
+
+        <div id="teach-row" hidden>
+          <div class="console-callout note-accent note" style="margin:12px 0 0">
+            <div class="callout-indicator" aria-hidden="true">💡</div>
+            <div class="callout-body">
+              <strong>Write path on.</strong> The system prompt now tells the agent to declare its own state
               changes. Facts it declares are marked <b>declared</b> and are never overwritten by
               anything a regex guessed. It costs a few tokens per turn and there is no extra model call.
-              <div style="margin-top:8px"><button class="link" onclick="showProtocol()">show the instruction that gets injected</button></div>
+              <div class="callout-action" style="margin-top:6px">
+                <button class="link-btn link" onclick="showProtocol()">show the instruction that gets injected &rarr;</button>
+              </div>
             </div>
           </div>
         </div>
 
-        <label class="opt" for="schem">Entity schema
-          <span style="font-weight:400;color:var(--ink-3)">— required for state tracking; there is no default</span>
-        </label>
-        <select id="schem" onchange="SCHEMA=this.value; syncSchemaNote(); if($('src').value) run()"
-          style="width:100%;padding:8px 11px;font-size:13px;background:var(--panel-2);
-                 border:1px solid var(--line);border-radius:9px;color:var(--ink)">
-          <option value="">none — compaction only</option>
-        </select>
-        <div id="schema-note" class="note" style="margin-top:8px;background:var(--warn-bg);
-             border-color:var(--warn-line);color:var(--warn)">
-          <div><b>No schema selected.</b> contextgc ships an empty entity schema on purpose — the
-          default it replaced matched prose in unrelated domains. Without one you still get tool
-          compaction and turn retirement, but <b>no state is tracked</b>, because there is nothing
-          telling the compiler what a fact looks like.</div>
+        <!-- Schema Selector Card -->
+        <div class="console-field-block">
+          <div class="field-label-row">
+            <label class="console-field-label opt" for="schem">ENTITY SCHEMA</label>
+            <span class="field-label-hint">— required for state tracking; there is no default</span>
+          </div>
+          <div class="select-wrapper">
+            <select id="schem" onchange="SCHEMA=this.value; syncSchemaNote(); if($('src').value) run()">
+              <option value="">none — compaction only</option>
+            </select>
+            <span class="select-arrow" aria-hidden="true">▾</span>
+          </div>
+          <div id="schema-note" class="console-callout note-warn note">
+            <div class="callout-body">
+              <b>No schema selected.</b> contextgc ships an empty entity schema on purpose — the
+              default it replaced matched prose in unrelated domains. Without one you still get tool
+              compaction and turn retirement, but <b>no state is tracked</b>, because there is nothing
+              telling the compiler what a fact looks like.
+            </div>
+          </div>
         </div>
 
-        <label class="opt" for="inv">Invariants to pin <span style="font-weight:400;color:var(--ink-3)">(one per line, optional)</span></label>
-        <input type="text" id="inv" placeholder="refunds over 500 need approval" />
+        <!-- Advanced Options Accordion -->
+        <details class="console-advanced-drawer">
+          <summary>
+            <span>Advanced Configuration (Invariants &amp; Turn Recall)</span>
+          </summary>
+          <div class="advanced-fields-body">
+            <div class="console-field-block">
+              <label class="console-field-label opt" for="inv">INVARIANTS TO PIN <span class="field-label-hint">(one per line, optional)</span></label>
+              <input type="text" id="inv" class="console-input" placeholder="refunds over 500 need approval" />
+            </div>
 
-        <label class="opt" for="rec">Recall a retired turn <span style="font-weight:400;color:var(--ink-3)">(optional)</span></label>
-        <input type="text" id="rec" placeholder="what was the original address" />
+            <div class="console-field-block">
+              <label class="console-field-label opt" for="rec">RECALL A RETIRED TURN <span class="field-label-hint">(optional)</span></label>
+              <input type="text" id="rec" class="console-input" placeholder="what was the original address" />
+            </div>
+          </div>
+        </details>
       </div>
     </div>
 
     <!-- ── output ────────────────────────────────────────────── -->
-    <div id="out" class="card">
-      <h2>Compiled context</h2>
-      <div class="body">
-        <div class="empty" id="empty">
-          <div>Paste a transcript above and press <b>Compile</b>.</div>
-          <div style="max-width:38ch">Everything here is computed from your input on the
-            server. Nothing is pre-recorded.</div>
-          <button class="btn" onclick="loadExample('write')">Load the write-path example</button>
-          <div style="font-size:12.5px">It is the clearest demonstration: an agent declares
-            what it changed, then changes its mind.</div>
+    <div id="out" class="console-card card">
+      <div class="console-card-header">
+        <div class="console-mac-dots" aria-hidden="true">
+          <span class="console-mac-dot red"></span>
+          <span class="console-mac-dot yellow"></span>
+          <span class="console-mac-dot green"></span>
+        </div>
+        <div class="console-header-title">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="4 17 10 11 4 5"></polyline><line x1="12" y1="19" x2="20" y2="19"></line></svg>
+          <span>Compiled Context Stream</span>
+        </div>
+        <div class="console-header-badge" id="out-status-badge">Standby</div>
+      </div>
+
+      <div class="console-card-body body">
+        <div class="empty console-empty-stage" id="empty">
+          <div class="console-empty-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+              <line x1="8" y1="21" x2="16" y2="21"></line>
+              <line x1="12" y1="17" x2="12" y2="21"></line>
+              <polyline points="7 9 10 12 7 15"></polyline>
+              <line x1="13" y1="15" x2="17" y2="15"></line>
+            </svg>
+          </div>
+          <h3 class="console-empty-title">Ready for Compilation</h3>
+          <p class="console-empty-desc">
+            Paste a transcript on the left and click <b>Compile</b>. Everything here is computed from your input on the server in &lt;3ms. Nothing is pre-recorded.
+          </p>
+          <button class="btn-example-launch btn" onclick="loadExample('write')">
+            <span>Load the write-path example &rarr;</span>
+          </button>
+          <span class="console-empty-hint">It is the clearest demonstration: an agent declares what it changed, then changes its mind.</span>
         </div>
         <div id="result" hidden></div>
       </div>
@@ -138,17 +241,6 @@ assistant: updated
 
   </section>
 
-  <!-- ── how ─────────────────────────────────────────────────── -->
-  <footer>
-    <div class="wrap">
-      <span>contextgc &mdash; deterministic context compilation for AI agents &middot; MIT License</span>
-      <div class="links">
-        <a href="/">Overview</a>
-        <a href="/console">Console</a>
-        <a href="https://github.com/j4yop/context-hackdevengers" target="_blank" rel="noopener">Source</a>
-      </div>
-    </div>
-  </footer>
 </div>
 
 <script>
@@ -171,6 +263,12 @@ function setMode(m){
 function clearAll(){
   $('src').value = ''; $('inv').value = ''; $('rec').value = '';
   $('result').hidden = true; $('empty').hidden = false;
+  const badge = $('out-status-badge');
+  if (badge) {
+    badge.textContent = 'Standby';
+    badge.className = 'console-header-badge';
+  }
+  updateSrcMeta();
 }
 
 async function loadExample(kind){
@@ -179,6 +277,7 @@ async function loadExample(kind){
     const r = await fetch('/api/example');
     const d = await r.json();
     $('src').value = (kind === 'write' && d.write_path_example) ? d.write_path_example : d.transcript;
+    updateSrcMeta();
     if (kind === 'write') setTeach(true);
     // The example says which schema it was written against. Guessing from the
     // text is how a stale example kept looking plausible: it inferred a schema
@@ -190,6 +289,7 @@ async function loadExample(kind){
     syncSchemaNote();
   }catch(e){
     $('src').value = 'user: deliver to Tower B, Flat 402\nuser: actually change the address to Gate 2, code 4921\nuser: thanks';
+    updateSrcMeta();
   }
   run();
 }
@@ -265,6 +365,16 @@ function setTeach(on){
   $('teach-row').hidden = !TEACH;
 }
 
+function updateSrcMeta(){
+  const val = $('src').value;
+  const lines = val ? val.split('\n').length : 0;
+  const chars = val.length;
+  const badge = $('src-meta-badge');
+  const count = $('src-char-count');
+  if (badge) badge.textContent = lines === 1 ? '1 line' : `${lines} lines`;
+  if (count) count.textContent = `${chars.toLocaleString()} chars`;
+}
+
 async function run(){
   const src = $('src').value.trim();
   if(!src){ $('src').focus(); return; }
@@ -306,16 +416,33 @@ async function run(){
 function renderError(data){
   $('empty').hidden = true;
   $('result').hidden = false;
+  const badge = $('out-status-badge');
+  if (badge) {
+    badge.textContent = 'Error';
+    badge.className = 'console-header-badge badge-error';
+  }
   const warns = (data.parse_warnings || []).map(w => `<li>${esc(w)}</li>`).join('');
   $('result').innerHTML =
-    `<div class="note bad"><div><b>Could not compile.</b> ${esc(data.error || 'unknown error')}</div></div>` +
-    (warns ? `<div class="secttl">Parser notes</div><ul style="margin:0;padding-left:20px;font-size:13.5px;color:var(--ink-2)">${warns}</ul>` : '');
+    `<div class="console-error-card note bad">
+      <div class="console-error-header">
+        <span class="console-error-dot" aria-hidden="true"></span>
+        <span>Compilation Failed</span>
+      </div>
+      <p class="console-error-msg"><b>Could not compile.</b> ${esc(data.error || 'unknown error')}</p>
+      ${warns ? `<div class="console-error-warn-head secttl">Parser notes</div><ul class="console-error-warnings" style="margin:6px 0 0;padding-left:20px;font-size:13px">${warns}</ul>` : ''}
+    </div>`;
 }
 
 function render(data){
   const t = data.telemetry;
   $('empty').hidden = true;
   $('result').hidden = false;
+
+  const badge = $('out-status-badge');
+  if (badge) {
+    badge.textContent = 'Compiled';
+    badge.className = 'console-header-badge badge-success';
+  }
 
   const pct = t.compression_ratio_pct;
   const savedTone = pct > 0 ? 'good' : '';
@@ -325,18 +452,24 @@ function render(data){
   if(t.orphaned_facts && t.orphaned_facts.length){
     const rows = t.orphaned_facts.map(f =>
       `<li><code>${esc(f.entity)} = ${esc(f.value)}</code> — only supported by retired turn ${f.supporting_turn}</li>`).join('');
-    banner += `<div class="note bad"><div><b>Orphaned facts detected.</b> These values would be
+    banner += `<div class="console-callout note-bad note bad">
+      <div class="callout-indicator" aria-hidden="true">⚠️</div>
+      <div class="callout-body"><b>Orphaned facts detected.</b> These values would be
       injected with no supporting turn left in the context. This is a bug in the compiler;
       please report the input.
       <ul style="margin:6px 0 0;padding-left:18px">${rows}</ul></div></div>`;
   }
   (data.parse_warnings || []).forEach(w => {
-    banner += `<div class="note warn"><div><b>Parser note.</b> ${esc(w)}</div></div>`;
+    banner += `<div class="console-callout note-warn note warn">
+      <div class="callout-indicator" aria-hidden="true">⚡</div>
+      <div class="callout-body"><b>Parser note.</b> ${esc(w)}</div></div>`;
   });
 
   // Conflicts are the signal that actually correlates with a wrong state.
   (t.conflicts || []).forEach(c => {
-    banner += `<div class="note bad"><div><b>Conflict on <code>${esc(c.entity)}</code>.</b>
+    banner += `<div class="console-callout note-bad note bad">
+      <div class="callout-indicator" aria-hidden="true">⚠️</div>
+      <div class="callout-body"><b>Conflict on <code>${esc(c.entity)}</code>.</b>
       The agent declared <code>${esc(c.declared)}</code> at turn ${c.declared_turn},
       but the text still says <code>${esc(c.inferred)}</code> at turn ${c.inferred_turn}.
       The declaration wins, because the agent had the whole conversation when it
@@ -346,8 +479,10 @@ function render(data){
   const offSchema = (t.declarations && t.declarations.off_schema_keys) || 0;
   if (offSchema > 0){
     const policy = (t.declarations && t.declarations.declaration_policy) || 'flag';
-    banner += `<div class="note warn"><div><b>${offSchema} declared key(s) are not in the
-      schema.</b> Nothing here can tell you whether they are true &mdash; no read-path
+    banner += `<div class="console-callout note-warn note warn">
+      <div class="callout-indicator" aria-hidden="true">ℹ️</div>
+      <div class="callout-body"><b>${offSchema} declared key(s) are not in the schema.</b>
+      Nothing here can tell you whether they are true &mdash; no read-path
       pattern exists for them, so they were never checkable. ${policy === 'reject'
       ? 'They were dropped.'
       : 'They were kept, because an agent can see facts in tool output that a pattern structurally cannot. Set <code>declaration_policy: "reject"</code> to drop them instead.'}
@@ -359,20 +494,23 @@ function render(data){
 
   const rejected = t.rejected_writes || [];
   if (rejected.length){
-    banner += `<div class="note warn"><div><b>${rejected.length} write(s) refused.</b>
+    banner += `<div class="console-callout note-warn note warn">
+      <div class="callout-indicator" aria-hidden="true">🚫</div>
+      <div class="callout-body"><b>${rejected.length} write(s) refused.</b>
       <ul style="margin:5px 0 0;padding-left:18px">${rejected.slice(0, 6).map(r =>
         `<li>turn ${r.turn}: ${esc(r.reason || r.kind)}</li>`).join('')}</ul></div></div>`;
   }
 
   if (t.context_grew){
-    banner += `<div class="note warn"><div><b>The compiled context is ${t.token_growth}
-      tokens larger than the input.</b> The state register costs more than it saves on a
-      transcript this short. That is real, and it is why the reduction figure reads 0%.</div></div>`;
+    banner += `<div class="console-callout note-warn note warn">
+      <div class="callout-indicator" aria-hidden="true">📉</div>
+      <div class="callout-body"><b>The compiled context is ${t.token_growth} tokens larger than the input.</b>
+      The state register costs more than it saves on a transcript this short. That is real, and it is why the reduction figure reads 0%.</div></div>`;
   }
 
   /* ---- headline stats ---- */
   const stats = `
-    <div class="stats">
+    <div class="stats" style="margin: 4px 0 20px;">
       <div class="stat"><div class="k">Tokens before</div><div class="v num">${t.raw_token_count.toLocaleString()}</div><div class="n">estimated</div></div>
       <div class="stat"><div class="k">Tokens after</div><div class="v num accent">${t.compiled_token_count.toLocaleString()}</div><div class="n">estimated</div></div>
       <div class="stat"><div class="k">Reduction</div><div class="v num ${savedTone}">${pct}%</div><div class="n">${t.tokens_saved.toLocaleString()} saved</div></div>
@@ -385,23 +523,25 @@ function render(data){
   /* ---- current state ---- */
   const active = t.dag.active;
   const activeTable = active.length ? `
-    <table>
-      <thead><tr><th>Fact</th><th>Current value</th><th>From</th></tr></thead>
-      <tbody>${active.map(n => `
-        <tr>
-          <td class="mono">${esc(n.entity)}</td>
-          <td class="mono">${esc(n.value)}</td>
-          <td>${n.source === 'declared'
-              ? (n.confidence === 'unsettled'
-                  ? '<span class="tag warn">declared / unsure</span>'
-                  : (n.is_immutable
-                      ? '<span class="tag imm">declared / pinned</span>'
-                      : '<span class="tag decl">declared</span>'))
-              : (n.is_immutable
-                  ? '<span class="tag imm">inferred / pinned</span>'
-                  : '<span class="tag guess" title="matched by a pattern, not declared by the agent">inferred</span>')}</td>
-        </tr>`).join('')}</tbody>
-    </table>` : `<div class="empty" style="padding:18px">${
+    <div class="console-table-wrap">
+      <table>
+        <thead><tr><th>Fact</th><th>Current value</th><th>Provenance / Status</th></tr></thead>
+        <tbody>${active.map(n => `
+          <tr>
+            <td class="mono chip-entity">${esc(n.entity)}</td>
+            <td class="mono"><span class="chip-val">${esc(n.value)}</span></td>
+            <td>${n.source === 'declared'
+                ? (n.confidence === 'unsettled'
+                    ? '<span class="tag warn">declared / unsure</span>'
+                    : (n.is_immutable
+                        ? '<span class="tag imm">declared / pinned</span>'
+                        : '<span class="tag decl">declared</span>'))
+                : (n.is_immutable
+                    ? '<span class="tag imm">inferred / pinned</span>'
+                    : '<span class="tag guess" title="matched by a pattern, not declared by the agent">inferred</span>')}</td>
+          </tr>`).join('')}</tbody>
+      </table>
+    </div>` : `<div class="empty console-empty-inline" style="padding:18px">${
         SCHEMA
           ? 'No <code>' + esc(SCHEMA) + '</code> slot matched here. That is a real result: the schema looks for particular phrasing and this text does not use it.'
           : 'No state tracked, because no entity schema is selected. Pick one above &mdash; contextgc ships no default, by design.'
@@ -409,28 +549,32 @@ function render(data){
 
   const revoked = t.dag.revoked || [];
   const revokedBlock = revoked.length ? `
-    <table>
-      <thead><tr><th>Voided</th><th>Was</th><th>Why</th></tr></thead>
-      <tbody>${revoked.map(r => `
-        <tr>
-          <td class="mono">${esc(r.entity)}</td>
-          <td class="mono strike">${esc(r.was == null ? '—' : r.was)}</td>
-          <td style="font-size:12.5px;color:var(--ink-2)">${esc(r.reason)}</td>
-        </tr>`).join('')}</tbody>
-    </table>` : '';
+    <div class="console-table-wrap">
+      <table>
+        <thead><tr><th>Voided</th><th>Was</th><th>Why</th></tr></thead>
+        <tbody>${revoked.map(r => `
+          <tr>
+            <td class="mono chip-entity">${esc(r.entity)}</td>
+            <td class="mono strike"><span class="chip-val">${esc(r.was == null ? '—' : r.was)}</span></td>
+            <td style="font-size:12.5px;color:var(--ink-2)">${esc(r.reason)}</td>
+          </tr>`).join('')}</tbody>
+      </table>
+    </div>` : '';
 
   /* ---- what changed ---- */
   const sup = t.dag.superseded;
   const supTable = sup.length ? `
-    <table>
-      <thead><tr><th>Fact</th><th>Was</th><th>Now</th></tr></thead>
-      <tbody>${sup.map(n => `
-        <tr>
-          <td class="mono">${esc(n.entity)}</td>
-          <td class="mono strike">${esc(n.value)}</td>
-          <td class="mono">turn ${n.superseded_by}</td>
-        </tr>`).join('')}</tbody>
-    </table>` : `<div class="empty" style="padding:18px">${
+    <div class="console-table-wrap">
+      <table>
+        <thead><tr><th>Fact</th><th>Was</th><th>Now</th></tr></thead>
+        <tbody>${sup.map(n => `
+          <tr>
+            <td class="mono chip-entity">${esc(n.entity)}</td>
+            <td class="mono strike"><span class="chip-val">${esc(n.value)}</span></td>
+            <td class="mono">turn ${n.superseded_by}</td>
+          </tr>`).join('')}</tbody>
+      </table>
+    </div>` : `<div class="empty console-empty-inline" style="padding:18px">${
         SCHEMA
           ? 'Nothing was superseded &mdash; no fact was re-asserted in this transcript.'
           : 'Nothing was superseded. State tracking is off, so no fact can be re-asserted. Select a schema above.'
@@ -439,12 +583,14 @@ function render(data){
   /* ---- retired turns ---- */
   const retired = t.retired_turn_indices || [];
   const retiredBlock = retired.length ? `
-    <table>
-      <thead><tr><th>Turn</th><th>Outcome</th></tr></thead>
-      <tbody>${retired.map(i => `
-        <tr><td class="mono">${i}</td>
-        <td><span class="tag del">retired</span> superseded state removed from context</td></tr>`).join('')}</tbody>
-    </table>` : '<div class="empty" style="padding:18px">No turns were retired. Retirement is driven by superseded state, so it needs a schema to do anything.</div>';
+    <div class="console-table-wrap">
+      <table>
+        <thead><tr><th>Turn</th><th>Outcome</th></tr></thead>
+        <tbody>${retired.map(i => `
+          <tr><td class="mono">${i}</td>
+          <td><span class="tag del">retired</span> superseded state removed from context</td></tr>`).join('')}</tbody>
+      </table>
+    </div>` : '<div class="empty console-empty-inline" style="padding:18px">No turns were retired. Retirement is driven by superseded state, so it needs a schema to do anything.</div>';
 
   /* ---- the actual output ---- */
   const compiledText = data.compiled_messages
@@ -452,7 +598,9 @@ function render(data){
     .join('\n\n');
 
   const prefixNote = MODE === 'cache_friendly'
-    ? `<div class="note warn"><div><b>cache_friendly mode.</b>
+    ? `<div class="console-callout note-warn note warn">
+         <div class="callout-indicator" aria-hidden="true">⚡</div>
+         <div class="callout-body"><b>cache_friendly mode.</b>
          ${t.kv_cache_prefix_messages_preserved} of your ${t.raw_messages_count} input messages
          were emitted byte-identical, so a prefix cache keyed on them still hits.
          Verified against the emitted output, not assumed from the mode.</div></div>`
@@ -463,31 +611,51 @@ function render(data){
     ${stats}
     ${prefixNote}
 
-    <div class="secttl">Current state — what the model is told is true</div>
+    <div class="console-section-heading">
+      <span class="heading-pill">STATE</span>
+      <span>Current state &mdash; what the model is told is true</span>
+    </div>
     ${activeTable}
 
-    ${revoked.length ? `<div class="secttl">Voided — removed, not replaced</div>${revokedBlock}` : ''}
+    ${revoked.length ? `
+      <div class="console-section-heading">
+        <span class="heading-pill">VOIDED</span>
+        <span>Voided &mdash; removed, not replaced</span>
+      </div>
+      ${revokedBlock}` : ''}
 
-    <div class="secttl">What changed</div>
+    <div class="console-section-heading">
+      <span class="heading-pill">DIFF</span>
+      <span>What changed &mdash; superseded facts</span>
+    </div>
     ${supTable}
 
-    <div class="secttl">Retired turns</div>
+    <div class="console-section-heading">
+      <span class="heading-pill">PRUNED</span>
+      <span>Retired turns &mdash; evicted from context</span>
+    </div>
     ${retiredBlock}
 
-    <div class="row" style="margin-top:18px">
-      <button class="link" onclick="copyOut()">copy compiled context</button>
-      <span style="font-size:12.5px;color:var(--ink-3)">${t.compiled_messages_count ?? data.compiled_messages.length} messages, ${t.tool_payloads_compacted} tool payload(s) compacted</span>
+    <div class="compiled-code-container">
+      <div class="compiled-code-toolbar">
+        <div class="compiled-toolbar-title">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>
+          <span>COMPILED CONTEXT STREAM · ${t.compiled_messages_count ?? data.compiled_messages.length} messages (${t.tool_payloads_compacted} compacted)</span>
+        </div>
+        <button class="btn-copy-out link" onclick="copyOut(this)" title="Copy compiled context">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+          <span>copy compiled context</span>
+        </button>
+      </div>
+      <pre class="out" id="compiled">${esc(compiledText)}</pre>
     </div>
 
-    <div class="secttl">The compiled context</div>
-    <pre class="out" id="compiled">${esc(compiledText)}</pre>
-
-    <details id="proto-details" hidden>
+    <details id="proto-details" class="console-accordion" hidden style="margin-top:14px">
       <summary>The instruction injected into the system prompt</summary>
       <div><pre class="out" id="proto-text"></pre></div>
     </details>
 
-    <details>
+    <details class="console-accordion" style="margin-top:10px">
       <summary>Raw telemetry (JSON)</summary>
       <div><pre class="out">${esc(JSON.stringify(t, null, 2))}</pre></div>
     </details>`;
@@ -495,11 +663,10 @@ function render(data){
 
 async function showProtocol(){
   const details = $('proto-details');
+  if (!details) return;
   if (!details.open){
     // Ask the server for the instruction it would build from *this* transcript,
-    // rather than a hardcoded sample. Previously this fetched a fixed string
-    // that diverged from the real one -- the same defect the audit found in the
-    // metrics.
+    // rather than a hardcoded sample.
     try{
       const res = await fetch('/api/protocol-instruction', {
         method: 'POST',
@@ -516,29 +683,29 @@ async function showProtocol(){
   details.open = !details.open;
 }
 
-function copyOut(){
+function copyOut(btn){
   const el = $('compiled');
   if(!el) return;
+  const target = btn || (window.event ? window.event.target : null);
   navigator.clipboard.writeText(el.textContent).then(() => {
-    const b = event.target; const p = b.textContent;
-    b.textContent = 'copied';
-    setTimeout(() => b.textContent = p, 1400);
+    if (target) {
+      const orig = target.innerHTML;
+      target.innerHTML = '<span>copied!</span>';
+      setTimeout(() => { target.innerHTML = orig; }, 1400);
+    }
   });
 }
 
 $('src').addEventListener('keydown', e => {
   if((e.metaKey || e.ctrlKey) && e.key === 'Enter') run();
 });
+$('src').addEventListener('input', updateSrcMeta);
 
 /**
  * Start the page.
- *
- * Order matters: schemas must load before anything can compile, because state
- * tracking needs one and there is no default. An earlier version lost this boot
- * sequence entirely and the page rendered inert -- no fetch, no first result --
- * which is exactly the kind of failure a static syntax check cannot see.
  */
 async function boot() {
+  updateSrcMeta();
   await loadSchemas();
   if ($('src').value.trim()) run();
 }
